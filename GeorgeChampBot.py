@@ -124,7 +124,7 @@ async def on_message(message):
         return None
     elif message.content.startswith('!plshelp'):
         try:
-            help_msg = "Alright kiddo here's the list of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page#> - All time scores"
+            help_msg = "Here's the list of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page#> - All time scores"
             await message.channel.send(help_msg)
         except Exception:
             await message.channel.send("Something went wrong... It's not your fault though, blame George.")

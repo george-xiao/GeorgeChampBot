@@ -19,6 +19,7 @@ ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
 ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
 ANNOUNCEMENT_HOUR = int(os.getenv('ANNOUNCEMENT_HOUR'))
 ANNOUNCEMENT_MIN = int(os.getenv('ANNOUNCEMENT_MIN'))
+WELCOME_CHANNEL = os.getenv('WELCOME_CHANNEL')
 
 client = discord.Client()
 s = shelve.open('weekly_georgechamp_shelf.db')
@@ -116,6 +117,22 @@ async def on_ready():
 
         await asyncio.sleep(30)
 
+
+@client.event
+async def on_member_join(member):
+    channel = ""
+    try:
+        guilds = client.guilds
+        for guild in guilds:
+            if guild.name == GUILD:
+                for guild_channel in guild.channels:
+                    if guild_channel.name == WELCOME_CHANNEL:
+                        # channel type = channel model
+                        channel = guild_channel
+
+        await channel.send("Welcome " + member.display_name + "!")
+    except Exception:
+        await channel.send("Someone joined but something went wrong... Blame George.")
 
 
 @client.event

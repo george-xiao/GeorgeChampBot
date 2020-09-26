@@ -56,4 +56,4 @@ python GeorgeChampBot.py
 * **George Xiao** - [george-xiao](https://github.com/george-xiao)
 * **Symoom Saad** - [PSYmoom](https://github.com/PSYmoom)
 * **Maaz Mazharul** - [mmaaz1](https://github.com/mmaaz1)
-* **Steven Aung**
+* **Steven Aung** - [teiian](https://github.com/teiian)

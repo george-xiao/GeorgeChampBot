@@ -136,6 +136,23 @@ async def on_member_join(member):
 
 
 @client.event
+async def on_disconnect():
+    channel = ""
+    try:
+        guilds = client.guilds
+        for guild in guilds:
+            if guild.name == GUILD:
+                for guild_channel in guild.channels:
+                    if guild_channel.name == WELCOME_CHANNEL:
+                        # channel type = channel model
+                        channel = guild_channel
+
+        await channel.send("GeorgeChampBot signing out.")
+    except Exception:
+        await channel.send("I believe I am leaving but something went wrong... Blame George.")
+
+
+@client.event
 async def on_message(message):
     if message.author == client.user:
         return None

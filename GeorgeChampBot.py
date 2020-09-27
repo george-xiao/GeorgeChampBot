@@ -181,6 +181,8 @@ async def on_message(message):
             start += (increment - 1) * 10
             end += (increment - 1) * 10
 
+        curr_page_num = (start / 10) + 1
+        total_page_num = len(dict(s_all_time).keys())/10 + 1
         most_used_emotes = dict(sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[start:end])
         keys = []
         key_vals = []
@@ -191,7 +193,7 @@ async def on_message(message):
         if len(keys) == 0:
             await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
         else:
-            leaderboard_msg = "Here's the all time leaderboard! \nEmote - Score \n"
+            leaderboard_msg = "Here's the all time leaderboard! - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
             for i in range(10):
                 if (i < len(keys)):
                     placement = start + i + 1

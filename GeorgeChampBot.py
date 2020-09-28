@@ -20,6 +20,7 @@ ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
 ANNOUNCEMENT_HOUR = int(os.getenv('ANNOUNCEMENT_HOUR'))
 ANNOUNCEMENT_MIN = int(os.getenv('ANNOUNCEMENT_MIN'))
 WELCOME_CHANNEL = os.getenv('WELCOME_CHANNEL')
+WELCOME_ROLE = os.getenv("WELCOME_ROLE")
 
 client = discord.Client()
 s = shelve.open('weekly_georgechamp_shelf.db')
@@ -130,9 +131,11 @@ async def on_member_join(member):
                         # channel type = channel model
                         channel = guild_channel
 
+        await member.add_roles(discord.utils.get(member.guild.roles, name=WELCOME_ROLE))
+    except Exception as e:
+        await channel.send('There was an error running this command ' + str(e))  # if error
+    else:
         await channel.send("Welcome " + member.display_name + "!")
-    except Exception:
-        await channel.send("Someone joined but something went wrong... Blame George.")
 
 
 @client.event

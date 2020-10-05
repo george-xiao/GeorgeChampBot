@@ -1,6 +1,6 @@
 # GeorgeChampBot
 
-GeorgeChampBot, a discord bot that tracks emoji usage
+GeorgeChampBot, a multi-purpose discord bot
 
 ## Getting Started
 
@@ -21,11 +21,13 @@ Requirements:
 [discord.py](https://discordpy.readthedocs.io/en/latest/) - a modern, easy to use, feature-rich, and async ready API wrapper for Discord.  
 [dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from a .env file  
 [emoji](https://pypi.org/project/emoji/) - emojis for Python
+[reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
 
 ```
 pip install discord.py
 pip install python-dotenv
 pip install emoji
+pip install requests
 ```
 
 Environment:  

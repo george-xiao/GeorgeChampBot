@@ -83,7 +83,7 @@ async def announcement_task():
     keys = []
     key_vals = []
     for key in most_used_emotes.keys():
-        keys.appendp(key)
+        keys.append(key)
         key_vals.append(most_used_emotes[key])
 
     leaderboard_msg = "Here's the weekly emote update! \nEmote - Score \n"
@@ -109,16 +109,16 @@ async def check_recent_matches():
             if res.status_code == 200:
                 recent_matches = res.json()
                 for match in recent_matches:
-                    # if game in last ~15 minutes, extra 10s just in case something breaks idk
-                    if curr_epoch_time - (match['start_time'] + match['duration']) < 910:
-                        match_ids.append(match['match_id'])
+                    # if game in last 1h + 10s
+                    if curr_epoch_time - (int(match['start_time']) + int(match['duration'])) < 3610:
+                        match_ids.append(str(match['match_id']))
 
                 for match_id in match_ids:
                     if dota_shelf.get(match_id) is None:
                         await channel.send("Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(match_id))
                         dota_shelf[match_id] = 1
-        except Exception:
-            print("uh oh, error")
+        except Exception as e:
+            await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
 
 
 
@@ -149,7 +149,8 @@ async def on_ready():
         if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
             await announcement_task()
 
-        elif curr_date.minute == 32:
+        # what min of hour should u check
+        elif curr_date.minute == 00:
             await check_recent_matches()
 
         await asyncio.sleep(55)

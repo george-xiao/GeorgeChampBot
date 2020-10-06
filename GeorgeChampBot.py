@@ -87,7 +87,7 @@ async def announcement_task():
         keys.append(key)
         key_vals.append(most_used_emotes[key])
 
-    leaderboard_msg = "Here's the weekly emote update! \nEmote - Score \n"
+    leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
     for i in range(5):
         if (i < len(keys)):
             leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
@@ -95,7 +95,6 @@ async def announcement_task():
     await channel.send(leaderboard_msg)
 
     s.clear()
-    s_all_time.clear()
 
 
 async def check_recent_matches():
@@ -164,14 +163,14 @@ async def on_member_join(member):
     except Exception as e:
         await channel.send('There was an error running this command ' + str(e))  # if error
     else:
-        await channel.send("Welcome " + member.display_name + "!")
+        await channel.send("Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
 
 
 @client.event
 async def on_disconnect():
     channel = await find_channel(WELCOME_CHANNEL)
     try:
-        await channel.send("GeorgeChampBot signing out.")
+        await channel.send("GeorgeChampBot signing out!")
     except Exception:
         await channel.send("I believe I am leaving but something went wrong... Blame George.")
 
@@ -182,7 +181,7 @@ async def on_message(message):
         return None
     elif message.content.startswith('!plshelp'):
         try:
-            help_msg = "Here's the list of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page#> - All time scores"
+            help_msg = "List of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page#> - All time scores"
             await message.channel.send(help_msg)
         except Exception:
             await message.channel.send("Something went wrong... It's not your fault though, blame George.")
@@ -215,9 +214,9 @@ async def on_message(message):
             key_vals.append(most_used_emotes[key])
 
         if len(keys) == 0:
-            await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
+            await message.channel.send("Doesn't look like there are emojis here :trisad2:. Try another page.")
         else:
-            leaderboard_msg = "Here's the all time leaderboard! - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
+            leaderboard_msg = "All time leaderboard: - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
             for i in range(10):
                 if (i < len(keys)):
                     placement = start + i + 1

@@ -27,7 +27,8 @@ DOTA_CHANNEL = os.getenv("DOTA_CHANNEL")
 PLAYER_1_ID = os.getenv('PLAYER_1_ID')
 PLAYER_2_ID = os.getenv('PLAYER_2_ID')
 PLAYER_3_ID = os.getenv('PLAYER_3_ID')
-player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID]
+PLAYER_4_ID = os.getenv('PLAYER_4_ID')
+player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
 
 
 client = discord.Client()

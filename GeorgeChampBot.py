@@ -37,6 +37,7 @@ s_all_time = shelve.open('all_time_georgechamp_shelf.db')
 dota_shelf = shelve.open('dota_shelf.db')
 
 open_dota_players_url = "https://api.opendota.com/api/players/"
+deleteMsg = None
 
 def score_algorithm(emoji_count):
     return 0.61 + (1.37 * math.log(emoji_count))
@@ -92,7 +93,10 @@ async def announcement_task():
         if (i < len(keys)):
             leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
 
-    await channel.send(leaderboard_msg)
+    global deleteMsg
+    if(deleteMsg!=None):
+        deleteMsg.delete()
+    deleteMsg = await channel.send(leaderboard_msg)
 
     s.clear()
 

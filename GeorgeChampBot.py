@@ -34,7 +34,6 @@ player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
 client = discord.Client()
 s = shelve.open('weekly_georgechamp_shelf.db')
 s_all_time = shelve.open('all_time_georgechamp_shelf.db')
-dota_shelf = shelve.open('dota_shelf.db')
 
 open_dota_players_url = "https://api.opendota.com/api/players/"
 deleteMsg = None
@@ -104,23 +103,21 @@ async def announcement_task():
 async def check_recent_matches():
     curr_epoch_time = int(datetime.now().timestamp())
     channel = await find_channel(DOTA_CHANNEL)
-    match_ids = []
-    dota_shelf_as_dict = dict(dota_shelf)
     hed = {'Authorization': 'Bearer ' + OPENDOTA_API_KEY}
     for player in player_list:
         try:
+            match_ids = []
             res = requests.get(open_dota_players_url + player + '/recentMatches', headers=hed)
             if res.status_code == 200:
                 recent_matches = res.json()
                 for match in recent_matches:
-                    # if game in last 1h + 10s
+                    # if game in last 3610s (1h + 10s)
                     if curr_epoch_time - (int(match['start_time']) + int(match['duration'])) < 3610:
                         match_ids.append(str(match['match_id']))
 
+                match_ids = list(dict.fromkeys(match_ids))
                 for match_id in match_ids:
-                    if dota_shelf.get(match_id) is None:
-                        await channel.send("Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(match_id))
-                        dota_shelf[match_id] = 1
+                    await channel.send("Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(match_id))
         except Exception as e:
             await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
 

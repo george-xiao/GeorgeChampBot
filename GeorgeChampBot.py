@@ -215,7 +215,7 @@ async def on_message(message):
             key_vals.append(most_used_emotes[key])
 
         if len(keys) == 0:
-            await message.channel.send("Doesn't look like there are emojis here :trisad2:. Try another page.")
+            await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
         else:
             leaderboard_msg = "All time leaderboard: - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
             for i in range(10):

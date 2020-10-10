@@ -12,6 +12,7 @@ import os
 import re
 import requests
 import shelve
+import twitch
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -29,8 +30,14 @@ PLAYER_2_ID = os.getenv('PLAYER_2_ID')
 PLAYER_3_ID = os.getenv('PLAYER_3_ID')
 PLAYER_4_ID = os.getenv('PLAYER_4_ID')
 player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
+TWITCH_OAUTH_TOKEN = os.getenv('TWITCH_OAUTH_TOKEN')
+TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
+TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
+TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
+twitch_user_list = [TWITCH_USER_1, TWITCH_USER_2]
+twitch_curr_live = []
 
-
+twitch_helix = twitch.TwitchHelix(client_id=TWITCH_CLIENT_ID, oauth_token=TWITCH_OAUTH_TOKEN)
 client = discord.Client()
 s = shelve.open('weekly_georgechamp_shelf.db')
 s_all_time = shelve.open('all_time_georgechamp_shelf.db')
@@ -73,9 +80,23 @@ async def find_channel(channel_name):
                     return guild_channel
 
 
+async def check_twitch_live():
+    try:
+        global twitch_curr_live
+        channel = await find_channel(WELCOME_CHANNEL)
+        res = twitch_helix.get_streams(user_logins=twitch_user_list)
+        live_streams = []
+        for stream_index in range(len(res)):
+            live_streams.append(res[stream_index].user_name)
+            if res[stream_index].user_name not in twitch_curr_live:
+                await channel.send(res[stream_index].user_name + ' is live with ' + str(res[stream_index].viewer_count) + ' viewers! Go support them at https://twitch.tv/' + res[stream_index].user_name)
+
+        twitch_curr_live = live_streams
+    except Exception as e:
+        print(e)
+
+
 async def announcement_task():
-    print("it rly should print :)")
-    guilds = client.guilds
     channel = await find_channel(ANNOUNCEMENT_CHANNEL)
 
     shelf_as_dict = dict(s)
@@ -144,6 +165,7 @@ async def on_ready():
     await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
 
     while 1:
+        await check_twitch_live()
         # seconds/week
         curr_date = datetime.now()
         # if announcement time, assume it'll be on the hour e.g. 9:00am

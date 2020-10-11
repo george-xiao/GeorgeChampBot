@@ -22,17 +22,18 @@ Requirements:
 [dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from a .env file  
 [emoji](https://pypi.org/project/emoji/) - emojis for Python
 [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
-
+[python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 ```
 pip install discord.py
 pip install python-dotenv
 pip install emoji
 pip install requests
+pip install python-twitch-client
 ```
 
 Environment:  
   
-In .env, provide the bot token, discord, guild (server) name, announcement channel name (for weekly updates), and announcement time.
+In .env, provide the required fields.
 
 Use the following command to start the bot:
 
@@ -50,7 +51,9 @@ python GeorgeChampBot.py
 * [math](https://docs.python.org/3/library/math.html) - mathematical functions defined by the C standard
 * [operator](https://docs.python.org/3/library/operator.html) - set of efficient functions corresponding to the intrinsic operators of Python
 * [os](https://docs.python.org/3/library/os.html) - operating system dependent functionality
+* [python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 * [re](https://docs.python.org/3/library/re.html) - regular expression matching operations
+* [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
 * [shelve](https://docs.python.org/3/library/shelve.html) - a persistent, dictionary-like object
 
 ## Authors

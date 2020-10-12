@@ -13,16 +13,21 @@ import re
 import requests
 import shelve
 import twitch
+import emoteLeaderboard
+from random import randrange
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
+# Announcement
 ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
 ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
 ANNOUNCEMENT_HOUR = int(os.getenv('ANNOUNCEMENT_HOUR'))
 ANNOUNCEMENT_MIN = int(os.getenv('ANNOUNCEMENT_MIN'))
+# Welcome
 WELCOME_CHANNEL = os.getenv('WELCOME_CHANNEL')
 WELCOME_ROLE = os.getenv("WELCOME_ROLE")
+# Dotabuff
 OPENDOTA_API_KEY = os.getenv('OPENDOTA_API_KEY')
 DOTA_CHANNEL = os.getenv("DOTA_CHANNEL")
 PLAYER_1_ID = os.getenv('PLAYER_1_ID')
@@ -30,6 +35,7 @@ PLAYER_2_ID = os.getenv('PLAYER_2_ID')
 PLAYER_3_ID = os.getenv('PLAYER_3_ID')
 PLAYER_4_ID = os.getenv('PLAYER_4_ID')
 player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
+# Twitch
 TWITCH_OAUTH_TOKEN = os.getenv('TWITCH_OAUTH_TOKEN')
 TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
 TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
@@ -39,35 +45,10 @@ twitch_curr_live = []
 
 twitch_helix = twitch.TwitchHelix(client_id=TWITCH_CLIENT_ID, oauth_token=TWITCH_OAUTH_TOKEN)
 client = discord.Client()
-s = shelve.open('weekly_georgechamp_shelf.db')
-s_all_time = shelve.open('all_time_georgechamp_shelf.db')
+playlist = shelve.open("youtube_playlist_shelf.db")
+played_playlist = shelve.open("youtube_played_playlist_shelf.db")
 
 open_dota_players_url = "https://api.opendota.com/api/players/"
-deleteMsg = None
-
-def score_algorithm(emoji_count):
-    return 0.61 + (1.37 * math.log(emoji_count))
-
-
-def updateCounts(key, increment = 1):
-    try:
-        if s.get(key) is None:
-            s[key] = increment
-        else:
-            s[key] += increment
-
-        if s_all_time.get(key) is None:
-            s_all_time[key] = increment
-        else:
-            s_all_time[key] += increment
-
-        return True
-    except Exception:
-        return False
-
-
-def is_emoji(s):
-    return s in UNICODE_EMOJI
 
 
 async def find_channel(channel_name):
@@ -89,36 +70,13 @@ async def check_twitch_live():
         for stream_index in range(len(res)):
             live_streams.append(res[stream_index].user_name)
             if res[stream_index].user_name not in twitch_curr_live:
-                await channel.send(res[stream_index].user_name + ' is live with ' + str(res[stream_index].viewer_count) + ' viewers! Go support them at https://twitch.tv/' + res[stream_index].user_name)
+                await channel.send(res[stream_index].user_name + ' is live with ' + str(
+                    res[stream_index].viewer_count) + ' viewers! Go support them at https://twitch.tv/' + res[
+                                       stream_index].user_name)
 
         twitch_curr_live = live_streams
     except Exception as e:
         print(e)
-
-
-async def announcement_task():
-    channel = await find_channel(ANNOUNCEMENT_CHANNEL)
-
-    shelf_as_dict = dict(s)
-    most_used_emotes = dict(sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:5])
-
-    keys = []
-    key_vals = []
-    for key in most_used_emotes.keys():
-        keys.append(key)
-        key_vals.append(most_used_emotes[key])
-
-    leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
-    for i in range(5):
-        if (i < len(keys)):
-            leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
-
-    global deleteMsg
-    if(deleteMsg!=None):
-        deleteMsg.delete()
-    deleteMsg = await channel.send(leaderboard_msg)
-
-    s.clear()
 
 
 async def check_recent_matches():
@@ -138,10 +96,11 @@ async def check_recent_matches():
 
                 match_ids = list(dict.fromkeys(match_ids))
                 for match_id in match_ids:
-                    await channel.send("Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(match_id))
+                    await channel.send(
+                        "Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(
+                            match_id))
         except Exception as e:
             await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
-
 
 
 @client.event
@@ -170,13 +129,14 @@ async def on_ready():
         curr_date = datetime.now()
         # if announcement time, assume it'll be on the hour e.g. 9:00am
         if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-            await announcement_task()
+            await emoteLeaderboard.announcement_task(channel)
 
         # what min of hour should u check
         elif curr_date.minute == 00:
             await check_recent_matches()
 
         await asyncio.sleep(55)
+
 
 @client.event
 async def on_member_join(member):
@@ -186,7 +146,8 @@ async def on_member_join(member):
     except Exception as e:
         await channel.send('There was an error running this command ' + str(e))  # if error
     else:
-        await channel.send("Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
+        await channel.send(
+            "Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
 
 
 @client.event
@@ -209,72 +170,39 @@ async def on_message(message):
         except Exception:
             await message.channel.send("Something went wrong... It's not your fault though, blame George.")
     elif message.content.startswith('!plscount'):
-        try:
-            requested_emote = message.content[10:]
-            await message.channel.send(requested_emote + " has been used " + str(s_all_time[requested_emote]) + " times.")
-        except KeyError:
-            await message.channel.send("Looks like that emote hasn't been used yet.")
-        except IndexError:
-            await message.channel.send("Doesn't appear that you've added an emote, please add an emote to check.")
-    elif message.content.startswith('!leaderboard'):
-        shelf_as_dict = dict(s_all_time)
-        start = 0
-        end = 10
-
-        if len(message.content) != len('!leaderboard'):
-            increment = int(message.content[len('!leaderboard')+1:])
-            # page size = 10
-            start += (increment - 1) * 10
-            end += (increment - 1) * 10
-
-        curr_page_num = (start / 10) + 1
-        total_page_num = len(dict(s_all_time).keys())/10 + 1
-        most_used_emotes = dict(sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[start:end])
-        keys = []
-        key_vals = []
-        for key in most_used_emotes.keys():
-            keys.append(key)
-            key_vals.append(most_used_emotes[key])
-
-        if len(keys) == 0:
-            await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
+        emoteLeaderboard.print_count(message)
+    elif message.content.startswith("!plsadd"):
+        songUrl = message.content[8:]
+        flag = False
+        for index in playlist:
+            if playlist.get(index) == songUrl:
+                flag = True
+        if flag == False:
+            playlist[str(len(dict(playlist)))] = songUrl
+            await message.channel.send("Song added to the playlist!")
         else:
-            leaderboard_msg = "All time leaderboard: - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
-            for i in range(10):
-                if (i < len(keys)):
-                    placement = start + i + 1
-                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
+            await message.channel.send("Not added. Song is already in the playlist.")
+    elif message.content.startswith("!plsplay"):
+        randNum = str(randrange(0, len(playlist), 1))
+        print(str(randNum))
+        print(dict(playlist))
+        print(dict(played_playlist))
 
-            await message.channel.send(leaderboard_msg)
+        while randNum in played_playlist:
+            randNum = await randrange(0, len(playlist), 1)
+        played_playlist[playlist[randNum]] = playlist[randNum]
+        if len(dict(playlist)) == len(dict(played_playlist)):
+            played_playlist.clear()
+        await message.channel.send("!play " + playlist[randNum])
+    elif message.content.startswith('!leaderboard'):
+        emoteLeaderboard.print_leaderboard(message)
     else:
-        custom_emojis = re.findall(r'<:\w*:\d*>', message.content)
-
-        emoji_names = list(Counter(custom_emojis).keys())
-        emoji_counts = list(Counter(custom_emojis).values())
-        for i in range(len(emoji_names)):
-            updateCounts(emoji_names[i], round(score_algorithm(emoji_counts[i])))
-
-        unicode_emojis = []
-        for character in message.content:
-            if is_emoji(character):
-                unicode_emojis.append(character)
-
-        emoji_names = list(Counter(unicode_emojis).keys())
-        emoji_counts = list(Counter(unicode_emojis).values())
-
-        for i in range(len(emoji_names)):
-            updateCounts(emoji_names[i], round(score_algorithm(emoji_counts[i])))
+        emoteLeaderboard.check_emoji(message)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
-    if (payload.emoji.is_custom_emoji()):
-        reaction_emoji_key = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
-        updateCounts(reaction_emoji_key)
-    elif payload.emoji.is_unicode_emoji():
-        updateCounts(payload.emoji.name)
+    emoteLeaderboard.check_reaction(payload)
 
 
 client.run(TOKEN)
-s.close('weekly_georgechamp_shelf.db')
-s_all_time.close('all_time_georgechamp_shelf.db')

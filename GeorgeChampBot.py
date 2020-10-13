@@ -47,9 +47,6 @@ async def find_channel(channel_name):
                 if guild_channel.name == channel_name:
                     # channel type = channel model
                     return guild_channel
-
-
-
 @client.event
 async def on_ready():
     guilds = client.guilds
@@ -100,13 +97,13 @@ async def on_member_join(member):
             "Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
 
 
-@client.event
-async def on_disconnect():
-    channel = await find_channel(WELCOME_CHANNEL)
-    try:
-        await channel.send("GeorgeChampBot signing out!")
-    except Exception:
-        await channel.send("I believe I am leaving but something went wrong... Blame George.")
+#@client.event
+#async def on_disconnect():
+#    channel = await find_channel(WELCOME_CHANNEL)
+#    try:
+#        await channel.send("GeorgeChampBot signing out!")
+#    except Exception:
+#        await channel.send("I believe I am leaving but something went wrong... Blame George.")
 
 
 @client.event

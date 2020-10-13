@@ -35,18 +35,12 @@ async def announcement_task(channel):
     s = shelve.open('weekly_georgechamp_shelf.db')
 
     shelf_as_dict = dict(s)
-    most_used_emotes = dict(sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:5])
-
-    keys = []
-    key_vals = []
-    for key in most_used_emotes.keys():
-        keys.append(key)
-        key_vals.append(most_used_emotes[key])
+    most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:5]
 
     leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
     for i in range(5):
-        if i < len(keys):
-            leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
+        if (i < len(most_used_emotes)):
+            leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
 
     await channel.send(leaderboard_msg, delete_after=604800)
 
@@ -82,23 +76,18 @@ async def print_leaderboard(message):
         end += (increment - 1) * 10
 
     curr_page_num = (start / 10) + 1
-    total_page_num = len(dict(s_all_time).keys()) / 10 + 1
-    most_used_emotes = dict(sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[start:end])
-    keys = []
-    key_vals = []
-    for key in most_used_emotes.keys():
-        keys.append(key)
-        key_vals.append(most_used_emotes[key])
+    total_page_num = math.ceil(len(dict(s_all_time).keys())/10)
+    most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[start:end]
 
-    if len(keys) == 0:
+    if len(most_used_emotes) == 0:
         await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
     else:
-        leaderboard_msg = "All time leaderboard: - Page " + str(int(curr_page_num)) + "/" + str(
-            int(total_page_num)) + "\nEmote - Score \n"
+        leaderboard_msg = "All time leaderboard: - Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num)) + "\nEmote - Score \n"
         for i in range(10):
-            if i < len(keys):
+            if (i < len(most_used_emotes)):
                 placement = start + i + 1
-                leaderboard_msg = leaderboard_msg + str(placement) + ". " + keys[i] + " - " + str(key_vals[i]) + "\n"
+                leaderboard_msg = leaderboard_msg + str(placement) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
+
         await message.channel.send(leaderboard_msg)
 
     s_all_time.close()

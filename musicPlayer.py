@@ -7,9 +7,6 @@ async def play_music(message):
     played_playlist = shelve.open("youtube_played_playlist_shelf.db")
 
     randNum = str(randrange(0, len(playlist), 1))
-    print(str(randNum))
-    print(dict(playlist))
-    print(dict(played_playlist))
 
     while randNum in played_playlist:
         randNum = await randrange(0, len(playlist), 1)

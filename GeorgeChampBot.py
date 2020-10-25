@@ -93,8 +93,7 @@ async def on_member_join(member):
     except Exception as e:
         await channel.send('There was an error running this command ' + str(e))  # if error
     else:
-        await channel.send(
-            "Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
+        await channel.send("Welcome " + member.display_name + " to based server where everyone pretends to be a racist")
 
 
 #@client.event

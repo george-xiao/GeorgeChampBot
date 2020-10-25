@@ -3,8 +3,8 @@ import shelve
 
 
 async def play_music(message):
-    playlist = shelve.open("youtube_playlist_shelf.db")
-    played_playlist = shelve.open("youtube_played_playlist_shelf.db")
+    playlist = shelve.open("./database/youtube_playlist_shelf.db")
+    played_playlist = shelve.open("./database/youtube_played_playlist_shelf.db")
 
     randNum = str(randrange(0, len(playlist), 1))
 
@@ -20,8 +20,8 @@ async def play_music(message):
 
 
 async def add_music(message):
-    playlist = shelve.open("youtube_playlist_shelf.db")
-    played_playlist = shelve.open("youtube_played_playlist_shelf.db")
+    playlist = shelve.open("./database/youtube_playlist_shelf.db")
+    played_playlist = shelve.open("./database/youtube_played_playlist_shelf.db")
 
     songUrl = message.content[8:]
     flag = False

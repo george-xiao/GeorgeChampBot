@@ -4,10 +4,10 @@ import discord
 from dotenv import load_dotenv
 import os
 
-import emoteLeaderboard
-import dotaReplay
-import twitchAnnouncement
-import musicPlayer
+from components import emoteLeaderboard
+from components import dotaReplay
+from components import twitchAnnouncement
+from components import musicPlayer
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -67,6 +67,11 @@ async def on_ready():
     # assume only one emoji has georgechamp in it
     await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
 
+    try:
+        os.mkdir("./database")
+    except:
+        pass
+
     while 1:
 
         t_channel = await find_channel(WELCOME_CHANNEL)
@@ -93,8 +98,7 @@ async def on_member_join(member):
     except Exception as e:
         await channel.send('There was an error running this command ' + str(e))  # if error
     else:
-        await channel.send(
-            "Welcome " + member.display_name + " to :based: server where everyone pretends to be a racist")
+        await channel.send("Welcome " + member.display_name + " to based server where everyone pretends to be a racist")
 
 
 #@client.event

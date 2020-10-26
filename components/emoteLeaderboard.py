@@ -32,7 +32,7 @@ def updateCounts(s_all_time, s, key, increment=1):
 
 
 async def announcement_task(channel):
-    s = shelve.open('weekly_georgechamp_shelf.db')
+    s = shelve.open('./database/weekly_georgechamp_shelf.db')
 
     shelf_as_dict = dict(s)
     most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:5]
@@ -49,7 +49,7 @@ async def announcement_task(channel):
 
 
 async def print_count(message):
-    s_all_time = shelve.open('all_time_georgechamp_shelf.db')
+    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     try:
         requested_emote = message.content[10:]
@@ -63,7 +63,7 @@ async def print_count(message):
 
 
 async def print_leaderboard(message):
-    s_all_time = shelve.open('all_time_georgechamp_shelf.db')
+    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     shelf_as_dict = dict(s_all_time)
     start = 0
@@ -94,8 +94,8 @@ async def print_leaderboard(message):
 
 
 async def check_emoji(message):
-    s = shelve.open('weekly_georgechamp_shelf.db')
-    s_all_time = shelve.open('all_time_georgechamp_shelf.db')
+    s = shelve.open('./database/weekly_georgechamp_shelf.db')
+    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     custom_emojis = re.findall(r'<:\w*:\d*>', message.content)
 
@@ -120,8 +120,8 @@ async def check_emoji(message):
 
 
 async def check_reaction(payload):
-    s = shelve.open('weekly_georgechamp_shelf.db')
-    s_all_time = shelve.open('all_time_georgechamp_shelf.db')
+    s = shelve.open('./database/weekly_georgechamp_shelf.db')
+    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     if payload.emoji.is_custom_emoji():
         reaction_emoji_key = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"

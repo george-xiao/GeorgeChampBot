@@ -70,10 +70,14 @@ async def print_leaderboard(message):
     end = 10
 
     if len(message.content) != len('!leaderboard'):
-        increment = int(message.content[len('!leaderboard') + 1:])
-        # page size = 10
-        start += (increment - 1) * 10
-        end += (increment - 1) * 10
+        if(message.content[len('!leaderboard') + 1:].strip().lower() == "last"):
+            end = len(shelf_as_dict)
+            start = end - 10
+        else:
+            increment = int(message.content[len('!leaderboard') + 1:])
+            # page size = 10
+            start += (increment - 1) * 10
+            end += (increment - 1) * 10
 
     curr_page_num = (start / 10) + 1
     total_page_num = math.ceil(len(dict(s_all_time).keys())/10)
@@ -93,16 +97,21 @@ async def print_leaderboard(message):
     s_all_time.close()
 
 
-async def check_emoji(message):
+async def check_emoji(message, guild):
     s = shelve.open('./database/weekly_georgechamp_shelf.db')
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     custom_emojis = re.findall(r'<:\w*:\d*>', message.content)
+    check_emoji_name = list(Counter(custom_emojis).keys())
 
     emoji_names = list(Counter(custom_emojis).keys())
     emoji_counts = list(Counter(custom_emojis).values())
+
     for i in range(len(emoji_names)):
-        updateCounts(s_all_time, s, emoji_names[i], round(score_algorithm(emoji_counts[i])))
+        for emoji in guild.emojis:
+            temp_emoji = emoji_names[i].split(':', 2)
+            if temp_emoji[1] in emoji.name:
+                updateCounts(s_all_time, s, emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
     unicode_emojis = []
     for character in message.content:
@@ -131,3 +140,57 @@ async def check_reaction(payload):
 
     s.close()
     s_all_time.close()
+
+async def transfer_emotes(transfer_from,transfer_to):
+        s = shelve.open('./database/weekly_georgechamp_shelf.db')
+        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+
+        if s.get(transfer_to) is None:
+            s[transfer_to] = s[transfer_from]
+        else:
+            s[transfer_to] += s[transfer_from]
+        del s[transfer_from]
+
+        if s_all_time.get(transfer_to) is None:
+            s_all_time[transfer_to] = s_all_time[transfer_from]
+        else:
+            s_all_time[transfer_to] += s_all_time[transfer_from]
+        del s_all_time[transfer_from]
+
+async def delete_emote(channel,before,after):
+    deleted_emote = None
+    for before_emote in before:
+        flag = False
+        for after_emote in after:
+            if (after_emote.name == before_emote.name):
+                flag = True
+        if(flag == False):
+            deleted_emote = "<:" + before_emote.name + ":" + str(before_emote.id) + ">"
+
+    #Added Mechanism for when the name of an emote is changed instead of deleted
+    added_emote = None
+    for after_emote in after:
+        flag = False
+        for before_emote in before:
+            if (before_emote.name == after_emote.name):
+                flag = True
+        if(flag == False):
+            added_emote = "<:" + after_emote.name + ":" + str(after_emote.id) + ">"
+
+    if(added_emote is None):
+        try:
+            s = shelve.open('./database/weekly_georgechamp_shelf.db')
+            s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+
+            if s.get(deleted_emote) is not None:
+                del s[deleted_emote]
+
+            if s_all_time.get(deleted_emote) is not None:
+                del s_all_time[deleted_emote]
+        except:
+            await channel.send("Error deleting emote from Leaderboard. Maaz fix pls")
+    else:
+        try:
+            await transfer_emotes(deleted_emote,added_emote)
+        except:
+            await channel.send("Error updating the Leaderboard when renaming emote. Maaz fix pls")

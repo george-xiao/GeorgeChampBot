@@ -12,6 +12,7 @@ from components import musicPlayer
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
+ADMIN_ROLE = os.getenv('ADMIN_ROLE')
 # Announcement
 ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
 ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
@@ -70,7 +71,7 @@ async def on_ready():
     try:
         os.mkdir("./database")
     except:
-        pass
+        e_channel.send("Error creating Database. Maaz you silly.")
 
     while 1:
 
@@ -116,7 +117,7 @@ async def on_message(message):
         return None
     elif message.content.startswith('!plshelp'):
         try:
-            help_msg = "List of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page#> - All time scores"
+            help_msg = "List of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page# OR 'last'> - All time scores\n!plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)"
             await message.channel.send(help_msg)
         except Exception:
             await message.channel.send("Something went wrong... It's not your fault though, blame George.")
@@ -128,13 +129,40 @@ async def on_message(message):
         await musicPlayer.play_music(message)
     elif message.content.startswith('!leaderboard'):
         await emoteLeaderboard.print_leaderboard(message)
+    elif message.content.startswith('!plstransfer'):
+        #if(client.user.)
+        try:
+            transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
+            transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
+            flag = False
+
+            for i in range(len(message.author.roles)):
+                if ADMIN_ROLE == message.author.roles[i].name:
+                    await emoteLeaderboard.transfer_emotes(transfer_from,transfer_to)
+                    await message.channel.send('Transfer Successful!')
+                    flag = True
+            if flag == False:
+                await message.channel.send('Admin Access Required. Ask a ' + ADMIN_ROLE)
+        except Exception as e:
+            await message.channel.send('Make sure your notation is correct. Or ask George for help')
     else:
-        await emoteLeaderboard.check_emoji(message)
+        guilds = client.guilds
+        guild_id = None
+        for guild in guilds:
+            if guild.name == GUILD:
+                guild_id = guild
+
+        await emoteLeaderboard.check_emoji(message, guild)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
     await emoteLeaderboard.check_reaction(payload)
+
+@client.event
+async def on_guild_emojis_update(guild, before, after):
+    channel = await find_channel(ANNOUNCEMENT_CHANNEL)
+    await emoteLeaderboard.delete_emote(channel,before,after)
 
 
 client.run(TOKEN)

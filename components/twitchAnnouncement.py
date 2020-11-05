@@ -1,6 +1,5 @@
 import twitch
 
-
 async def check_twitch_live(channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list):
     twitch_helix = twitch.TwitchHelix(client_id=TWITCH_CLIENT_ID, oauth_token=TWITCH_OAUTH_TOKEN)
     try:

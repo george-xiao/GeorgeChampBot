@@ -38,7 +38,7 @@ twitch_user_list = [TWITCH_USER_1, TWITCH_USER_2]
 twitch_curr_live = []
 
 client = discord.Client()
-
+api_running = False
 
 async def find_channel(channel_name):
     guilds = client.guilds
@@ -71,24 +71,29 @@ async def on_ready():
     try:
         os.mkdir("./database")
     except:
-        e_channel.send("Error creating Database. Maaz you silly.")
+        await e_channel.send("Error creating Database. Maaz you silly.")
+    
+    global api_running
+    if api_running is True:
+        while 1:
+            api_running = True
+            t_channel = await find_channel(WELCOME_CHANNEL)
+            await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
+            # seconds/week
+            curr_date = datetime.now()
+            # if announcement time, assume it'll be on the hour e.g. 9:00am
+            if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                await emoteLeaderboard.announcement_task(e_channel)
 
-    while 1:
+            # what min of hour should u check
+            elif curr_date.minute == 00 or curr_date.minute == 30:
+                d_channel = await find_channel(DOTA_CHANNEL)
+                try:
+                    await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
+                except:
+                    api_running = False
 
-        t_channel = await find_channel(WELCOME_CHANNEL)
-        await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
-        # seconds/week
-        curr_date = datetime.now()
-        # if announcement time, assume it'll be on the hour e.g. 9:00am
-        if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-            await emoteLeaderboard.announcement_task(e_channel)
-
-        # what min of hour should u check
-        elif curr_date.minute == 00 or curr_date.minute == 30:
-            d_channel = await find_channel(DOTA_CHANNEL)
-            await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
-
-        await asyncio.sleep(55)
+            await asyncio.sleep(55)
 
 
 @client.event

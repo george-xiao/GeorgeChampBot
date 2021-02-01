@@ -74,7 +74,7 @@ async def on_ready():
         await e_channel.send("Error creating Database. Maaz you silly.")
     
     global api_running
-    if api_running is True:
+    if api_running is False:
         while 1:
             api_running = True
             t_channel = await find_channel(WELCOME_CHANNEL)

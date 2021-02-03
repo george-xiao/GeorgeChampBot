@@ -16,7 +16,7 @@ async def check_recent_matches(channel, player_list, OPENDOTA_API_KEY):
                     if curr_epoch_time - (int(match['start_time']) + int(match['duration'])) < 3610:
                         match_ids.append(str(match['match_id']))
 
-                match_ids = list(dict.fromkeys(match_ids))
+                match_ids = list(set(match_ids))
                 for match_id in match_ids:
                     await channel.send(
                         "Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(

@@ -134,6 +134,8 @@ async def on_message(message):
         await musicPlayer.play_music(message)
     elif message.content.startswith('!leaderboard'):
         await emoteLeaderboard.print_leaderboard(message)
+    elif message.content.startswith('!plsletmeplay'):
+        await dotaReplay.print_tokens()
     elif message.content.startswith('!plstransfer'):
         #if(client.user.)
         try:

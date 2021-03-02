@@ -139,7 +139,7 @@ async def on_message(message):
     elif message.content.startswith('!leaderboard'):
         await emoteLeaderboard.print_leaderboard(message)
     elif message.content.startswith('!plsletmeplay'):
-        await dotaReplay.print_tokens()
+        await dotaReplay.print_tokens(message.channel)
     elif message.content.startswith('!plstransfer'):
         #if(client.user.)
         try:

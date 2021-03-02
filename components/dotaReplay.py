@@ -37,7 +37,7 @@ async def check_recent_matches(channel, player_list, OPENDOTA_API_KEY):
         await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
 
 
-async def print_tokens():
+async def print_tokens(channel):
     try:
         s = shelve.open('./database/george_token_count.db')
         if s.get("token_count") is None:

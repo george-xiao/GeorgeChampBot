@@ -40,6 +40,9 @@ async def check_recent_matches(channel, player_list, OPENDOTA_API_KEY):
 async def print_tokens():
     try:
         s = shelve.open('./database/george_token_count.db')
+        if s.get("token_count") is None:
+            s["token_count"] = 0
+        
         num_tokens = s["token_count"]
         if (num_tokens == 1) :
             await channel.send("You have 1 token.")

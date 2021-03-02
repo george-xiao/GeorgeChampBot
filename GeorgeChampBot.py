@@ -29,6 +29,7 @@ PLAYER_2_ID = os.getenv('PLAYER_2_ID')
 PLAYER_3_ID = os.getenv('PLAYER_3_ID')
 PLAYER_4_ID = os.getenv('PLAYER_4_ID')
 player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
+prev_hour = False
 # Twitch
 TWITCH_OAUTH_TOKEN = os.getenv('TWITCH_OAUTH_TOKEN')
 TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
@@ -68,12 +69,14 @@ async def on_ready():
     # assume only one emoji has georgechamp in it
     await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
 
-    try:
-        os.mkdir("./database")
-    except:
-        await e_channel.send("Error creating Database. Maaz you silly.")
+    if not(os.path.exists("database")): 
+        try:
+            os.mkdir("./database")
+        except:
+            await e_channel.send("Error creating Database. Maaz you silly.")
     
     global api_running
+    global prev_hour
     if api_running is False:
         while 1:
             api_running = True
@@ -85,9 +88,10 @@ async def on_ready():
             if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
                 await emoteLeaderboard.announcement_task(e_channel)
 
-            # what min of hour should u check
-            elif curr_date.minute == 00 or curr_date.minute == 30:
+            # what min of hour should u check; prints only if the current games have not been printed
+            elif (prev_hour != curr_date.hour and curr_date.minute == 00):
                 d_channel = await find_channel(DOTA_CHANNEL)
+                prev_hour = curr_date.hour
                 try:
                     await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
                 except:

@@ -220,22 +220,8 @@ async def delete_emote(channel,before,after):
                     flag = True
             if(flag == False):
                 added_emote = "<:" + after_emote.name + ":" + str(after_emote.id) + ">"
-
-        if added_emote is None and deleted_emote is not None:
-            return
-            # code for deleting the emote from the leaderboard after removing it from the server
-            # try:
-            #     s = shelve.open('./database/weekly_georgechamp_shelf.db')
-            #     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
-
-            #     if s.get(deleted_emote) is not None:
-            #         del s[deleted_emote]
-
-            #     if s_all_time.get(deleted_emote) is not None:
-            #         del s_all_time[deleted_emote]
-            # except:
-            #     await channel.send("Error deleting emote from Leaderboard.")
-        elif added_emote is not None and deleted_emote is not None:
+                
+        if added_emote is not None and deleted_emote is not None:
             await transfer_emotes(deleted_emote,added_emote)
     except Exception as e:
         await channel.send('Error Renaming Emotes: ' + str(e))

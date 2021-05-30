@@ -98,7 +98,6 @@ async def print_leaderboard(message):
         most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
         temp = []
         for key in most_used_emotes:
-            print(key[0])
             if not (is_emoji(key[0]) and s_all_time[key[0]] < 10):
                 temp.append(key)
         most_used_emotes = temp[start:end]
@@ -186,7 +185,6 @@ async def transfer_emotes(transfer_from,transfer_to):
             else:
                 for i in range(len(transfer_from)):
                     if (i+2) <= len(temp) and temp[i+1] != transfer_from[i]:
-                        print(temp[i+1])
                         flag = False
                         break
             if flag == True:

@@ -22,11 +22,15 @@ async def updateCounts(s_all_time, s, key, increment=1):
             s_all_time[key] = increment
         elif s[key]+increment <= WEEKLY_LIMIT:
             s_all_time[key] += increment
+        else:
+            s_all_time[key] += WEEKLY_LIMIT - s[key]
 
         if s.get(key) is None:
             s[key] = increment
         elif s[key]+increment <= WEEKLY_LIMIT:
             s[key] += increment
+        else:
+            s[key] += WEEKLY_LIMIT - s[key]
         return True
     except Exception as e:
         await message.channel.send('Error updating: ' + str(e))
@@ -158,8 +162,7 @@ async def check_reaction(payload):
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
     starting_date = shelve.open('./database/starting_date_shelf.db')
 
-    shelf_as_dict = dict(starting_date)
-    if len(shelf_as_dict) == 0:
+    if starting_date.get("date") is None:
         today = date.today()
         starting_date["date"] = today.strftime("%d/%m/%y")
 
@@ -177,16 +180,13 @@ async def transfer_emotes(transfer_from,transfer_to):
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
 
     # accounting for deleted emotes
-    if s_all_time.get(transfer_from) is None:
+    if s_all_time.get(transfer_from) is None and transfer_from[-1] == ":" and transfer_from[0] == ":" and len(transfer_from) > 2:
+        transfer_from = "<" + transfer_from
         for temp in s_all_time:
             flag = True
-            if len(temp) <= 1 or len(transfer_from) <= 1:
-                flag = False
-            else:
-                for i in range(len(transfer_from)):
-                    if (i+2) <= len(temp) and temp[i+1] != transfer_from[i]:
-                        flag = False
-                        break
+            for i in range(len(transfer_from)):
+                if i < len(temp) and temp[i] != transfer_from[i]:
+                    flag = False
             if flag == True:
                 transfer_from = temp
 
@@ -266,16 +266,13 @@ async def pls_delete(message, adminRole):
                 deleted_emote = message.content[11:]
 
                 # accounting for deleted emotes
-                if s_all_time.get(deleted_emote) is None:
+                if s_all_time.get(deleted_emote) is None and deleted_emote[-1] == ":" and deleted_emote[0] == ":" and len(deleted_emote) > 2:
+                    deleted_emote = "<" + deleted_emote
                     for temp in s_all_time:
                         flag = True
-                        if len(temp) <= 1 or len(deleted_emote) <= 1:
-                            flag = False
-                        else:
-                            for i in range(len(deleted_emote)):
-                                if (i+2) <= len(temp) and temp[i+1] != deleted_emote[i]:
-                                    flag = False
-                                    break
+                        for i in range(len(deleted_emote)):
+                            if i < len(temp) and temp[i] != deleted_emote[i]:
+                                flag = False
                         if flag == True:
                             deleted_emote = temp
 

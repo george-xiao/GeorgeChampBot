@@ -78,6 +78,7 @@ async def on_ready():
         while 1:
             api_running = True
             a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
+            t_channel = await find_channel(MAIN_CHANNEL)
             await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
             # seconds/week
             curr_date = datetime.now()

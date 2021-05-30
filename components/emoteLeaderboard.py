@@ -20,7 +20,7 @@ async def updateCounts(s_all_time, s, key, increment=1):
     try:
         if s_all_time.get(key) is None:
             s_all_time[key] = increment
-        elif s[key]+increment <= WEEKLY_LIMIT:
+        elif s.get(key) is None or s[key]+increment <= WEEKLY_LIMIT:
             s_all_time[key] += increment
         else:
             s_all_time[key] += WEEKLY_LIMIT - s[key]
@@ -80,8 +80,11 @@ async def print_leaderboard(message):
         s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
         shelf_as_dict = dict(s_all_time)
         most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
-        EMOTE_LIMIT = most_used_emotes[50][1]
-        
+        if len(most_used_emotes) > 50:
+            EMOTE_LIMIT = most_used_emotes[50][1]
+        else:
+            EMOTE_LIMIT = 0
+    
         start = 0
         end = 10
         if len(message.content) != len('!leaderboard') and (message.content[len('!leaderboard') + 1:].strip().lower() != "last"):

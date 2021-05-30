@@ -4,22 +4,19 @@ import discord
 from dotenv import load_dotenv
 import os
 
-from components import emoteLeaderboard
-from components import dotaReplay
-from components import twitchAnnouncement
-from components import musicPlayer
+from components import emoteLeaderboard, dotaReplay, twitchAnnouncement, musicPlayer
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 ADMIN_ROLE = os.getenv('ADMIN_ROLE')
+MAIN_CHANNEL = os.getenv('MAIN_CHANNEL')
 # Announcement
 ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
 ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
 ANNOUNCEMENT_HOUR = int(os.getenv('ANNOUNCEMENT_HOUR'))
 ANNOUNCEMENT_MIN = int(os.getenv('ANNOUNCEMENT_MIN'))
 # Welcome
-WELCOME_CHANNEL = os.getenv('WELCOME_CHANNEL')
 WELCOME_ROLE = os.getenv("WELCOME_ROLE")
 # Dotabuff
 OPENDOTA_API_KEY = os.getenv('OPENDOTA_API_KEY')
@@ -61,31 +58,34 @@ async def on_ready():
                     georgechamp_emoji = emoji
 
             for guild_channel in guild.channels:
-                if guild_channel.name == ANNOUNCEMENT_CHANNEL:
+                if guild_channel.name == MAIN_CHANNEL:
                     # channel type = channel model
                     e_channel = guild_channel
+                    msg = await e_channel.send("GeorgeChampBot reporting for duty!")
+                    # assume only one emoji has georgechamp in it
+                    await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
 
-    msg = await e_channel.send("GeorgeChampBot reporting for duty!")
-    # assume only one emoji has georgechamp in it
-    await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
 
-    if not(os.path.exists("database")): 
+    if not(os.path.exists("database")):
         try:
             os.mkdir("./database")
         except:
-            await e_channel.send("Error creating Database. Maaz you silly.")
-    
+            await e_channel.send("Error creating Database.")
+
     global api_running
     global prev_hour
     if api_running is False:
         while 1:
             api_running = True
-            t_channel = await find_channel(WELCOME_CHANNEL)
+            a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
+            t_channel = await find_channel(MAIN_CHANNEL)
             await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
             # seconds/week
             curr_date = datetime.now()
             # if announcement time, assume it'll be on the hour e.g. 9:00am
+            a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
             if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                await emoteLeaderboard.announcement_task(a_channel)
                 await emoteLeaderboard.announcement_task(e_channel)
 
             # what min of hour should u check; prints only if the current games have not been printed
@@ -102,7 +102,7 @@ async def on_ready():
 
 @client.event
 async def on_member_join(member):
-    channel = await find_channel(WELCOME_CHANNEL)
+    channel = await find_channel(MAIN_CHANNEL)
     try:
         await member.add_roles(discord.utils.get(member.guild.roles, name=WELCOME_ROLE))
     except Exception as e:
@@ -113,7 +113,7 @@ async def on_member_join(member):
 
 #@client.event
 #async def on_disconnect():
-#    channel = await find_channel(WELCOME_CHANNEL)
+#    channel = await find_channel(MAIN_CHANNEL)
 #    try:
 #        await channel.send("GeorgeChampBot signing out!")
 #    except Exception:
@@ -126,7 +126,7 @@ async def on_message(message):
         return None
     elif message.content.startswith('!plshelp'):
         try:
-            help_msg = "List of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page# OR 'last'> - All time scores\n!plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)"
+            help_msg = "List of commands:\n!plshelp - This.\n!plscount <emote> - All time score of <emote>\n!leaderboard <page# OR 'last'> - All time scores\n!plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)\n!plsdelete <emote> - Deletes emote from database (Admin Only)"
             await message.channel.send(help_msg)
         except Exception:
             await message.channel.send("Something went wrong... It's not your fault though, blame George.")
@@ -141,21 +141,9 @@ async def on_message(message):
     elif message.content.startswith('!plsletmeplay'):
         await dotaReplay.print_tokens(message.channel)
     elif message.content.startswith('!plstransfer'):
-        #if(client.user.)
-        try:
-            transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
-            transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
-            flag = False
-
-            for i in range(len(message.author.roles)):
-                if ADMIN_ROLE == message.author.roles[i].name:
-                    await emoteLeaderboard.transfer_emotes(transfer_from,transfer_to)
-                    await message.channel.send('Transfer Successful!')
-                    flag = True
-            if flag == False:
-                await message.channel.send('Admin Access Required. Ask a ' + ADMIN_ROLE)
-        except Exception as e:
-            await message.channel.send('Make sure your notation is correct. Or ask George for help')
+        await emoteLeaderboard.pls_transfer(message, ADMIN_ROLE)
+    elif message.content.startswith('!plsdelete'):
+        await emoteLeaderboard.pls_delete(message, ADMIN_ROLE)
     else:
         guilds = client.guilds
         guild_id = None
@@ -168,11 +156,12 @@ async def on_message(message):
 
 @client.event
 async def on_raw_reaction_add(payload):
+    
     await emoteLeaderboard.check_reaction(payload)
 
 @client.event
 async def on_guild_emojis_update(guild, before, after):
-    channel = await find_channel(ANNOUNCEMENT_CHANNEL)
+    channel = await find_channel(MAIN_CHANNEL)
     await emoteLeaderboard.delete_emote(channel,before,after)
 
 

@@ -85,7 +85,7 @@ async def on_ready():
             # if announcement time, assume it'll be on the hour e.g. 9:00am
             a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
             if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-                await emoteLeaderboard.announcement_task(a_channel)
+                await emoteLeaderboard.announcement_task(a_channel, 604800)
                 await emoteLeaderboard.announcement_task(e_channel)
 
             # what min of hour should u check; prints only if the current games have not been printed
@@ -162,7 +162,7 @@ async def on_raw_reaction_add(payload):
 @client.event
 async def on_guild_emojis_update(guild, before, after):
     channel = await find_channel(MAIN_CHANNEL)
-    await emoteLeaderboard.delete_emote(channel,before,after)
+    await emoteLeaderboard.rename_emote(channel,before,after)
 
 
 client.run(TOKEN)

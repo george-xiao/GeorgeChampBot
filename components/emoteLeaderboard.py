@@ -295,4 +295,5 @@ async def pls_delete(message, adminRole):
 
                 s_all_time.close()
                 s.close()
+    except Exception as e:
         await message.channel.send('Error Deleting: ' + str(e))

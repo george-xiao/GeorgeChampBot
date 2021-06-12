@@ -36,7 +36,6 @@ async def updateCounts(s_all_time, s, key, increment=1):
         await message.channel.send('Error updating: ' + str(e))
         return False
 
-
 async def announcement_task(channel, deleteAfter=None):
     try:
         s = shelve.open('./database/weekly_georgechamp_shelf.db')
@@ -89,7 +88,7 @@ async def print_leaderboard(message):
         counter = 0
         for key in most_used_emotes:
             if total_custom_emotes < 10:
-                emote_limit = sys.maxint
+                emote_limit = 99999999
                 break            
             if counter == total_custom_emotes-9:
                 emote_limit = key[1]+1
@@ -126,7 +125,7 @@ async def print_leaderboard(message):
         else:
             leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
             for i in range(10):
-                # Standard emojis which have been used less than 25 times is not printed
+                # Standard emojis are not printed on the last page
                 if (i < len(most_used_emotes) and not (is_emoji(most_used_emotes[i][0]) and most_used_emotes[i][1] < emote_limit)):
                     placement = start + i + 1
                     leaderboard_msg = leaderboard_msg + str(placement) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
@@ -171,13 +170,12 @@ async def check_emoji(message, guild):
     except Exception as e:
         await message.channel.send('Error Checking Emote: ' + str(e))
 
-
 async def check_reaction(payload):
     s = shelve.open('./database/weekly_georgechamp_shelf.db')
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
     starting_date = shelve.open('./database/starting_date_shelf.db')
 
-    if starting_date.get("date") is None:
+    if len(s_all_time) == 0:
         today = date.today()
         starting_date["date"] = today.strftime("%d/%m/%Y")
 
@@ -253,8 +251,11 @@ async def pls_transfer(message, adminRole):
         transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
         transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
 
-        for i in range(len(message.author.roles)):
-            if adminRole == message.author.roles[i].name:
+        for role in message.author.roles:
+            tempAdminRole = adminRole
+            if role.name[0] != "@":
+                tempAdminRole = adminRole[1:]
+            if tempAdminRole == role.name:
                 flag = await transfer_emotes(transfer_from,transfer_to)
                 if flag:
                     await message.channel.send('Transfer Successful!')
@@ -294,6 +295,4 @@ async def pls_delete(message, adminRole):
 
                 s_all_time.close()
                 s.close()
-    except Exception as e:
         await message.channel.send('Error Deleting: ' + str(e))
-

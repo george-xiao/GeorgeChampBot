@@ -79,7 +79,6 @@ async def add_meme_reactions(payload, channel, adminRole, client):
         if isGoodMemeReaction(payloadEmoji):
             memeDatabase = shelve.open('./database/meme_review.db')
             memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 0, memeDatabase[str(message.id)][0]+getScore(payloadEmoji))
-            print(memeDatabase[str(message.id)])
             memeDatabase.close()
         elif not isBadMemeReaction(payloadEmoji):
             await channel.send('Error adding meme reaction (1)')
@@ -142,7 +141,6 @@ async def remove_meme_reactions(payload, channel, client):
             memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 0, memeDatabase[str(message.id)][0]-getScore(payloadEmoji))
         elif isNotMemeReaction(payloadEmoji) and notMemeReaction is not None and notMemeReaction.count <= 1:
             memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 1, False)
-        print(memeDatabase[str(message.id)])
         memeDatabase.close()
         
     except Exception as e:
@@ -185,14 +183,12 @@ async def best_announcement_task(channel):
         memeDatabase = shelve.open('./database/meme_review.db')
         memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
         shelf_as_dict = dict(memeDatabase)
-        print(shelf_as_dict)
         
         if len(shelf_as_dict) == 0:
             await channel.send("No memes this week. :sadkek:")
             return
         
         sorted_database = sorted(shelf_as_dict.items(), key=lambda item: item[1][0], reverse=True)
-        print(sorted_database)
         points = [25,20,15,10,5]
         i = 0
         for meme1 in sorted_database:

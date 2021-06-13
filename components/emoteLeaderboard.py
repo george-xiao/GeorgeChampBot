@@ -20,7 +20,7 @@ async def updateCounts(s_all_time, s, key, increment=1):
     try:
         if s_all_time.get(key) is None:
             s_all_time[key] = increment
-        elif s[key]+increment <= WEEKLY_LIMIT:
+        elif s.get(key) is None or s[key]+increment <= WEEKLY_LIMIT:
             s_all_time[key] += increment
         else:
             s_all_time[key] += WEEKLY_LIMIT - s[key]
@@ -36,8 +36,7 @@ async def updateCounts(s_all_time, s, key, increment=1):
         await message.channel.send('Error updating: ' + str(e))
         return False
 
-
-async def announcement_task(channel):
+async def announcement_task(channel, deleteAfter=None):
     try:
         s = shelve.open('./database/weekly_georgechamp_shelf.db')
 
@@ -49,9 +48,10 @@ async def announcement_task(channel):
             if (i < len(most_used_emotes)):
                 leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
 
-        await channel.send(leaderboard_msg, delete_after=604800)
+        await channel.send(leaderboard_msg, delete_after=deleteAfter)
 
-        s.clear()
+        if deleteAfter == None:
+            s.clear()
         s.close()
     except Exception as e:
         await channel.send('Error Printing Weakly Leaderboard: ' + str(e))
@@ -79,14 +79,25 @@ async def print_leaderboard(message):
         starting_date = shelve.open('./database/starting_date_shelf.db')
         s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
         shelf_as_dict = dict(s_all_time)
-
+        most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
+        total_custom_emotes = 0
+        emote_limit = 0
+        for key in most_used_emotes:
+            if not is_emoji(key[0]):
+                total_custom_emotes += 1
+        counter = 0
+        for key in most_used_emotes:
+            if total_custom_emotes < 10:
+                emote_limit = 99999999
+                break            
+            if counter == total_custom_emotes-9:
+                emote_limit = key[1]+1
+                break
+            if not is_emoji(key[0]):
+                counter += 1
         start = 0
         end = 10
-        if len(message.content) != len('!leaderboard'):
-            if(message.content[len('!leaderboard') + 1:].strip().lower() == "last"):
-                end = len(shelf_as_dict)
-                start = end - 10
-            else:
+        if len(message.content) != len('!leaderboard') and (message.content[len('!leaderboard') + 1:].strip().lower() != "last"):
                 increment = int(message.content[len('!leaderboard') + 1:])
                 # page size = 10
                 start += (increment - 1) * 10
@@ -95,14 +106,17 @@ async def print_leaderboard(message):
 
         total_page_num = 0
         for key in s_all_time:
-            if not (is_emoji(key) and s_all_time[key] < 10):
+            if not (is_emoji(key) and s_all_time[key] < emote_limit):
                 total_page_num += 1
+        if len(message.content) != len('!leaderboard') and (message.content[len('!leaderboard') + 1:].strip().lower() == "last"):
+            end = total_page_num
+            start = total_page_num - 10
+            curr_page_num = math.ceil(total_page_num/10)
         total_page_num = math.ceil(total_page_num/10)
 
-        most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
         temp = []
         for key in most_used_emotes:
-            if not (is_emoji(key[0]) and s_all_time[key[0]] < 10):
+            if not (is_emoji(key[0]) and s_all_time[key[0]] < emote_limit):
                 temp.append(key)
         most_used_emotes = temp[start:end]
 
@@ -111,8 +125,8 @@ async def print_leaderboard(message):
         else:
             leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
             for i in range(10):
-                # Standard emojis which have been used less than 10 times is not printed
-                if (i < len(most_used_emotes) and not (is_emoji(most_used_emotes[i][0]) and most_used_emotes[i][1] < 10)):
+                # Standard emojis are not printed on the last page
+                if (i < len(most_used_emotes) and not (is_emoji(most_used_emotes[i][0]) and most_used_emotes[i][1] < emote_limit)):
                     placement = start + i + 1
                     leaderboard_msg = leaderboard_msg + str(placement) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
             leaderboard_msg += "Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num))
@@ -156,16 +170,14 @@ async def check_emoji(message, guild):
     except Exception as e:
         await message.channel.send('Error Checking Emote: ' + str(e))
 
-
 async def check_reaction(payload):
     s = shelve.open('./database/weekly_georgechamp_shelf.db')
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
     starting_date = shelve.open('./database/starting_date_shelf.db')
 
-    if starting_date.get("date") is None:
+    if len(s_all_time) == 0:
         today = date.today()
-        starting_date["date"] = today.strftime("%d/%m/%y")
-
+        starting_date["date"] = today.strftime("%d/%m/%Y")
 
     if payload.emoji.is_custom_emoji():
         reaction_emoji_key = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
@@ -178,6 +190,7 @@ async def check_reaction(payload):
 
 async def transfer_emotes(transfer_from,transfer_to):
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+    s = shelve.open('./database/weekly_georgechamp_shelf.db')
 
     # accounting for deleted emotes
     if s_all_time.get(transfer_from) is None and transfer_from[-1] == ":" and transfer_from[0] == ":" and len(transfer_from) > 2:
@@ -198,10 +211,17 @@ async def transfer_emotes(transfer_from,transfer_to):
         else:
             s_all_time[transfer_to] += s_all_time[transfer_from]
         del s_all_time[transfer_from]
+        
+    if s.get(transfer_from) is not None:
+        if s.get(transfer_to) is None:
+            s[transfer_to] = s[transfer_from]
+        else:
+            s[transfer_to] += s[transfer_from]
+        del s[transfer_from]
 
     return fromEmoteExists
 
-async def delete_emote(channel,before,after):
+async def rename_emote(channel,before,after):
     try:
         deleted_emote = None
         for before_emote in before:
@@ -231,8 +251,11 @@ async def pls_transfer(message, adminRole):
         transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
         transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
 
-        for i in range(len(message.author.roles)):
-            if adminRole == message.author.roles[i].name:
+        for role in message.author.roles:
+            tempAdminRole = adminRole
+            if role.name[0] != "@":
+                tempAdminRole = adminRole[1:]
+            if tempAdminRole == role.name:
                 flag = await transfer_emotes(transfer_from,transfer_to)
                 if flag:
                     await message.channel.send('Transfer Successful!')

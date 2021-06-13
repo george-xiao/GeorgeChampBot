@@ -4,7 +4,7 @@ import discord
 from dotenv import load_dotenv
 import os
 
-from components import emoteLeaderboard, dotaReplay, twitchAnnouncement, musicPlayer
+from components import emoteLeaderboard, dotaReplay, twitchAnnouncement, musicPlayer, memeReview
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -43,7 +43,7 @@ async def find_channel(channel_name):
     for guild in guilds:
         if guild.name == GUILD:
             for guild_channel in guild.channels:
-                if guild_channel.name == channel_name:
+                if guild_channel.name == channel_name or guild_channel.id == channel_name:
                     # channel type = channel model
                     return guild_channel
 @client.event
@@ -85,11 +85,12 @@ async def on_ready():
             # if announcement time, assume it'll be on the hour e.g. 9:00am
             a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
             if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-                await emoteLeaderboard.announcement_task(a_channel)
+                await emoteLeaderboard.announcement_task(a_channel, 604800)
                 await emoteLeaderboard.announcement_task(e_channel)
-
+            if curr_date.weekday() == (ANNOUNCEMENT_DAY+1) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                await memeReview.best_announcement_task(e_channel)
             # what min of hour should u check; prints only if the current games have not been printed
-            elif (prev_hour != curr_date.hour and curr_date.minute == 00):
+            if (prev_hour != curr_date.hour and curr_date.minute == 00):
                 d_channel = await find_channel(DOTA_CHANNEL)
                 prev_hour = curr_date.hour
                 try:
@@ -138,6 +139,8 @@ async def on_message(message):
         await musicPlayer.play_music(message)
     elif message.content.startswith('!leaderboard'):
         await emoteLeaderboard.print_leaderboard(message)
+    elif message.content.startswith('!memerboard'):
+        await memeReview.print_memerboard(message)
     elif message.content.startswith('!plsletmeplay'):
         await dotaReplay.print_tokens(message.channel)
     elif message.content.startswith('!plstransfer'):
@@ -150,19 +153,23 @@ async def on_message(message):
         for guild in guilds:
             if guild.name == GUILD:
                 guild_id = guild
-
+        await memeReview.check_meme(message, guild, await find_channel(MAIN_CHANNEL))
         await emoteLeaderboard.check_emoji(message, guild)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
-    
+    await memeReview.add_meme_reactions(payload, await find_channel(payload.channel_id), ADMIN_ROLE, client)
     await emoteLeaderboard.check_reaction(payload)
+
+@client.event
+async def on_raw_reaction_remove(payload):
+    await memeReview.remove_meme_reactions(payload, await find_channel(payload.channel_id), client)
 
 @client.event
 async def on_guild_emojis_update(guild, before, after):
     channel = await find_channel(MAIN_CHANNEL)
-    await emoteLeaderboard.delete_emote(channel,before,after)
+    await emoteLeaderboard.rename_emote(channel,before,after)
 
 
 client.run(TOKEN)

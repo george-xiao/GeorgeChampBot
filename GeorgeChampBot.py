@@ -34,9 +34,16 @@ TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
 TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
 twitch_user_list = [TWITCH_USER_1, TWITCH_USER_2]
 twitch_curr_live = []
+# Meme Review
+MEME_CHANNEL = os.getenv('MEME_CHANNEL')
 
-client = discord.Client()
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Client(intents=intents)
 api_running = False
+guildObject = None
+mainChannel = None
+memeChannel = None
 
 async def find_channel(channel_name):
     guilds = client.guilds
@@ -46,13 +53,21 @@ async def find_channel(channel_name):
                 if guild_channel.name == channel_name or guild_channel.id == channel_name:
                     # channel type = channel model
                     return guild_channel
+                
+async def get_guild():
+    guilds = client.guilds
+    for guild in guilds:
+        if guild.name == GUILD:
+            return guild
+
 @client.event
 async def on_ready():
     guilds = client.guilds
-    e_channel = ""
     georgechamp_emoji = None
     for guild in guilds:
         if guild.name == GUILD:
+            global guildObject
+            guildObject = guild
             for emoji in guild.emojis:
                 if 'georgechamp' in emoji.name:
                     georgechamp_emoji = emoji
@@ -60,17 +75,20 @@ async def on_ready():
             for guild_channel in guild.channels:
                 if guild_channel.name == MAIN_CHANNEL:
                     # channel type = channel model
-                    e_channel = guild_channel
-                    msg = await e_channel.send("GeorgeChampBot reporting for duty!")
+                    global mainChannel
+                    mainChannel = guild_channel
+                    msg = await mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
                     # assume only one emoji has georgechamp in it
                     await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
-
+                if guild_channel.name == MEME_CHANNEL:
+                    global memeChannel
+                    memeChannel = guild_channel
 
     if not(os.path.exists("database")):
         try:
             os.mkdir("./database")
         except:
-            await e_channel.send("Error creating Database.")
+            await mainChannel.send("Error creating Database.")
 
     global api_running
     global prev_hour
@@ -86,9 +104,12 @@ async def on_ready():
             a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
             if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
                 await emoteLeaderboard.announcement_task(a_channel, 604800)
-                await emoteLeaderboard.announcement_task(e_channel)
-            if curr_date.weekday() == (ANNOUNCEMENT_DAY+1) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-                await memeReview.best_announcement_task(e_channel)
+                await emoteLeaderboard.announcement_task(mainChannel)
+            if curr_date.weekday() == ((ANNOUNCEMENT_DAY-1)%7) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                await memeReview.best_announcement_task(a_channel, 604800)
+                await memeReview.best_announcement_task(mainChannel)
+            if curr_date.hour == 00 and curr_date.minute == 00:
+                await memeReview.resetLimit()
             # what min of hour should u check; prints only if the current games have not been printed
             if (prev_hour != curr_date.hour and curr_date.minute == 00):
                 d_channel = await find_channel(DOTA_CHANNEL)
@@ -105,12 +126,21 @@ async def on_ready():
 async def on_member_join(member):
     channel = await find_channel(MAIN_CHANNEL)
     try:
-        await member.add_roles(discord.utils.get(member.guild.roles, name=WELCOME_ROLE))
+        for role in guildObject.roles:
+            tempAdminRole = WELCOME_ROLE
+            if role.name[0] != "@":
+                tempAdminRole = WELCOME_ROLE[1:]
+            if role.name == tempAdminRole:
+                await member.add_roles(discord.utils.get(member.guild.roles, name=role.name))
     except Exception as e:
         await channel.send('There was an error running this command ' + str(e))  # if error
     else:
-        await channel.send("Welcome " + member.display_name + " to based server where everyone pretends to be a racist")
+        await channel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
 
+@client.event
+async def on_member_remove(member):
+    channel = await find_channel(MAIN_CHANNEL)
+    await channel.send(member.name + " has decided to leave us :(")
 
 #@client.event
 #async def on_disconnect():
@@ -148,28 +178,21 @@ async def on_message(message):
     elif message.content.startswith('!plsdelete'):
         await emoteLeaderboard.pls_delete(message, ADMIN_ROLE)
     else:
-        guilds = client.guilds
-        guild_id = None
-        for guild in guilds:
-            if guild.name == GUILD:
-                guild_id = guild
-        await memeReview.check_meme(message, guild, await find_channel(MAIN_CHANNEL))
-        await emoteLeaderboard.check_emoji(message, guild)
+        await memeReview.check_meme(message, guildObject, mainChannel, memeChannel)
+        await emoteLeaderboard.check_emoji(message, guildObject)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
-    await memeReview.add_meme_reactions(payload, await find_channel(payload.channel_id), ADMIN_ROLE, client)
-    await emoteLeaderboard.check_reaction(payload)
+    await emoteLeaderboard.check_reaction(payload, guildObject, mainChannel)
+    await memeReview.add_meme_reactions(payload, memeChannel, guildObject, ADMIN_ROLE)
 
 @client.event
 async def on_raw_reaction_remove(payload):
-    await memeReview.remove_meme_reactions(payload, await find_channel(payload.channel_id), client)
+    await memeReview.remove_meme_reactions(payload, memeChannel)
 
 @client.event
 async def on_guild_emojis_update(guild, before, after):
-    channel = await find_channel(MAIN_CHANNEL)
-    await emoteLeaderboard.rename_emote(channel,before,after)
-
+    await emoteLeaderboard.rename_emote(mainChannel,before,after)
 
 client.run(TOKEN)

@@ -32,7 +32,7 @@ async def check_recent_matches(channel, player_list, OPENDOTA_API_KEY):
             #delete match history after 1.5 days
             await channel.send(
                 "Looks like someone played a game... Here's the match:\nhttps://www.dotabuff.com/matches/" + str(
-                match_id), delete_after=129600)
+                match_id), delete_after=86400)
     except Exception as e:
         await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
 

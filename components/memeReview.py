@@ -2,96 +2,164 @@ import emoji
 import shelve
 import operator
 import math
+import discord
 
-async def check_meme(message, guild, channel):
+notMeme = 'kekegolaughands'
+badMeme = 'thumbsdown'
+ehMeme = 'one'
+goodMeme = 'two'
+bestMeme = 'three'
+
+def isMeme(attachments):
+    formatList = ["jpg", "jpeg", "JPG", "JPEG", "png", "PNG", "gif", "gifv", "webm", "mp4", "wav", "mov"]
+    fileFormat = attachments.url.split(".")[-1]
+    return fileFormat in formatList
+
+def getUser(message):
+    return message.embeds[0].description[2:-1]
+    
+async def check_meme(message, guild, channel, memeChannel):
     try:
-        if len(message.attachments) == 0:
+        # if message is not a meme
+        if len(message.attachments) == 0 or not isMeme(message.attachments[0]) or message.channel.id != channel.id:
             return
-        formatList = ["jpg", "jpeg", "JPG", "JPEG", "png", "PNG", "gif", "gifv", "webm", "mp4", "wav"]
-        fileFormat = message.attachments[0].filename.split(".")[-1]
-        if fileFormat not in formatList:
+        
+        # if author already sent a meme
+        memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
+        if memeLeaderboard.get(str(message.author.id)) is not None and memeLeaderboard[str(message.author.id)][1] >= 1:
+            await message.channel.send('Meme not counted. Only one meme a day, <@' + str(message.author.id) + '>', delete_after=300)
             return
+            
+        # Count it as meme. Struct: [Memer Score, Daily Meme Count]
+        if memeLeaderboard.get(str(message.author.id)) is None:
+            memeLeaderboard[str(message.author.id)] = [0,1]
+        else:
+            memeLeaderboard[str(message.author.id)] = [memeLeaderboard[str(message.author.id)][0], memeLeaderboard[str(message.author.id)][1]+1]
+        memeLeaderboard.close()
+
+        embed = discord.Embed(description='<@' + str(message.author.id) + '>')
+        embed.set_image(url=message.attachments[0].url)
+        if message.attachments[0].url[-4:] in ["webm", ".mp4", ".wav", ".mov"]:
+            await memeChannel.send(content=message.attachments[0].url)
+        memeMessage = await memeChannel.send(embed=embed)
+        
+        # Add reactions
+        for emoji in guild.emojis:
+            if emoji.name == notMeme:
+                await memeMessage.add_reaction(emoji)
+                break
+        for emoji in guild.emojis:
+            if emoji.name == badMeme:
+                await memeMessage.add_reaction(emoji)
+                break
+        for emoji in guild.emojis:
+            if emoji.name == ehMeme:
+                await memeMessage.add_reaction(emoji)
+                break
+        for emoji in guild.emojis:
+            if emoji.name == goodMeme:
+                await memeMessage.add_reaction(emoji)
+                break
+        for emoji in guild.emojis:
+            if emoji.name == bestMeme:
+                await memeMessage.add_reaction(emoji)
+                break
+        
         # Structure of list is: GoodMemeCount, isNotMeme, [memeAuthorName, memeAuthorId], memeLink
         memeDatabase = shelve.open('./database/meme_review.db')
-        memeDatabase[str(message.id)] = [0, True, [message.author.display_name, '<@' + str(message.author.id) + '>'], message.attachments[0].url]
+        memeDatabase[str(memeMessage.id)] = [0, True, message.author.id, message.attachments[0].url]
         memeDatabase.close()
-        await add_reactions(message)
+        
     except Exception as e:
         await message.channel.send('Error Checking Meme: ' + str(e))
 
-async def add_reactions(message):
+async def add_meme_reactions(payload, channel, guild, adminRole):
     try:
-        await message.add_reaction(emoji.emojize(":no_entry_sign:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":thumbs_down:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":one:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":two:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":three:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":four:", use_aliases=True))
-        await message.add_reaction(emoji.emojize(":five:", use_aliases=True))
-    except Exception as e:
-        await message.channel.send('Error Adding Review Reactions: ' + str(e))
+        payloadUser = guild.get_member(payload.user_id)
 
-async def add_meme_reactions(payload, channel, adminRole, client):
-    try:
-        message = await channel.fetch_message(payload.message_id)
-        payloadUser = await client.fetch_user(payload.user_id)
-        author = await message.guild.fetch_member(payloadUser.id)
         payloadEmoji = payload.emoji
         if type(payload.emoji) != str:
             payloadEmoji = payload.emoji.name
         
         # If the message is not a meme or the bot added the reaction or the reaction is not valid, leave
         isValidEmote = isNotMemeReaction(payloadEmoji) or isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji)
-        if len(message.attachments) == 0 or payloadUser.bot or not isValidEmote:
+        if payloadUser.bot or not isValidEmote or payload.channel_id != channel.id:
+            return
+
+        message = await channel.fetch_message(payload.message_id)
+        if not isMeme(message.embeds[0].image):
             return
 
         # check if reactor is Admin
         isAdmin = False
-        for role in author.roles:
+        for role in guild.roles:
             tempAdminRole = adminRole
             if role.name[0] != "@":
                 tempAdminRole = adminRole[1:]
             if role.name == tempAdminRole:
-                isAdmin = True
+                for member in role.members:
+                    if member.id == payload.user_id:
+                        isAdmin = True
                 
         memeDatabase = shelve.open('./database/meme_review.db')
         if(memeDatabase.get(str(message.id)) is None):
-            memeDatabase[str(message.id)] = [0, True, [message.author.display_name, '<@' + str(message.author.id) + '>'], message.attachments[0].url]
+            memeDatabase[str(message.id)] = [0, True, getUser(message), message.embeds[0].image.url]
         memeDatabase.close()
                 
+        # These emotes don't count towards the leaderboard
+        #if isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji):
+        #    s = shelve.open('./database/weekly_georgechamp_shelf.db')
+        #    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+        #    emoteKey = None
+        #    if payload.emoji.is_custom_emoji():
+        #        emoteKey = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
+        #    elif payload.emoji.is_unicode_emoji():
+        #        emoteKey = payload.emoji.name
+        #    s_all_time[emoteKey] -= 1
+        #    s[emoteKey] -= 1
+        #    s.close()
+        #    s_all_time.close()
+        
         #check whether the message is a considered a meme
         for reaction in message.reactions:
             reactionEmoji = reaction.emoji
             if type(reactionEmoji) != str:
-                reactionEmoji = reaction.emoji.name
+                reactionEmoji = reaction.emoji.name                
             if isNotMemeReaction(reactionEmoji):
                 # If the Admin is reacting "Not A Meme", leave
                 if reactionEmoji == payloadEmoji and isAdmin:
                     memeDatabase = shelve.open('./database/meme_review.db')
+                    # Reduce daily meme by 1
+                    if memeDatabase[str(message.id)][1] is True:
+                        memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
+                        if memeLeaderboard.get(getUser(message)) is None:
+                            memeLeaderboard[getUser(message)] = [0,-1]
+                        else:
+                            memeLeaderboard[getUser(message)] = [memeLeaderboard[getUser(message)][0], memeLeaderboard[getUser(message)][1]-1]
+                        memeLeaderboard.close()
                     memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 1, False)
                     memeDatabase.close()
+                    
                     return
                 # If the  message is considered "Not A Meme", remove payloadReaction
                 elif reaction.count > 1:
                     await message.remove_reaction(payload.emoji, payloadUser)
                     return
-        
+                
         if isGoodMemeReaction(payloadEmoji):
             memeDatabase = shelve.open('./database/meme_review.db')
             memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 0, memeDatabase[str(message.id)][0]+getScore(payloadEmoji))
             memeDatabase.close()
         elif not isBadMemeReaction(payloadEmoji):
             await channel.send('Error adding meme reaction (1)')
-            
-        userId = str(payloadUser.display_name)
 
         # Adding points for reacting
         if isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji):
             memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
-            if memeLeaderboard.get(userId) is None:
-                memeLeaderboard[userId] = 1
+            if memeLeaderboard.get(str(payload.user_id)) is None:
+                memeLeaderboard[str(payload.user_id)] = [1, 0]
             else:
-                memeLeaderboard[userId] += 1
+                memeLeaderboard[str(payload.user_id)] = [memeLeaderboard[str(payload.user_id)][0]+1, memeLeaderboard[str(payload.user_id)][1]]
             memeLeaderboard.close()
         
         for reaction in message.reactions:
@@ -106,16 +174,27 @@ async def add_meme_reactions(payload, channel, adminRole, client):
                 # if user alredy voted before, replace the previous emote with current one
                 if reactionEmoji != payloadEmoji and sameUser:
                     await message.remove_reaction(reaction.emoji, payloadUser)
+                # can't react to your own meme
+                if reactionEmoji == payloadEmoji and str(payload.user_id) == getUser(message):
+                    await message.remove_reaction(reaction.emoji, payloadUser)
     except Exception as e:
         await channel.send('Error adding meme reactions: ' + str(e))
 
-async def remove_meme_reactions(payload, channel, client):
+async def remove_meme_reactions(payload, channel):
     try:
-        message = await channel.fetch_message(payload.message_id)
-        payloadUser = await client.fetch_user(payload.user_id)
         payloadEmoji = payload.emoji
         if type(payload.emoji) != str:
             payloadEmoji = payload.emoji.name
+                
+        # If the message is not a meme or the bot added the reaction or the reaction is not valid, leave
+        isValidEmote = isNotMemeReaction(payloadEmoji) or isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji)
+        if not isValidEmote or payload.channel_id != channel.id:
+            return
+
+        message = await channel.fetch_message(payload.message_id)
+        if not isMeme(message.embeds[0].image):
+            return
+        
         notMemeReaction = None
         for reaction in message.reactions:
             notMemeReaction = reaction.emoji
@@ -124,41 +203,56 @@ async def remove_meme_reactions(payload, channel, client):
             if isNotMemeReaction(notMemeReaction):
                 notMemeReaction = reaction
                 break
-        
-        userId = str(payloadUser.display_name)
-        if isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji):
+
+        # Remove 1 Point for reacting
+        if (isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji)) and (notMemeReaction is not None and notMemeReaction.count <= 1):
             memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
-            if memeLeaderboard.get(userId) is None:
-                memeLeaderboard[userId] = -1
+            if memeLeaderboard.get(str(payload.user_id)) is None:
+                memeLeaderboard[str(payload.user_id)] = [-1,0]
             else:
-                memeLeaderboard[userId] -= 1
+                memeLeaderboard[str(payload.user_id)] = [memeLeaderboard[str(payload.user_id)][0]-1, memeLeaderboard[str(payload.user_id)][1]]
             memeLeaderboard.close()
+            
+        # Reduce Emote count
+        s = shelve.open('./database/weekly_georgechamp_shelf.db')
+        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+        emoteKey = None
+        if payload.emoji.is_custom_emoji():
+            emoteKey = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
+        elif payload.emoji.is_unicode_emoji():
+            emoteKey = payload.emoji.name
+        s_all_time[emoteKey] -= 1
+        s[emoteKey] -= 1
+        s.close()
+        s_all_time.close()
             
         memeDatabase = shelve.open('./database/meme_review.db')
         if(memeDatabase.get(str(message.id)) is None):
-            memeDatabase[str(message.id)] = [0, True, [message.author.display_name, '<@' + str(message.author.id) + '>'], message.attachments[0].url]
+            memeDatabase[str(message.id)] = [0, True, getUser(message), message.embeds[0].image.url]
         if isGoodMemeReaction(payloadEmoji):
             memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 0, memeDatabase[str(message.id)][0]-getScore(payloadEmoji))
         elif isNotMemeReaction(payloadEmoji) and notMemeReaction is not None and notMemeReaction.count <= 1:
-            memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 1, False)
+            # Reduce number of daily meme by 1
+            if memeDatabase[str(message.id)][1] == False:
+                memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
+                if memeLeaderboard.get(getUser(message)) is None:
+                    memeLeaderboard[getUser(message)] = [0,1]
+                else:
+                    memeLeaderboard[getUser(message)]
+                    memeLeaderboard[getUser(message)] = [memeLeaderboard[getUser(message)][0], memeLeaderboard[getUser(message)][1]+1]
+                memeLeaderboard.close()
+            memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 1, True)
         memeDatabase.close()
         
     except Exception as e:
         await channel.send('Error removing meme reactions: ' + str(e))
 
 def isNotMemeReaction(inputEmoji):
-    return inputEmoji == emoji.emojize(":no_entry_sign:", use_aliases=True)
+    return inputEmoji == notMeme
 def isBadMemeReaction(inputEmoji):
-    return inputEmoji == emoji.emojize(":thumbs_down:", use_aliases=True)
+    return inputEmoji == badMeme
 def isGoodMemeReaction(inputEmoji):
-    memeList = [
-        emoji.emojize(":one:", use_aliases=True),
-        emoji.emojize(":two:", use_aliases=True),
-        emoji.emojize(":three:", use_aliases=True),
-        emoji.emojize(":four:", use_aliases=True),
-        emoji.emojize(":five:", use_aliases=True)
-    ]
-    return inputEmoji in memeList
+    return inputEmoji in [ehMeme,goodMeme,bestMeme]
 
 def addToDatabase(memeDatabase, index, value):
     tempDatabase = memeDatabase[:index]
@@ -167,18 +261,14 @@ def addToDatabase(memeDatabase, index, value):
     return tempDatabase
 
 def getScore(inputEmoji):
-    if inputEmoji == emoji.emojize(":one:", use_aliases=True):
+    if inputEmoji == ehMeme:
         return 1
-    if inputEmoji == emoji.emojize(":two:", use_aliases=True):
+    if inputEmoji == goodMeme:
         return 2
-    if inputEmoji == emoji.emojize(":three:", use_aliases=True):
-        return 3
-    if inputEmoji == emoji.emojize(":four:", use_aliases=True):
+    if inputEmoji == bestMeme:
         return 4
-    if inputEmoji == emoji.emojize(":five:", use_aliases=True):
-        return 5
 
-async def best_announcement_task(channel):
+async def best_announcement_task(channel, deleteAfter=None):
     try:
         memeDatabase = shelve.open('./database/meme_review.db')
         memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
@@ -189,23 +279,34 @@ async def best_announcement_task(channel):
             return
         
         sorted_database = sorted(shelf_as_dict.items(), key=lambda item: item[1][0], reverse=True)
-        points = [25,20,15,10,5]
+        for item in sorted_database:
+            print(item)
+        points = [75,50,30,15,5]
         i = 0
         for meme1 in sorted_database:
             meme = meme1[1]
             if meme[1] == True:
-                if i < 5:
-                    if memeLeaderboard.get(meme[2][0]) is None:
-                        memeLeaderboard[meme[2][0]] = points[i]
+                if i < 5 and deleteAfter is None:
+                    if memeLeaderboard.get(str(meme[2])) is None:
+                        memeLeaderboard[str(meme[2])] = [points[i],0]
                     else:
-                        memeLeaderboard[meme[2][0]] += points[i]
+                        memeLeaderboard[str(meme[2])] = [memeLeaderboard[str(meme[2])][0]+points[i], memeLeaderboard[str(meme[2])][1]]
                 i += 1
-
-        bestMeme = sorted_database[0][1]                
-        partyEmotes = emoji.emojize(":partying_face:") + " " + emoji.emojize(":partying_face:") + " " + emoji.emojize(":partying_face:")
-        await channel.send("The Meme of the Week Award goes to " + bestMeme[2][1] + "!! " + partyEmotes + "\n" + bestMeme[3])
+        sendMsg = "Memer of the Week: :first_place:" + "<@" + str(sorted_database[0][1][2]) + "> " + " :partying_face::partying_face::partying_face:\n"
+        if (len(sorted_database) >= 2):
+            sendMsg += "Second Place: :second_place:" + "<@" + str(sorted_database[1][1][2]) + "> " + "\n"
+        if (len(sorted_database) >= 3):
+            sendMsg += "Third Place: :third_place:" + "<@" + str(sorted_database[2][1][2]) + "> " + "\n"
+        embed = discord.Embed(title="Best Meme:")
+        embed.set_image(url=sorted_database[0][1][3])
+        if sorted_database[0][1][3][-4:] in ["webm", ".mp4", ".wav", ".mov"]:
+            sendMsg += "Best Meme:\n" + sorted_database[0][1][3]
+            await channel.send(content=sendMsg, delete_after=deleteAfter)
+        else:
+            await channel.send(sendMsg, delete_after=deleteAfter, embed=embed)
         
-        memeDatabase.clear()
+        if deleteAfter is None:
+            memeDatabase.clear()
         memeDatabase.close()
         memeLeaderboard.close()
     except Exception as e:
@@ -218,30 +319,32 @@ async def print_memerboard(message):
         shelf_as_dict = dict(memeLeaderboard)
         sorted_memers = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
         memeReview = shelve.open('./database/meme_review.db')
+        
         start = 0
-        end = 10
-        if len(message.content) != len('!memerboard') and (message.content[len('!memerboard') + 1:].strip().lower() != "last"):
+        end = 5
+        if len(message.content) != len('!memerboard'):
                 increment = int(message.content[len('!memerboard') + 1:])
-                # page size = 10
-                start += (increment - 1) * 10
-                end += (increment - 1) * 10
-        curr_page_num = (start / 10) + 1
+                # page size = 5
+                start += (increment - 1) * 5
+                end += (increment - 1) * 5
+        curr_page_num = (start / 5) + 1
 
-        if len(message.content) != len('!memerboard') and (message.content[len('!memerboard') + 1:].strip().lower() == "last"):
-            end = total_page_num
-            start = total_page_num - 10
-            curr_page_num = math.ceil(total_page_num/10)
-        total_page_num = math.ceil(len(memeLeaderboard)/10)
         sorted_memers = sorted_memers[start:end]
+        total_page_num = math.ceil(len(memeLeaderboard)/5)
 
         if len(sorted_memers) == 0:
             await message.channel.send("Doesn't look like there are memers here :( Try another page.")
         else:
             leaderboard_msg = "Meme Leaderboard\nMemer - Points \n"
-            for i in range(10):
+            for i in range(5):
                 if (i < len(sorted_memers)):
                     placement = start + i + 1
-                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + sorted_memers[i][0] + " - " + str(sorted_memers[i][1]) + "\n"
+                    displayedMember = await message.guild.fetch_member(int(sorted_memers[i][0]))
+                    if displayedMember.nick is not None:
+                        displayedName = displayedMember.nick
+                    else:
+                        displayedName = displayedMember.display_name
+                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + displayedName + " - " + str(sorted_memers[i][1][0]) + "\n"
             leaderboard_msg += "Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num))
             await message.channel.send(leaderboard_msg)
 
@@ -249,3 +352,8 @@ async def print_memerboard(message):
 
     except Exception as e:
         await message.channel.send('Error Printing Leaderboard: ' + str(e))
+
+async def resetLimit():    
+    memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
+    for memer in memeLeaderboard:
+        memeLeaderboard[memer] = [memeLeaderboard[memer][0], 0]

@@ -41,10 +41,10 @@ async def announcement_task(channel, deleteAfter=None):
         s = shelve.open('./database/weekly_georgechamp_shelf.db')
 
         shelf_as_dict = dict(s)
-        most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:5]
+        most_used_emotes = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)[:7]
 
         leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
-        for i in range(5):
+        for i in range(7):
             if (i < len(most_used_emotes)):
                 leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
 
@@ -150,18 +150,16 @@ async def check_emoji(message, guild):
 
         for i in range(len(emoji_names)):
             for emoji in guild.emojis:
-                temp_emoji = emoji_names[i].split(':', 2)
-                if temp_emoji[1] in emoji.name:
+                temp_emoji = emoji_names[i][1:][:-1].split(':', 2)
+                if temp_emoji[1] == emoji.name and temp_emoji[2] == str(emoji.id) and emoji.animated == False:
                     await updateCounts(s_all_time, s, emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
         unicode_emojis = []
         for character in message.content:
             if is_emoji(character):
                 unicode_emojis.append(character)
-
         emoji_names = list(Counter(unicode_emojis).keys())
         emoji_counts = list(Counter(unicode_emojis).values())
-
         for i in range(len(emoji_names)):
             await updateCounts(s_all_time, s, emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
@@ -170,23 +168,28 @@ async def check_emoji(message, guild):
     except Exception as e:
         await message.channel.send('Error Checking Emote: ' + str(e))
 
-async def check_reaction(payload):
-    s = shelve.open('./database/weekly_georgechamp_shelf.db')
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
-    starting_date = shelve.open('./database/starting_date_shelf.db')
+async def check_reaction(payload, guild, channel):
+    try:
+        s = shelve.open('./database/weekly_georgechamp_shelf.db')
+        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+        starting_date = shelve.open('./database/starting_date_shelf.db')
 
-    if len(s_all_time) == 0:
-        today = date.today()
-        starting_date["date"] = today.strftime("%d/%m/%Y")
+        if len(s_all_time) == 0:
+            today = date.today()
+            starting_date["date"] = today.strftime("%d/%m/%Y")
+            
+        if payload.emoji.is_custom_emoji() and not payload.emoji.animated:
+            for emoji in guild.emojis:
+                if payload.emoji.name == emoji.name and payload.emoji.id == emoji.id:
+                    reaction_emoji_key = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
+                    await updateCounts(s_all_time, s, reaction_emoji_key)
+        elif is_emoji(payload.emoji.name):
+            await updateCounts(s_all_time, s, payload.emoji.name)
 
-    if payload.emoji.is_custom_emoji():
-        reaction_emoji_key = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
-        await updateCounts(s_all_time, s, reaction_emoji_key)
-    elif payload.emoji.is_unicode_emoji():
-        await updateCounts(s_all_time, s, payload.emoji.name)
-
-    s.close()
-    s_all_time.close()
+        s.close()
+        s_all_time.close()
+    except Exception as e:
+        await message.channel.send('Error Checking Reaction: ' + str(e))
 
 async def transfer_emotes(transfer_from,transfer_to):
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
@@ -250,26 +253,33 @@ async def pls_transfer(message, adminRole):
     try:
         transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
         transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
-
+        
+        isAdmin = False
         for role in message.author.roles:
             tempAdminRole = adminRole
             if role.name[0] != "@":
                 tempAdminRole = adminRole[1:]
             if tempAdminRole == role.name:
+                isAdmin = True
                 flag = await transfer_emotes(transfer_from,transfer_to)
                 if flag:
                     await message.channel.send('Transfer Successful!')
                 else:
                     await message.channel.send("Couldn't Transfer Emotes!")
-                return
-        await message.channel.send('Admin Access Required. Ask a ' + adminRole)
+        if not isAdmin:
+            await message.channel.send('Admin Access Required. Ask a ' + adminRole)
     except Exception as e:
         await message.channel.send('Error Transferring: ' + str(e))
 
 async def pls_delete(message, adminRole):
     try:
-        for i in range(len(message.author.roles)):
-            if adminRole == message.author.roles[i].name:
+        isAdmin = False
+        for role in message.author.roles:
+            tempAdminRole = adminRole
+            if role.name[0] != "@":
+                tempAdminRole = adminRole[1:]
+            if tempAdminRole == role.name:
+                isAdmin = True
                 s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
                 s = shelve.open('./database/weekly_georgechamp_shelf.db')
                 deleted_emote = message.content[11:]
@@ -295,5 +305,7 @@ async def pls_delete(message, adminRole):
 
                 s_all_time.close()
                 s.close()
+        if not isAdmin:
+            await message.channel.send('Not an admin. Ask ' + adminRole)
     except Exception as e:
         await message.channel.send('Error Deleting: ' + str(e))

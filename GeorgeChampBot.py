@@ -1,16 +1,23 @@
 import asyncio
+from asyncio.windows_events import NULL
 from datetime import datetime
 import discord
+from discord import channel
+from discord.client import Client
 from dotenv import load_dotenv
+from discord.ext import commands
 import os
 
-from components import emoteLeaderboard, dotaReplay, twitchAnnouncement, musicPlayer, memeReview
+from discord.utils import get
+from components import emoteLeaderboard, dotaReplay, twitchAnnouncement, musicPlayer, memeReview, music
+
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 ADMIN_ROLE = os.getenv('ADMIN_ROLE')
 MAIN_CHANNEL = os.getenv('MAIN_CHANNEL')
+BOT_CHANNEL = os.getenv('BOT_CHANNEL')
 # Announcement
 ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
 ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
@@ -79,7 +86,7 @@ async def on_ready():
                     mainChannel = guild_channel
                     msg = await mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
                     # assume only one emoji has georgechamp in it
-                    await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
+                    # await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
                 if guild_channel.name == MEME_CHANNEL:
                     global memeChannel
                     memeChannel = guild_channel
@@ -93,33 +100,39 @@ async def on_ready():
     global api_running
     global prev_hour
     if api_running is False:
+        
+        a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
+        t_channel = await find_channel(MAIN_CHANNEL)
+        
+        # if announcement time, assume it'll be on the hour e.g. 9:00am
+        
         while 1:
             api_running = True
-            a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
-            t_channel = await find_channel(MAIN_CHANNEL)
-            await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
             # seconds/week
             curr_date = datetime.now()
-            # if announcement time, assume it'll be on the hour e.g. 9:00am
-            a_channel = await find_channel(ANNOUNCEMENT_CHANNEL)
-            if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-                await emoteLeaderboard.announcement_task(a_channel, 604800)
-                await emoteLeaderboard.announcement_task(mainChannel)
-            if curr_date.weekday() == ((ANNOUNCEMENT_DAY-1)%7) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
-                await memeReview.best_announcement_task(a_channel, 604800)
-                await memeReview.best_announcement_task(mainChannel)
-            if curr_date.hour == 00 and curr_date.minute == 00:
-                await memeReview.resetLimit()
-            # what min of hour should u check; prints only if the current games have not been printed
-            if (prev_hour != curr_date.hour and curr_date.minute == 00):
-                d_channel = await find_channel(DOTA_CHANNEL)
-                prev_hour = curr_date.hour
-                try:
-                    await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
-                except:
-                    api_running = False
-
-            await asyncio.sleep(55)
+            
+            if (curr_date.second % 55) == 0:
+                await twitchAnnouncement.check_twitch_live(t_channel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
+                if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                    await emoteLeaderboard.announcement_task(a_channel, 604800)
+                    await emoteLeaderboard.announcement_task(mainChannel)
+                if curr_date.weekday() == ((ANNOUNCEMENT_DAY-1)%7) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                    await memeReview.best_announcement_task(a_channel, 604800)
+                    await memeReview.best_announcement_task(mainChannel)
+                if curr_date.hour == 00 and curr_date.minute == 00:
+                    await memeReview.resetLimit()
+                # what min of hour should u check; prints only if the current games have not been printed
+                if (prev_hour != curr_date.hour and curr_date.minute == 00):
+                    d_channel = await find_channel(DOTA_CHANNEL)
+                    prev_hour = curr_date.hour
+                    try:
+                        await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
+                    except:
+                        api_running = False
+            if (curr_date.second % 1) == 0:
+                if (client.voice_clients is not None) and (len(client.voice_clients) > 0):
+                    await music.play_song(client.voice_clients[0])
+            await asyncio.sleep(1)
 
 
 @client.event
@@ -153,6 +166,7 @@ async def on_member_remove(member):
 
 @client.event
 async def on_message(message):
+
     if message.author == client.user:
         return None
     elif message.content.startswith('!plshelp'):
@@ -177,6 +191,22 @@ async def on_message(message):
         await emoteLeaderboard.pls_transfer(message, ADMIN_ROLE)
     elif message.content.startswith('!plsdelete'):
         await emoteLeaderboard.pls_delete(message, ADMIN_ROLE)
+    elif message.content.startswith('!p'):
+        await music.play(message)
+    elif message.content.startswith('!pjoin'):
+        await music.join(message)
+    elif message.content.startswith('!pause'):
+        await music.pause(message)
+    elif message.content.startswith('!resume'):
+        await music.resume(message)
+    elif message.content.startswith('!queue'):
+        await music.queue(message)
+    elif message.content.startswith('!skip'):
+        await music.skip(message)
+    elif message.content.startswith('!disc'):
+        await music.disconnect(message)   
+             
+
     else:
         await memeReview.check_meme(message, guildObject, mainChannel, memeChannel)
         await emoteLeaderboard.check_emoji(message, guildObject)

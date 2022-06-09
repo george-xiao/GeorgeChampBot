@@ -27,8 +27,8 @@ async def check_meme(message, guild, channel, memeChannel):
         # if author already sent a meme
         memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
         if memeLeaderboard.get(str(message.author.id)) is not None and memeLeaderboard[str(message.author.id)][1] >= 1:
-            await message.channel.send('Meme not counted. Only one meme a day, <@' + str(message.author.id) + '>', delete_after=300)
-            return
+            await message.channel.send('Meme not counted. Only one meme a day, <@' + str(message.author.id) + '>')
+            # return
             
         # Count it as meme. Struct: [Memer Score, Daily Meme Count]
         if memeLeaderboard.get(str(message.author.id)) is None:
@@ -84,22 +84,17 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
         # If the message is not a meme or the bot added the reaction or the reaction is not valid, leave
         isValidEmote = isNotMemeReaction(payloadEmoji) or isGoodMemeReaction(payloadEmoji) or isBadMemeReaction(payloadEmoji)
         if payloadUser.bot or not isValidEmote or payload.channel_id != channel.id:
-            return
+            return isValidEmote
 
         message = await channel.fetch_message(payload.message_id)
         if not isMeme(message.embeds[0].image):
-            return
+            return isValidEmote
 
-        # check if reactor is Admin
-        isAdmin = False
-        for role in guild.roles:
-            tempAdminRole = adminRole
-            if role.name[0] != "@":
-                tempAdminRole = adminRole[1:]
-            if role.name == tempAdminRole:
-                for member in role.members:
-                    if member.id == payload.user_id:
-                        isAdmin = True
+        # check if reactor is Admin or is the sender of the meme
+        isAdmin = str(payload.user_id) == getUser(message)
+        for member in adminRole.members:
+            if member.id == payload.user_id:
+                isAdmin = True
                 
         memeDatabase = shelve.open('./database/meme_review.db')
         if(memeDatabase.get(str(message.id)) is None):
@@ -140,11 +135,11 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
                     memeDatabase[str(message.id)] = addToDatabase(memeDatabase[str(message.id)], 1, False)
                     memeDatabase.close()
                     
-                    return
+                    return isValidEmote
                 # If the  message is considered "Not A Meme", remove payloadReaction
                 elif reaction.count > 1:
                     await message.remove_reaction(payload.emoji, payloadUser)
-                    return
+                    return isValidEmote
                 
         if isGoodMemeReaction(payloadEmoji):
             memeDatabase = shelve.open('./database/meme_review.db')
@@ -177,8 +172,12 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
                 # can't react to your own meme
                 if reactionEmoji == payloadEmoji and str(payload.user_id) == getUser(message):
                     await message.remove_reaction(reaction.emoji, payloadUser)
+
+        return isValidEmote
+        
     except Exception as e:
         await channel.send('Error adding meme reactions: ' + str(e))
+        return True
 
 async def remove_meme_reactions(payload, channel):
     try:
@@ -214,17 +213,17 @@ async def remove_meme_reactions(payload, channel):
             memeLeaderboard.close()
             
         # Reduce Emote count
-        s = shelve.open('./database/weekly_georgechamp_shelf.db')
-        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
-        emoteKey = None
-        if payload.emoji.is_custom_emoji():
-            emoteKey = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
-        elif payload.emoji.is_unicode_emoji():
-            emoteKey = payload.emoji.name
-        s_all_time[emoteKey] -= 1
-        s[emoteKey] -= 1
-        s.close()
-        s_all_time.close()
+        # s = shelve.open('./database/weekly_georgechamp_shelf.db')
+        # s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+        # emoteKey = None
+        # if payload.emoji.is_custom_emoji():
+        #     emoteKey = "<:" + payload.emoji.name + ":" + str(payload.emoji.id) + ">"
+        # elif payload.emoji.is_unicode_emoji():
+        #     emoteKey = payload.emoji.name
+        # s_all_time[emoteKey] -= 1
+        # s[emoteKey] -= 1
+        # s.close()
+        # s_all_time.close()
             
         memeDatabase = shelve.open('./database/meme_review.db')
         if(memeDatabase.get(str(message.id)) is None):
@@ -279,8 +278,6 @@ async def best_announcement_task(channel, deleteAfter=None):
             return
         
         sorted_database = sorted(shelf_as_dict.items(), key=lambda item: item[1][0], reverse=True)
-        for item in sorted_database:
-            print(item)
         points = [75,50,30,15,5]
         i = 0
         for meme1 in sorted_database:

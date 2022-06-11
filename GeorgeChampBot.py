@@ -166,12 +166,16 @@ async def on_message(message):
         await emoteLeaderboard.print_leaderboard(message)
     elif command_name in ['!memerboard']:
         await memeReview.print_memerboard(message)
-    elif command_name in ['!plsletmeplay']:
-        await dotaReplay.print_tokens(message.channel)
     elif command_name in ['!plstransfer']:
         await emoteLeaderboard.pls_transfer(message, get_role(env["ADMIN_ROLE"]))
     elif command_name in ['!plsdelete']:
         await emoteLeaderboard.pls_delete(message, get_role(env["ADMIN_ROLE"]))
+    elif command_name in ['!plsadd-dota']:
+        await dotaReplay.add_player(message, ADMIN_ROLE)
+    elif command_name in ['!plsremove-dota']:
+        await dotaReplay.remove_player(message, ADMIN_ROLE)
+    elif command_name in ['!plslistplayers-dota']:
+        await dotaReplay.list_players(message.channel)
     else:
         await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
         await emoteLeaderboard.check_emoji(message, ut.guildObject)

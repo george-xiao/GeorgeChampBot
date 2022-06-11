@@ -6,6 +6,8 @@ async def check_twitch_live(channel):
     twitchOAuthToken = ut.env["TWITCH_OAUTH_TOKEN"]
     twitchUserList = ut.env["twitch_user_list"]
     
+    if not twitchClientId or not twitchOAuthToken:
+        return
     twitch_helix = twitch.TwitchHelix(client_id=twitchClientId, oauth_token=twitchOAuthToken)
     try:
         global twitch_curr_live

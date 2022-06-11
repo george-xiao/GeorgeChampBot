@@ -174,7 +174,7 @@ async def check_reaction(payload, guild, channel):
         s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
         starting_date = shelve.open('./database/starting_date_shelf.db')
 
-        if len(s_all_time) == 0:
+        if "date" not in starting_date:
             today = date.today()
             starting_date["date"] = today.strftime("%d/%m/%Y")
             
@@ -251,23 +251,19 @@ async def rename_emote(channel,before,after):
 
 async def pls_transfer(message, adminRole):
     try:
-        transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
-        transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
-        
         isAdmin = False
         for role in message.author.roles:
-            tempAdminRole = adminRole
-            if role.name[0] != "@":
-                tempAdminRole = adminRole[1:]
-            if tempAdminRole == role.name:
+            if adminRole == role:
                 isAdmin = True
+                transfer_from = ((message.content.split(' ',1)[1]).split('->',1)[0]).strip()
+                transfer_to = ((message.content.split(' ',1)[1]).split('->',1)[1]).strip()
                 flag = await transfer_emotes(transfer_from,transfer_to)
                 if flag:
                     await message.channel.send('Transfer Successful!')
                 else:
                     await message.channel.send("Couldn't Transfer Emotes!")
         if not isAdmin:
-            await message.channel.send('Admin Access Required. Ask a ' + adminRole)
+            await message.channel.send('Admin Access Required. Ask a ' + adminRole.name)
     except Exception as e:
         await message.channel.send('Error Transferring: ' + str(e))
 
@@ -275,10 +271,7 @@ async def pls_delete(message, adminRole):
     try:
         isAdmin = False
         for role in message.author.roles:
-            tempAdminRole = adminRole
-            if role.name[0] != "@":
-                tempAdminRole = adminRole[1:]
-            if tempAdminRole == role.name:
+            if adminRole == role:
                 isAdmin = True
                 s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
                 s = shelve.open('./database/weekly_georgechamp_shelf.db')
@@ -306,6 +299,6 @@ async def pls_delete(message, adminRole):
                 s_all_time.close()
                 s.close()
         if not isAdmin:
-            await message.channel.send('Not an admin. Ask ' + adminRole)
+            await message.channel.send('Not an admin. Ask ' + adminRole.name)
     except Exception as e:
         await message.channel.send('Error Deleting: ' + str(e))

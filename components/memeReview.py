@@ -28,7 +28,7 @@ async def check_meme(message, guild, channel, memeChannel):
         memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
         if memeLeaderboard.get(str(message.author.id)) is not None and memeLeaderboard[str(message.author.id)][1] >= 1:
             await message.channel.send('Meme not counted. Only one meme a day, <@' + str(message.author.id) + '>')
-            # return
+            return False
             
         # Count it as meme. Struct: [Memer Score, Daily Meme Count]
         if memeLeaderboard.get(str(message.author.id)) is None:

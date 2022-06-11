@@ -1,19 +1,20 @@
 import requests
 import shelve
 from datetime import datetime
+from . import utils as ut
 
-async def check_recent_matches(channel, player_list, OPENDOTA_API_KEY):
+async def check_recent_matches(channel):
     s = shelve.open('./database/george_token_count.db')
     if s.get("token_count") is None:
         s["token_count"] = 0
 
     open_dota_players_url = "https://api.opendota.com/api/players/"
     curr_epoch_time = int(datetime.now().timestamp())
-    hed = {'Authorization': 'Bearer ' + OPENDOTA_API_KEY}
+    hed = {'Authorization': 'Bearer ' + ut.env["OPENDOTA_API_KEY"]}
     match_ids = []
     
     try:
-        for player in player_list:
+        for player in ut.env["player_list"]:
             res = requests.get(open_dota_players_url + player + '/recentMatches', headers=hed)
             if res.status_code == 200:
                 recent_matches = res.json()

@@ -4,13 +4,13 @@ from youtube_dl import YoutubeDL
 from collections import deque
 from datetime import datetime
 from .utils import seconds_to_time
+from . import utils as ut
 from urllib.parse import parse_qs, urlparse
 import isodate
 import discord
 import random
 
-# 'quiet': True, 'no_warnings': True,
-YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
+YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'quiet': 'True', 'no_warnings': 'True','ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 MAX_SONGS = 2000
 
@@ -30,7 +30,7 @@ class SongItem:
         self.start_time = None # in seconds
 
 # Constantly checking if the next song in queue should be played
-async def play_song(bot_channel):
+async def play_song():
     try:
         global song_queue
         # Play next song if bot is in vc, bot is not currently playing a song, and there are songs in the queue
@@ -47,17 +47,16 @@ async def play_song(bot_channel):
 
         song = song_queue[0].song
         song_queue[0].start_time = datetime.now()
-        print(song)
         voice_connection.play(FFmpegPCMAudio(song, **FFMPEG_OPTIONS))
-        await now_playing(bot_channel)
+        await now_playing(ut.botChannel, True)
     except Exception as e:
-        await bot_channel.send('Error Playing Next Song: ' + str(e))
+        await ut.botChannel.send('Error Playing Next Song: ' + str(e))
 
 # Constantly processing urls into song_queue
-async def process_song(bot_channel, bot_object):
+async def process_song():
     try:
         global song_queue, voice_connection, loop_queue, loop_song
-        if not bot_object.voice or not bot_object.voice.channel and voice_connection:
+        if not ut.botObject.voice or not ut.botObject.voice.channel and voice_connection:
             voice_connection = None
             song_queue = deque([])
             loop_queue, loop_song = False, False
@@ -69,13 +68,13 @@ async def process_song(bot_channel, bot_object):
         info = YoutubeDL(YDL_OPTIONS).extract_info(url, download=False)
         song_queue[1].song = info["formats"][0]["url"]
     except Exception as e:
-        await bot_channel.send('Error Processing Song: ' + str(e))
+        await ut.botChannel.send('Error Processing Song: ' + str(e))
 
 # Returns list of SongItems given input
-def process_input(user_input, YOUTUBE_API_KEY, requester):
+async def process_input(user_input, requester, channel):
     video_ids = []
     query = parse_qs(urlparse(user_input).query, keep_blank_values=True)
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey = YOUTUBE_API_KEY)
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey = ut.env["YOUTUBE_API_KEY"])
     if "list" in query:
         playlist_id = query["list"][0]
         request = youtube.playlistItems().list(
@@ -99,10 +98,13 @@ def process_input(user_input, YOUTUBE_API_KEY, requester):
             q=user_input
         )
         response = request.execute()
-        if not response["items"]:
-            return []
-        video_ids.append(response["items"][0]["id"]["videoId"])
+        if response["items"]:
+            video_ids.append(response["items"][0]["id"]["videoId"])
     
+    if not video_ids:
+        await channel.send(f"{user_input} not found :/")
+        return []
+
     song_items = []
     for i in range(len(video_ids)//50 + 1):
         start = i * 50
@@ -122,37 +124,35 @@ def process_input(user_input, YOUTUBE_API_KEY, requester):
 
     return song_items
 
-async def play(message, user_input, YOUTUBE_API_KEY):
+async def play(message, user_input):
     try:
+        if not await is_valid_command(message):
+            return False
+
         global voice_connection
         try:
             voice_connection = await message.author.voice.channel.connect()
         except discord.ClientException:
             pass
         
+        # Need this when starting the queue. since first element is 'now_playing'
         global song_queue
         if not song_queue:
             song_queue.append(None)
-        added_songs = process_input(user_input, YOUTUBE_API_KEY, message.author)
 
-        if not added_songs:
-            await message.channel.send(f"{user_input} not found :/")
-
-
+        added_songs = await process_input(user_input, message.author, message.channel)
+        added_songs = added_songs[:MAX_SONGS - len(song_queue)]
         song_queue += added_songs
-        num_added_songs = len(added_songs)
-        if len(song_queue) > MAX_SONGS:
-            await message.channel.send(f"Reached max limit of {MAX_SONGS} songs!")
-            num_added_songs -= (len(song_queue) - MAX_SONGS)
-            for _ in range(len(song_queue) - MAX_SONGS):
-                song_queue.pop()
         
-        await message.channel.send(f"Adding {num_added_songs} songs.")
+        await message.channel.send(f"Adding {len(added_songs)} songs.")
     except Exception as e:
         await message.channel.send('Error Playing Song: ' + str(e))
     
 async def queue(message, page_num):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         if not page_num:
             page_num = 0
         else:
@@ -169,15 +169,22 @@ async def queue(message, page_num):
             embed.description += f"{i}) {song_queue[i].title}\n"
         embed.set_footer(text=f"Page {page_num+1}/{(len(song_queue) - 2 )//10+1}")
         
-        if embed.description == "" or page_num <= 0:
+        if embed.description == "" or page_num < 0:
             await message.channel.send("Page number out of range...")
         else:
             await message.channel.send(embed=embed)
     except Exception as e:
         await message.channel.send('Error Printing Queue: ' + str(e))
     
-async def now_playing(channel):
+async def now_playing(message, isValid = False):
     try:
+        if not isValid and not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
+        channel = message
+        if not isValid:
+            channel = message.channel
+
         if not song_queue:
             await channel.send("No songs playing currently.")
             return
@@ -193,6 +200,9 @@ async def now_playing(channel):
     
 async def shuffle(message):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         global song_queue
         if len(song_queue) <= 1:
             await message.channel.send("Queue is empty.")
@@ -207,6 +217,9 @@ async def shuffle(message):
     
 async def move(message, move_from):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         global song_queue
         if len(song_queue) <= 1:
             await message.channel.send("Queue is empty.")
@@ -224,53 +237,71 @@ async def move(message, move_from):
     except Exception as e:
         await message.channel.send('Error Moving Song: ' + str(e))
 
-async def skip(text_channel):
+async def skip(message):
     try:
-        voice_connection.stop()
-        await text_channel.send("Song Skipped.")
-    except Exception as e:
-        await text_channel.send('Error Skipping: ' + str(e))
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
 
-async def clear(text_channel):
+        voice_connection.stop()
+        await message.channel.send("Song Skipped.")
+    except Exception as e:
+        await message.channel.send('Error Skipping: ' + str(e))
+
+async def clear(message):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         global song_queue
         if len(song_queue) >= 1:
             song_queue = deque([song_queue[0]])
         else:
             song_queue = deque([])
-        await text_channel.send("Queue Cleared.")
+        await message.channel.send("Queue Cleared.")
     except Exception as e:
-        await text_channel.send('Error Clearing Queue: ' + str(e))
+        await message.channel.send('Error Clearing Queue: ' + str(e))
 
-async def disconnect(text_channel):
+async def disconnect(message):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         await voice_connection.disconnect() 
-        await text_channel.send("Bot Disconnected.")
+        await message.channel.send("Bot Disconnected.")
     except Exception as e:
-        await text_channel.send('Error Disconnecting: ' + str(e))
+        await message.channel.send('Error Disconnecting: ' + str(e))
 
-async def resume(text_channel):
+async def resume(message):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         if voice_connection.is_paused():
             voice_connection.resume()
-            await text_channel.send('Bot Resumed.')
+            await message.channel.send('Bot Resumed.')
         else:
-            await text_channel.send('Bot is not paused.')
+            await message.channel.send('Bot is not paused.')
     except Exception as e:
-        await text_channel.send('Error Resuming: ' + str(e))
+        await message.channel.send('Error Resuming: ' + str(e))
 
-async def pause(text_channel):
+async def pause(message):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         if not voice_connection.is_paused():
             voice_connection.pause()
-            await text_channel.send('Bot Paused.')
+            await message.channel.send('Bot Paused.')
         else:
-            await text_channel.send('Bot is already paused.')
+            await message.channel.send('Bot is already paused.')
     except Exception as e:
-        await text_channel.send('Error Pausing: ' + str(e))
+        await message.channel.send('Error Pausing: ' + str(e))
 
 async def loop(message, message_content):
     try:
+        if not await is_valid_command(message) or not await is_bot_connected(message):
+            return False
+
         message_content = message_content.lower()
         global loop_song
         global loop_queue
@@ -291,16 +322,13 @@ async def loop(message, message_content):
     except Exception as e:
         await message.channel.send('Error Looping: ' + str(e))
 
-async def is_valid_music_command(music_commands, bot_object, message, bot_channel):
+async def is_valid_command(message):
     try:
-        command_name = " ".join(message.content.lower().split()[:1])
-        if command_name not in music_commands:
-            pass
-        elif message.channel != bot_channel:
-            await message.channel.send(f"Music Commands should only be in '{bot_channel.name}'", delete_after=300)
+        if message.channel != ut.botChannel:
+            await message.channel.send(f"Music Commands should only be in '{ut.botChannel.name}'", delete_after=300)
         elif not message.author.voice or not message.author.voice.channel:
             await message.channel.send('Please enter a voice channel')
-        elif voice_connection and bot_object.voice.channel != message.author.voice.channel:
+        elif voice_connection and ut.botObject.voice.channel != message.author.voice.channel:
             await message.channel.send('Please enter the same voice channel as the bot')
         else:
             return True
@@ -309,7 +337,7 @@ async def is_valid_music_command(music_commands, bot_object, message, bot_channe
     except Exception as e:
         await message.channel.send('Error Validating Music Command: ' + str(e))
 
-async def bot_is_connected(message):
+async def is_bot_connected(message):
     if not voice_connection:
         await message.channel.send('Bot is not playing music currently')
         return False

@@ -1,6 +1,8 @@
 import asyncio
 from datetime import datetime
 import discord
+from components.utils import *
+from components import utils as ut
 from dotenv import load_dotenv
 import os
 
@@ -8,196 +10,154 @@ from components import emoteLeaderboard, dotaReplay, music, twitchAnnouncement, 
 
 
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD = os.getenv('DISCORD_GUILD')
-BOT_ID = os.getenv('BOT_ID')
-ADMIN_ROLE = os.getenv('ADMIN_ROLE')
-MAIN_CHANNEL = os.getenv('MAIN_CHANNEL')
-BOT_CHANNEL = os.getenv('BOT_CHANNEL')
-# Announcement
-ANNOUNCEMENT_CHANNEL = os.getenv('ANNOUNCEMENT_CHANNEL')
-ANNOUNCEMENT_DAY = int(os.getenv('ANNOUNCEMENT_DAY'))
-ANNOUNCEMENT_HOUR = int(os.getenv('ANNOUNCEMENT_HOUR'))
-ANNOUNCEMENT_MIN = int(os.getenv('ANNOUNCEMENT_MIN'))
-# Welcome
-WELCOME_ROLE = os.getenv("WELCOME_ROLE")
-# Dotabuff
-OPENDOTA_API_KEY = os.getenv('OPENDOTA_API_KEY')
-DOTA_CHANNEL = os.getenv("DOTA_CHANNEL")
+# TODO: Make these Ids not hardcoded
 PLAYER_1_ID = os.getenv('PLAYER_1_ID')
 PLAYER_2_ID = os.getenv('PLAYER_2_ID')
 PLAYER_3_ID = os.getenv('PLAYER_3_ID')
 PLAYER_4_ID = os.getenv('PLAYER_4_ID')
-player_list = [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID]
-# Twitch
-TWITCH_OAUTH_TOKEN = os.getenv('TWITCH_OAUTH_TOKEN')
-TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
 TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
 TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
-twitch_user_list = [TWITCH_USER_1, TWITCH_USER_2]
-twitch_curr_live = []
-# Meme Review
-MEME_CHANNEL = os.getenv('MEME_CHANNEL')
-# Music Bot
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+env = {
+"TOKEN": os.getenv('DISCORD_TOKEN'),
+"GUILD": os.getenv('DISCORD_GUILD'),
+"BOT_ID": os.getenv('BOT_ID'),
+"ADMIN_ROLE": os.getenv('ADMIN_ROLE'),
+"MAIN_CHANNEL": os.getenv('MAIN_CHANNEL'),
+"BOT_CHANNEL": os.getenv('BOT_CHANNEL'),
+"ANNOUNCEMENT_CHANNEL": os.getenv('ANNOUNCEMENT_CHANNEL'),
+"ANNOUNCEMENT_DAY": int(os.getenv('ANNOUNCEMENT_DAY')),
+"ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
+"ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
+"WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
+"OPENDOTA_API_KEY": os.getenv('OPENDOTA_API_KEY'),
+"DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
+"player_list": [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID],
+"TWITCH_OAUTH_TOKEN": os.getenv('TWITCH_OAUTH_TOKEN'),
+"TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
+"twitch_user_list": [TWITCH_USER_1, TWITCH_USER_2],
+"twitch_curr_live": [],
+"MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
+"YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
+}
 
 prev_hour = False
 api_running = False
-intents = discord.Intents.default()
-intents.members = True
 
-# Frequently used Objects
-client = discord.Client(intents=intents)
-botObject = None
-guildObject = None
-mainChannel = None
-
-
-# Get channel object
-def get_channel(channel_name):
-    for guild_channel in guildObject.channels:
-        if guild_channel.name == channel_name or str(guild_channel.id) == channel_name:
-            return guild_channel
-
-# Get role object
-def get_role(role_name):
-    for role in guildObject.roles:
-        role_name_list = [role_name]
-        if role_name[0] == "@":
-            role_name_list.append(role_name[1:])
-        else:
-            role_name_list.append("@" + role_name)
-        if role.name in role_name_list:
-            return role
-
-# Get member object
-def get_member(member_name):
-    for guild_member in guildObject.members:
-        if guild_member.name == member_name or str(guild_member.id) == member_name:
-            return guild_member
-
-def init_globals():
-    global guildObject
-    for guild in client.guilds:
-        if guild.name == GUILD:
-            guildObject = guild
-
-    global mainChannel
-    mainChannel = get_channel(MAIN_CHANNEL)
-
-    global botObject
-    botObject = get_member(BOT_ID)
-
-@client.event
+@ut.client.event
 async def on_ready():
-    init_globals()
+    init_utils(env)
 
     georgechamp_emoji = None
-    for emoji in guildObject.emojis:
+    for emoji in ut.guildObject.emojis:
         if 'georgechamp' in emoji.name:
             georgechamp_emoji = emoji
 
-    msg = await mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
-    # await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
+    msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
+    try:
+        await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
+    except:
+        pass
 
     if not(os.path.exists("database")):
         try:
             os.mkdir("./database")
         except:
-            await mainChannel.send("Error creating Database.")
+            await ut.mainChannel.send("Error creating Database.")
 
     global api_running
     global prev_hour
     if api_running is False:
         
-        a_channel = get_channel(ANNOUNCEMENT_CHANNEL)
+        a_channel = get_channel(env["ANNOUNCEMENT_CHANNEL"])
         
         while 1:
             api_running = True
             curr_date = datetime.now()
             
+            announceDay = env["ANNOUNCEMENT_DAY"]
+            announceHour = env["ANNOUNCEMENT_HOUR"]
+            announceMinute = env["ANNOUNCEMENT_MIN"]
+
             if (curr_date.second % 55) == 0:
-                # await twitchAnnouncement.check_twitch_live(mainChannel, TWITCH_CLIENT_ID, TWITCH_OAUTH_TOKEN, twitch_user_list)
-                if curr_date.weekday() == ANNOUNCEMENT_DAY and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                await twitchAnnouncement.check_twitch_live(ut.mainChannel)
+                if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute:
                     await emoteLeaderboard.announcement_task(a_channel, 604800)
-                    await emoteLeaderboard.announcement_task(mainChannel)
-                if curr_date.weekday() == ((ANNOUNCEMENT_DAY-1)%7) and curr_date.hour == ANNOUNCEMENT_HOUR and curr_date.minute == ANNOUNCEMENT_MIN:
+                    await emoteLeaderboard.announcement_task(ut.mainChannel)
+                if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute:
                     await memeReview.best_announcement_task(a_channel, 604800)
-                    await memeReview.best_announcement_task(mainChannel)
+                    await memeReview.best_announcement_task(ut.mainChannel)
                 if curr_date.hour == 00 and curr_date.minute == 00:
                     await memeReview.resetLimit()
                 # what min of hour should u check; prints only if the current games have not been printed
                 if (prev_hour != curr_date.hour and curr_date.minute == 00):
-                    d_channel = get_channel(DOTA_CHANNEL)
+                    d_channel = get_channel(env["DOTA_CHANNEL"])
                     prev_hour = curr_date.hour
                     try:
-                        await dotaReplay.check_recent_matches(d_channel, player_list, OPENDOTA_API_KEY)
+                        await dotaReplay.check_recent_matches(d_channel)
                     except:
                         api_running = False
 
             if (curr_date.second % 1) == 0:
-                await music.process_song(get_channel(BOT_CHANNEL), botObject)
-                await music.play_song(get_channel(BOT_CHANNEL))
+                await music.process_song()
+                await music.play_song()
 
             await asyncio.sleep(1)
 
 
-@client.event
+@ut.client.event
 async def on_member_join(member):
     try:
-        await mainChannel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
-        role = get_role(WELCOME_ROLE)
+        await ut.mainChannel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
+        role = get_role(env["WELCOME_ROLE"])
         await member.add_roles(discord.utils.get(member.guild.roles, name=role.name))
     except Exception as e:
-        await mainChannel.send('There was an error running this command ' + str(e))  # if error
+        await ut.mainChannel.send('There was an error running this command ' + str(e))  # if error
 
 
-@client.event
+@ut.client.event
 async def on_member_remove(member):
-    await mainChannel.send(member.name + " has decided to leave us :(")
+    await ut.mainChannel.send(member.name + " has decided to leave us :(")
 
 
-#@client.event
+#@ut.client.event
 async def on_disconnect():
    try:
-            await music.disconnect(get_channel(BOT_CHANNEL))
-    #    await mainChannel.send("GeorgeChampBot signing out!")
+        await music.disconnect()
+    #    await ut.mainChannel.send("GeorgeChampBot signing out!")
    except Exception:
-       await mainChannel.send("I believe I am leaving but something went wrong... Blame George.")
+       await ut.mainChannel.send("I believe I am leaving but something went wrong... Blame George.")
 
 
-@client.event
+@ut.client.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author == ut.client.user:
         return None
+    
     command_name = " ".join(message.content.lower().split()[:1])
     message_content = " ".join(message.content.split()[1:])
 
-    music_commands = ['!p', '!play', '!pause', '!resume', '!queue', '!nowplaying', '!np', '!skip', '!disconnect', '!clear', '!shuffle', '!move', '!loop']
-    if await music.is_valid_music_command(music_commands, botObject, message, get_channel(BOT_CHANNEL)):
-        if command_name in ['!p', '!play']:
-            await music.play(message, message_content, YOUTUBE_API_KEY)
-        elif await music.bot_is_connected(message):
-            if command_name in ['!pause']:
-                await music.pause(message.channel)
-            elif command_name in ['!resume']:
-                await music.resume(message.channel)
-            elif command_name in ['!queue']:
-                await music.queue(message, message_content)
-            elif command_name in ['!nowplaying', '!np']:
-                await music.now_playing(message.channel)
-            elif command_name in ['!skip', '!next']:
-                await music.skip(message.channel)
-            elif command_name in ['!clear']:
-                await music.clear(message.channel)
-            elif command_name in ['!disconnect']:
-                await music.disconnect(message.channel)
-            elif command_name in ['!shuffle']:
-                await music.shuffle(message)
-            elif command_name in ['!move']:
-                await music.move(message, message_content)
-            elif command_name in ['!loop']:
-                await music.loop(message, message_content)
+    if command_name in ['!p', '!play']:
+        await music.play(message, message_content)
+    elif command_name in ['!pause']:
+        await music.pause(message)
+    elif command_name in ['!resume']:
+        await music.resume(message)
+    elif command_name in ['!queue']:
+        await music.queue(message, message_content)
+    elif command_name in ['!nowplaying', '!np']:
+        await music.now_playing(message)
+    elif command_name in ['!skip', '!next']:
+        await music.skip(message)
+    elif command_name in ['!clear']:
+        await music.clear(message)
+    elif command_name in ['!disconnect']:
+        await music.disconnect(message)
+    elif command_name in ['!shuffle']:
+        await music.shuffle(message)
+    elif command_name in ['!move']:
+        await music.move(message, message_content)
+    elif command_name in ['!loop']:
+        await music.loop(message, message_content)
     elif command_name in ['!plshelp']:
         await print_help(message, message_content)
     elif command_name in ['!plscount']:
@@ -209,27 +169,27 @@ async def on_message(message):
     elif command_name in ['!plsletmeplay']:
         await dotaReplay.print_tokens(message.channel)
     elif command_name in ['!plstransfer']:
-        await emoteLeaderboard.pls_transfer(message, get_role(ADMIN_ROLE))
+        await emoteLeaderboard.pls_transfer(message, get_role(env["ADMIN_ROLE"]))
     elif command_name in ['!plsdelete']:
-        await emoteLeaderboard.pls_delete(message, get_role(ADMIN_ROLE))
+        await emoteLeaderboard.pls_delete(message, get_role(env["ADMIN_ROLE"]))
     else:
-        await memeReview.check_meme(message, guildObject, mainChannel, get_channel(MEME_CHANNEL))
-        await emoteLeaderboard.check_emoji(message, guildObject)
+        await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
+        await emoteLeaderboard.check_emoji(message, ut.guildObject)
 
 
-@client.event
+@ut.client.event
 async def on_raw_reaction_add(payload):
-    is_meme = await memeReview.add_meme_reactions(payload, get_channel(MEME_CHANNEL), guildObject, get_role(ADMIN_ROLE))
+    is_meme = await memeReview.add_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]), ut.guildObject, get_role(env["ADMIN_ROLE"]))
     if not is_meme:
-        await emoteLeaderboard.check_reaction(payload, guildObject, mainChannel)
+        await emoteLeaderboard.check_reaction(payload, ut.guildObject, ut.mainChannel)
     
-@client.event
+@ut.client.event
 async def on_raw_reaction_remove(payload):
-    await memeReview.remove_meme_reactions(payload, get_channel(MEME_CHANNEL))
+    await memeReview.remove_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]))
 
-@client.event
+@ut.client.event
 async def on_guild_emojis_update(guild, before, after):
-    await emoteLeaderboard.rename_emote(mainChannel,before,after)
+    await emoteLeaderboard.rename_emote(ut.mainChannel,before,after)
 
 async def print_help(message, message_content):
     try:
@@ -266,4 +226,4 @@ async def print_help(message, message_content):
     except Exception:
         await message.channel.send("Something went wrong... It's not your fault though, blame George.")
 
-client.run(TOKEN)
+ut.client.run(env["TOKEN"])

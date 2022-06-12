@@ -3,8 +3,9 @@ import googleapiclient.discovery
 from youtube_dl import YoutubeDL
 from collections import deque
 from datetime import datetime
-from .utils import seconds_to_time
-from . import utils as ut
+import sys
+sys.path.insert(1, '../common')
+import common.utils as ut
 from urllib.parse import parse_qs, urlparse
 import isodate
 import discord
@@ -189,8 +190,8 @@ async def now_playing(message, isValid = False):
             await channel.send("No songs playing currently.")
             return
         
-        duration_time = seconds_to_time(song_queue[0].duration)
-        curr_time = seconds_to_time((datetime.now() - song_queue[0].start_time).total_seconds())
+        duration_time = ut.seconds_to_time(song_queue[0].duration)
+        curr_time = ut.seconds_to_time((datetime.now() - song_queue[0].start_time).total_seconds())
         
         embed = discord.Embed(title="Now Playing", description=song_queue[0].title, colour=discord.Colour.dark_grey())
         embed.set_footer(text=curr_time + "/" + duration_time)

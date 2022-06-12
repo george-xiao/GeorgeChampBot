@@ -1,11 +1,15 @@
 import twitch
-from . import utils as ut
+import sys
+sys.path.insert(1, '../common')
+import common.utils as ut
 
 async def check_twitch_live(channel):
     twitchClientId = ut.env["TWITCH_CLIENT_ID"]
     twitchOAuthToken = ut.env["TWITCH_OAUTH_TOKEN"]
     twitchUserList = ut.env["twitch_user_list"]
     
+    if not twitchClientId or not twitchOAuthToken:
+        return
     twitch_helix = twitch.TwitchHelix(client_id=twitchClientId, oauth_token=twitchOAuthToken)
     try:
         global twitch_curr_live

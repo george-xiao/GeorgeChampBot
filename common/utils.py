@@ -1,5 +1,7 @@
 
 import discord
+import json
+import os
 
 # Frequently used Objects
 intents = discord.Intents.default()
@@ -62,3 +64,48 @@ def seconds_to_time(seconds):
     if len(secs) == 1:
         secs = "0" + secs
     return mins + ":" + secs
+    
+# Send a message using channel object
+async def send_message(channel, msg: str, embedded_msg=None):
+    if embedded_msg:
+        await channel.send(msg, embed=embedded_msg)
+    else:
+        await channel.send(msg)
+
+# Get list of arguments after the command. If strict is true, arg_list will return empty if the number of arguments
+# is not exactly correct. If false, it will return all arguments.
+def get_arg_list(message, expected_num_args: int, strict: bool):
+    arg_list = message.content.split()
+    # ignore command
+    if strict:
+        arg_list = arg_list[1:expected_num_args+1]
+        if len(arg_list) != expected_num_args:
+            return []
+    else:
+        arg_list = arg_list[1:]
+        if len(arg_list) < expected_num_args:
+            return []
+
+    return arg_list
+
+# Given author object and admin role string, check if author is an admin
+def author_is_admin(author, admin_role: str):
+    is_admin = False
+
+    admin = ut.get_role(admin_role)
+
+    for author_role in author.roles:
+        if author_role == admin:
+            is_admin = True
+    
+    return is_admin
+
+# Given a relative path to a json file (from the place which it is called)
+# and the file path from which it is called (__file__), return the contents
+def create_json(relative_file_path: str, file_being_called_from: str):
+    dirname = os.path.dirname(file_being_called_from)
+    filename = os.path.join(dirname, relative_file_path)
+    file = open(filename)
+    json_contents = json.load(file)
+    file.close()
+    return json_contents

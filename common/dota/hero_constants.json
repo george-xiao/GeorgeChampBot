@@ -1338,8 +1338,8 @@
             "Durable",
             "Nuker"
         ],
-        "img": "/apps/dota2/images/dota_react/heroes/kunkka.png?",
-        "icon": "/apps/dota2/images/dota_react/heroes/icons/kunkka.png?",
+        "img": "https://static.wikia.nocookie.net/dota2_gamepedia/images/c/c0/Kunkka_icon.png",
+        "icon": "https://static.wikia.nocookie.net/dota2_gamepedia/images/c/c0/Kunkka_icon.png",
         "base_health": 200,
         "base_health_regen": 0.75,
         "base_mana": 75,
@@ -4569,8 +4569,8 @@
             "Durable",
             "Escape"
         ],
-        "img": "/apps/dota2/images/dota_react/heroes/lycan.png?",
-        "icon": "/apps/dota2/images/dota_react/heroes/icons/lycan.png?",
+        "img": "https://static.wikia.nocookie.net/dota2_gamepedia/images/d/d6/Lycan_icon.png",
+        "icon": "https://static.wikia.nocookie.net/dota2_gamepedia/images/d/d6/Lycan_icon.png",
         "base_health": 200,
         "base_health_regen": 0.25,
         "base_mana": 75,
@@ -5415,8 +5415,8 @@
             "Escape",
             "Nuker"
         ],
-        "img": "/apps/dota2/images/dota_react/heroes/wisp.png?",
-        "icon": "/apps/dota2/images/dota_react/heroes/icons/wisp.png?",
+        "img": "https://static.wikia.nocookie.net/dota2_gamepedia/images/8/8d/Io_icon.png",
+        "icon": "https://static.wikia.nocookie.net/dota2_gamepedia/images/8/8d/Io_icon.png",
         "base_health": 200,
         "base_health_regen": 0.25,
         "base_mana": 75,
@@ -6193,8 +6193,8 @@
             "Durable",
             "Nuker"
         ],
-        "img": "/apps/dota2/images/dota_react/heroes/legion_commander.png?",
-        "icon": "/apps/dota2/images/dota_react/heroes/icons/legion_commander.png?",
+        "img": "https://static.wikia.nocookie.net/dota2_gamepedia/images/a/a2/Legion_Commander_icon.png/",
+        "icon": "https://static.wikia.nocookie.net/dota2_gamepedia/images/a/a2/Legion_Commander_icon.png/",
         "base_health": 200,
         "base_health_regen": 0.25,
         "base_mana": 75,

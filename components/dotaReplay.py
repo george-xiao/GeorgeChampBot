@@ -5,17 +5,9 @@ import os
 import requests
 import shelve
 from datetime import datetime
-from . import utils as ut
-
-
-# Given the relative path to a json file, open and return it's contents
-def create_json(relative_file_path):
-    dirname = os.path.dirname(__file__)
-    filename = os.path.join(dirname, relative_file_path)
-    file = open(filename)
-    json_contents = json.load(file)
-    file.close()
-    return json_contents
+import sys
+sys.path.insert(1, '../common')
+import common.utils as ut
 
 # This class (struct) stores the data for a given hero/player in a given game, and is used to construct the embed message
 # in the DotaMatchMessage class
@@ -47,7 +39,7 @@ class DotaMatchMessage:
         if len(self.dota_hero_game_stats) == 0:
             return None
 
-        hero_list = create_json("../common/dota/hero_constants.json")
+        hero_list = ut.create_json("../common/dota/hero_constants.json", __file__)
         self.embedMsg.type = "rich"
 
         title_arr = []
@@ -174,7 +166,7 @@ async def check_recent_matches(channel):
     match_ids = {}
     match_hero_data_list = []
     
-    game_mode_json = create_json('../common/dota/game_mode_constants.json')
+    game_mode_json = ut.create_json('../common/dota/game_mode_constants.json', __file__)
 
     try:
         player_list_shelf = shelve.open('./database/dota_player_list.db')
@@ -194,7 +186,7 @@ async def check_recent_matches(channel):
 
         player_list_shelf.close()
         if match_ids.keys():
-            hero_data_json = create_json('../common/dota/hero_constants.json')
+            hero_data_json = ut.create_json('../common/dota/hero_constants.json', __file__)
             await ut.send_message(channel, "Looks like DotA 2 is still alive! Here are the games from the last hour")
             for match_id in match_ids.keys():
                 msg = DotaMatchMessage(match_ids[match_id], match_id)
@@ -203,5 +195,4 @@ async def check_recent_matches(channel):
                     await ut.send_message(channel, "", embedded_msg)
 
     except Exception as e:
-        print(e)
         await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")

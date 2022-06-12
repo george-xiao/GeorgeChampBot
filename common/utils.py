@@ -1,5 +1,7 @@
 
 import discord
+import json
+import os
 
 # Frequently used Objects
 intents = discord.Intents.default()
@@ -65,14 +67,10 @@ def seconds_to_time(seconds):
     
 # Send a message using channel object
 async def send_message(channel, msg: str, embedded_msg=None):
-    try:
-        if embedded_msg:
-            await channel.send(msg, embed=embedded_msg)
-        else:
-            await channel.send(msg)
-
-    except Exception as e:
-        print(e)
+    if embedded_msg:
+        await channel.send(msg, embed=embedded_msg)
+    else:
+        await channel.send(msg)
 
 # Get list of arguments after the command. If strict is true, arg_list will return empty if the number of arguments
 # is not exactly correct. If false, it will return all arguments.
@@ -101,3 +99,13 @@ def author_is_admin(author, admin_role: str):
             is_admin = True
     
     return is_admin
+
+# Given a relative path to a json file (from the place which it is called)
+# and the file path from which it is called (__file__), return the contents
+def create_json(relative_file_path: str, file_being_called_from: str):
+    dirname = os.path.dirname(file_being_called_from)
+    filename = os.path.join(dirname, relative_file_path)
+    file = open(filename)
+    json_contents = json.load(file)
+    file.close()
+    return json_contents

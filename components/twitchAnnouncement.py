@@ -1,5 +1,7 @@
 import twitch
-from . import utils as ut
+import sys
+sys.path.insert(1, '../common')
+import common.utils as ut
 
 async def check_twitch_live(channel):
     twitchClientId = ut.env["TWITCH_CLIENT_ID"]

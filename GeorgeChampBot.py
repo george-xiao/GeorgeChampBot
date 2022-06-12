@@ -1,8 +1,8 @@
 import asyncio
 from datetime import datetime
 import discord
-from components.utils import *
-from components import utils as ut
+from common.utils import *
+from common import utils as ut
 from dotenv import load_dotenv
 import os
 

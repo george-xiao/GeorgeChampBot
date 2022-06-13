@@ -5,6 +5,7 @@ from common.utils import *
 from common import utils as ut
 from dotenv import load_dotenv
 import os
+import inspect
 
 from components import emoteLeaderboard, dotaReplay, music, twitchAnnouncement, memeReview
 
@@ -199,34 +200,46 @@ async def print_help(message, message_content):
     try:
         message_content = message_content.lower()
         help_msg = ""
+        embed = ut.DiscordEmbedBuilder()
         if message_content == "emote":
-            help_msg += "Emote Leaderboard Commands\n"
-            help_msg += "!plscount <emote> - All time score of <emote>\n"
-            help_msg += "!leaderboard <page# OR 'last'> - All time emoji scores\n"
-            help_msg += "!plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)\n"
-            help_msg += "!plsdelete <emote> - Deletes emote from database (Admin Only)\n"
+            description = inspect.cleandoc("""
+                !plscount <emote> - All time score of <emote>
+                !leaderboard <page# OR 'last'> - All time emoji scores
+                !plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)
+                !plsdelete <emote> - Deletes emote from database (Admin Only)""")
+            embed = ut.DiscordEmbedBuilder(colour_ = 0xFFDE34, title_ = "Emote Leaderboard Commands", description_ = description, thumbnail_url = "https://cdn.discordapp.com/emojis/815268205010485318.webp?size=96&quality=lossless")
         elif message_content == "music":
-            help_msg += "Music Player Commands\n"
-            help_msg += "!p <song> - Plays songs or playlists\n"
-            help_msg += "!pause - Pauses the song\n"
-            help_msg += "!resume - Resumes the song\n"
-            help_msg += "!skip - Skips song\n"
-            help_msg += "!np - Currently playing song\n"
-            help_msg += "!queue <pageNumber> - Prints queue\n"
-            help_msg += "!clear - Clears the queue\n"
-            help_msg += "!disconnect - Disconnects bot from voice chat\n"
-            help_msg += "!shuffle - Shuffles the queue\n"
-            help_msg += "!move <songNumber> - Moves song at songNumber to the top\n"
-            help_msg += "!loop <queue> - Loops song. Optional 'queue' loops queue. Use !loop twice to untoggle\n"
+            description = inspect.cleandoc("""
+                !p <song> - Plays songs or playlists
+                !pause - Pauses the song
+                !resume - Resumes the song
+                !skip - Skips song
+                !np - Currently playing song
+                !queue <pageNumber> - Prints queue
+                !clear - Clears the queue
+                !disconnect - Disconnects bot from voice chat
+                !shuffle - Shuffles the queue
+                !move <songNumber> - Moves song at songNumber to the top
+                !loop <queue> - Loops song. Optional 'queue' loops queue. Use !loop twice to untoggle""")
+            embed = ut.DiscordEmbedBuilder(colour_ = 0xFF0000, title_ = "Music Player Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTf4296-YNIH5GmtQznpe_qgBsLxCtQZBgUtg&usqp=CAU")
         elif message_content == "meme":
-            help_msg += "Meme Commands\n"
-            help_msg += "!memerboard <page# OR 'last'> - Display Meme Review leaderboard\n"
+            description = inspect.cleandoc("""
+                !memerboard <page# OR 'last'> - Display Meme Review leaderboard""")
+            embed = ut.DiscordEmbedBuilder(colour_ = 0x000000, title_ = "Meme Commands", description_ = description, thumbnail_url = "https://cdn.discordapp.com/emojis/667584569444270080.webp?size=96&quality=lossless")
+        elif message_content == "dota":
+            description = inspect.cleandoc("""
+                !plsadd-dota <Name> <Player ID> - Add player to tracking list (Admin Only)
+                !plsremove-dota <Name or Player ID> - Remove player from tracking list (Admin Only)
+                !plslistplayers-dota - List currently tracked players""")
+            embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
         else:
-            help_msg += "What do you need help with?\n"
-            help_msg += "!plshelp emote - Emote Leaderboard Commands\n"
-            help_msg += "!plshelp music - Emote Leaderboard Commands\n"
-            help_msg += "!plshelp meme - Meme Review Commands\n"
-        await message.channel.send(help_msg)
+            description = inspect.cleandoc("""
+                !plshelp emote - Emote Leaderboard Commands
+                !plshelp music - Music Leaderboard Commands
+                !plshelp meme - Meme Review Commands
+                !plshelp dota - Dota Commands""")
+            embed = ut.DiscordEmbedBuilder(colour_ = 0x4F7942, title_ = "What do you need help with?", description_ = description, thumbnail_url = "https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
+        await ut.send_message(message.channel, "", embed.embed_msg)
     except Exception:
         await message.channel.send("Something went wrong... It's not your fault though, blame George.")
 

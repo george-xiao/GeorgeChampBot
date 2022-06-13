@@ -13,6 +13,42 @@ guildObject = None
 mainChannel = None
 botChannel = None
 
+class DiscordEmbedBuilder:
+    def __init__(self, thumbnail_url="", colour_=0, title_="", description_="", title_url=""):
+        self.embed_msg = discord.Embed(
+            title=title_,
+            colour=colour_,
+            description=description_,
+            url=title_url,
+            type="rich"
+        )
+        self.embed_msg.set_thumbnail(url = thumbnail_url)
+
+    # Set the url for the embed, only accepts http, https or local storage
+    def set_thumbnail(image_url: str):
+        self.embed_msg.set_thumbnail(url=image_url)
+
+    # Accepts hex value for colour of embed
+    def set_colour(colour: int):
+        self.embed_msg.colour = colour
+
+    # Sets title of embed (only single line, no newlines)
+    def set_title(title: str):
+        self.embed_msg.title = title
+
+    # Sets description of embed
+    def set_description(description: str):
+        self.embed_msg.description = description
+
+    # Sets url for embed title
+    def set_url(url: str):
+        self.embed_msg.url = url
+
+    # Sets image
+    def set_image(image_url: str):
+        self.embed_msg.set_image(url=image_url)
+
+
 # initialize the constants
 def init_utils(_env):
     global env

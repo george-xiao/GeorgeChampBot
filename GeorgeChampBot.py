@@ -99,7 +99,6 @@ async def on_ready():
                         api_running = False
 
             if (curr_date.second % 1) == 0:
-                await music.process_song()
                 await music.play_song()
 
             await asyncio.sleep(1)
@@ -148,7 +147,7 @@ async def on_message(message):
     elif command_name in ['!nowplaying', '!np']:
         await music.now_playing(message)
     elif command_name in ['!skip', '!next']:
-        await music.skip(message)
+        await music.skip(message, message_content)
     elif command_name in ['!clear']:
         await music.clear(message)
     elif command_name in ['!disconnect']:
@@ -158,7 +157,7 @@ async def on_message(message):
     elif command_name in ['!move']:
         await music.move(message, message_content)
     elif command_name in ['!loop']:
-        await music.loop(message, message_content)
+        await music.loop(message)
     elif command_name in ['!plshelp']:
         await print_help(message, message_content)
     elif command_name in ['!plscount']:
@@ -172,10 +171,10 @@ async def on_message(message):
     elif command_name in ['!plsdelete']:
         await emoteLeaderboard.pls_delete(message, get_role(env["ADMIN_ROLE"]))
     elif command_name in ['!plsadd-dota']:
-        await dotaReplay.add_player(message, ADMIN_ROLE)
+        await dotaReplay.add_player(message, env["ADMIN_ROLE"])
     elif command_name in ['!plsremove-dota']:
-        await dotaReplay.remove_player(message, ADMIN_ROLE)
-    elif command_name in ['!plslistplayers-dota']:
+        await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
+    elif command_name in ['!plslist-dota']:
         await dotaReplay.list_players(message.channel)
     else:
         await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
@@ -213,14 +212,14 @@ async def print_help(message, message_content):
                 !p <song> - Plays songs or playlists
                 !pause - Pauses the song
                 !resume - Resumes the song
-                !skip - Skips song
+                !skip <song#> - Skips song. song# specifies index.
                 !np - Currently playing song
-                !queue <pageNumber> - Prints queue
+                !queue <page#> - Prints queue
                 !clear - Clears the queue
                 !disconnect - Disconnects bot from voice chat
                 !shuffle - Shuffles the queue
-                !move <songNumber> - Moves song at songNumber to the top
-                !loop <queue> - Loops song. Optional 'queue' loops queue. Use !loop twice to untoggle""")
+                !move <song#> - Moves song at songNumber to the top
+                !loop - Loops Queue -> Loops Song -> Disables Loop """)
             embed = ut.DiscordEmbedBuilder(colour_ = 0xFF0000, title_ = "Music Player Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTf4296-YNIH5GmtQznpe_qgBsLxCtQZBgUtg&usqp=CAU")
         elif message_content == "meme":
             description = inspect.cleandoc("""
@@ -230,7 +229,7 @@ async def print_help(message, message_content):
             description = inspect.cleandoc("""
                 !plsadd-dota <Name> <Player ID> - Add player to tracking list (Admin Only)
                 !plsremove-dota <Name or Player ID> - Remove player from tracking list (Admin Only)
-                !plslistplayers-dota - List currently tracked players""")
+                !plslist-dota - List currently tracked players""")
             embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
         else:
             description = inspect.cleandoc("""

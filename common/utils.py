@@ -128,7 +128,7 @@ def get_arg_list(message, expected_num_args: int, strict: bool):
 def author_is_admin(author, admin_role: str):
     is_admin = False
 
-    admin = ut.get_role(admin_role)
+    admin = get_role(admin_role)
 
     for author_role in author.roles:
         if author_role == admin:

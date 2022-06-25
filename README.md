@@ -22,13 +22,11 @@ Requirements:
 [dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from a .env file  
 [emoji](https://pypi.org/project/emoji/) - emojis for Python
 [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
-[python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 ```
 pip install discord.py
 pip install python-dotenv
 pip install emoji
 pip install requests
-pip install python-twitch-client
 ```
 
 Environment:  

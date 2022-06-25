@@ -12,10 +12,6 @@ from components import emoteLeaderboard, dotaReplay, music, twitchAnnouncement, 
 
 load_dotenv()
 # TODO: Make these Ids not hardcoded
-PLAYER_1_ID = os.getenv('PLAYER_1_ID')
-PLAYER_2_ID = os.getenv('PLAYER_2_ID')
-PLAYER_3_ID = os.getenv('PLAYER_3_ID')
-PLAYER_4_ID = os.getenv('PLAYER_4_ID')
 TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
 TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
 env = {
@@ -30,13 +26,10 @@ env = {
 "ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
 "ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
 "WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
-"OPENDOTA_API_KEY": os.getenv('OPENDOTA_API_KEY'),
 "DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
-"player_list": [PLAYER_1_ID, PLAYER_2_ID, PLAYER_3_ID, PLAYER_4_ID],
-"TWITCH_OAUTH_TOKEN": os.getenv('TWITCH_OAUTH_TOKEN'),
 "TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
+"TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
 "twitch_user_list": [TWITCH_USER_1, TWITCH_USER_2],
-"twitch_curr_live": [],
 "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }

@@ -39,7 +39,7 @@ class SongQueue:
 
 # RESET GLOBALS IN DISCONNECT
 sq = SongQueue()
-voice_connection = None
+vc = None
 loop_status = LOOPDISABLED
 invalid_start = datetime.now()
 
@@ -50,12 +50,12 @@ async def play_song():
         if not await process_song(sq):
             return
 
-        if not voice_connection or voice_connection.is_playing() or not voice_connection.is_connected() or voice_connection.is_paused() or (not sq.queue and not sq.curr_song):
-            # if bot disconnected from vc, ensure state is reset (in case someone disconnects using discord ui)
-            if voice_connection and not voice_connection.is_connected():
+        if not vc or vc.is_playing() or not vc.is_connected() or vc.is_paused() or (not sq.queue and not sq.curr_song):
+            # if bot disconnected from voice channel, ensure state is reset (in case someone disconnects using discord ui)
+            if vc and not vc.is_connected():
                 await disconnect(ut.botChannel, is_bot=True)
-            # disconnect if no songs playing or no members in vc
-            if not (voice_connection and (not sq.curr_song or (len(voice_connection.channel.members) == 1))):
+            # disconnect if no songs playing or no members in voice channel
+            if not (vc and (not sq.curr_song or (len(vc.channel.members) == 1))):
                 global invalid_start
                 invalid_start = datetime.now()
             elif (datetime.now() - invalid_start).total_seconds() >= MAX_DISCONNECT_TIME:
@@ -73,7 +73,7 @@ async def play_song():
             sq.curr_song = sq.queue.popleft()
 
         sq.curr_song.start_time = datetime.now()
-        voice_connection.play(FFmpegPCMAudio(sq.curr_song.song_url, **FFMPEG_OPTIONS))
+        vc.play(FFmpegPCMAudio(sq.curr_song.song_url, **FFMPEG_OPTIONS))
         await now_playing(ut.botChannel, delete_after=sq.curr_song.duration, is_bot=True)
     except Exception as e:
         await ut.botChannel.send('Error Playing Next Song: ' + str(e))
@@ -150,9 +150,9 @@ async def play(message, user_input):
         if not await is_valid_command(message):
             return False
 
-        global voice_connection
-        if voice_connection is None:
-            voice_connection = await message.author.voice.channel.connect()
+        global vc
+        if vc is None:
+            vc = await message.author.voice.channel.connect()
         
         global sq
         processed_songs = await process_input(user_input, message.author)
@@ -270,7 +270,7 @@ async def skip(message, skip_idx):
                 await message.channel.send("No songs playing currently.")
                 return
             skipped_song = sq.curr_song
-            voice_connection.stop()
+            vc.stop()
         else:
             skip_idx = int(skip_idx) - 1
             if skip_idx < 0 or skip_idx >= len(sq.queue):
@@ -307,15 +307,15 @@ async def disconnect(message, is_bot = False):
         if not is_bot:
             channel = channel.channel
 
-        global voice_connection
-        if not voice_connection:
+        global vc
+        if not vc:
             await channel.send("Already disconnected.")
             return
         
-        await voice_connection.disconnect() 
+        await vc.disconnect() 
 
         global sq, loop_status, invalid_start
-        voice_connection = None
+        vc = None
         sq = SongQueue()
         loop_status = LOOPDISABLED
         invalid_start = datetime.now()
@@ -330,8 +330,8 @@ async def resume(message):
         if not await is_valid_command(message, check_bot_connected = False):
             return False
 
-        if voice_connection.is_paused():
-            voice_connection.resume()
+        if vc.is_paused():
+            vc.resume()
             await message.channel.send('Bot Resumed.')
         else:
             await message.channel.send('Bot is not paused.')
@@ -343,8 +343,8 @@ async def pause(message):
         if not await is_valid_command(message, check_bot_connected = False):
             return False
 
-        if not voice_connection.is_paused():
-            voice_connection.pause()
+        if not vc.is_paused():
+            vc.pause()
             await message.channel.send('Bot Paused.')
         else:
             await message.channel.send('Bot is already paused.')
@@ -377,9 +377,9 @@ async def is_valid_command(message, check_bot_connected = False):
             await message.channel.send(f"Music Commands should only be in '{ut.botChannel.name}'", delete_after=300)
         elif not message.author.voice or not message.author.voice.channel:
             await message.channel.send('Please enter a voice channel')
-        elif voice_connection and ut.botObject.voice.channel != message.author.voice.channel:
+        elif vc and ut.botObject.voice.channel != message.author.voice.channel:
             await message.channel.send('Please enter the same voice channel as the bot')
-        elif not voice_connection and check_bot_connected:
+        elif not vc and check_bot_connected:
             await message.channel.send('Bot is not playing music currently')
         else:
             return True

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import os
 import inspect
 
-from components import emoteLeaderboard, dotaReplay, music, twitchAnnouncement, memeReview
+from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview
 
 
 load_dotenv()
@@ -99,7 +99,7 @@ async def on_ready():
                         api_running = False
 
             if (curr_date.second % 1) == 0:
-                await music.play_song()
+                await musicPlayer.play_song()
 
             await asyncio.sleep(1)
 
@@ -119,11 +119,10 @@ async def on_member_remove(member):
     await ut.mainChannel.send(member.name + " has decided to leave us :(")
 
 
-#@ut.client.event
+@ut.client.event
 async def on_disconnect():
    try:
-        await music.disconnect()
-    #    await ut.mainChannel.send("GeorgeChampBot signing out!")
+        await musicPlayer.disconnect()
    except Exception:
        await ut.mainChannel.send("I believe I am leaving but something went wrong... Blame George.")
 
@@ -137,27 +136,27 @@ async def on_message(message):
     message_content = " ".join(message.content.split()[1:])
 
     if command_name in ['!p', '!play']:
-        await music.play(message, message_content)
+        await musicPlayer.play(message, message_content)
     elif command_name in ['!pause']:
-        await music.pause(message)
+        await musicPlayer.pause(message)
     elif command_name in ['!resume']:
-        await music.resume(message)
+        await musicPlayer.resume(message)
     elif command_name in ['!queue']:
-        await music.queue(message, message_content)
+        await musicPlayer.queue(message, message_content)
     elif command_name in ['!nowplaying', '!np']:
-        await music.now_playing(message)
+        await musicPlayer.now_playing(message)
     elif command_name in ['!skip', '!next']:
-        await music.skip(message, message_content)
+        await musicPlayer.skip(message, message_content)
     elif command_name in ['!clear']:
-        await music.clear(message)
+        await musicPlayer.clear(message)
     elif command_name in ['!disconnect']:
-        await music.disconnect(message)
+        await musicPlayer.disconnect(message)
     elif command_name in ['!shuffle']:
-        await music.shuffle(message)
+        await musicPlayer.shuffle(message)
     elif command_name in ['!move']:
-        await music.move(message, message_content)
+        await musicPlayer.move(message, message_content)
     elif command_name in ['!loop']:
-        await music.loop(message)
+        await musicPlayer.loop(message)
     elif command_name in ['!plshelp']:
         await print_help(message, message_content)
     elif command_name in ['!plscount']:

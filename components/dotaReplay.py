@@ -68,84 +68,90 @@ class DotaMatchMessage:
 
 # Add a player to be tracked. The message should contain both the player's name and player id. Needs admin access
 async def add_player(message, admin_role):
-    channel = message.channel
+    try:
+        channel = message.channel
 
-    if not ut.author_is_admin(message.author, admin_role):
-        await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
-        return
+        if not ut.author_is_admin(message.author, admin_role):
+            await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
+            return
 
-    invalid_message = "Invalid arguments. One should be a string of characters (no spaces), and one should be a number."
-    # string parsing
-    arg_list = ut.get_arg_list(message, 2, True)
-    if not arg_list:
-        await ut.send_message(channel, invalid_message)
-        return
-
-    first_arg = arg_list[0]
-    second_arg = arg_list[1]
-
-    if not(first_arg.isalpha() and second_arg.isdigit()):
-        await ut.send_message(channel, invalid_message)
-        return
-            
-    # shelf: {key = player id, value = player irl name}
-    player_id = second_arg
-    player_name = first_arg
-
-    player_list_shelf = shelve.open('./database/dota_player_list.db')
-    if player_list_shelf.get(player_id) is None:
-        # add
-        if player_id and player_name:
-            player_list_shelf[player_id] = player_name
-            await ut.send_message(channel, "Successfully added " + player_name)
-        else:
+        invalid_message = "Invalid arguments. One should be a string of characters (no spaces), and one should be a number."
+        # string parsing
+        arg_list = ut.get_arg_list(message, 2, True)
+        if not arg_list:
             await ut.send_message(channel, invalid_message)
-    else:
-        await ut.send_message(channel, "This user already exists.")
-    
-    player_list_shelf.close()
+            return
+
+        first_arg = arg_list[0]
+        second_arg = arg_list[1]
+
+        if not(first_arg.isalpha() and second_arg.isdigit()):
+            await ut.send_message(channel, invalid_message)
+            return
+                
+        # shelf: {key = player id, value = player irl name}
+        player_id = second_arg
+        player_name = first_arg
+
+        player_list_shelf = shelve.open('./database/dota_player_list.db')
+        if player_list_shelf.get(player_id) is None:
+            # add
+            if player_id and player_name:
+                player_list_shelf[player_id] = player_name
+                await ut.send_message(channel, "Successfully added " + player_name)
+            else:
+                await ut.send_message(channel, invalid_message)
+        else:
+            await ut.send_message(channel, "This user already exists.")
+        
+        player_list_shelf.close()
+    except Exception as e:
+        await ut.mainChannel.send("Error Adding Player's Dotabuff: " + str(e))
 
 # Remove a player from being tracked. The message should contain the player's name or player id. Needs admin access
 async def remove_player(message, admin_role):
-    channel = message.channel
+    try:
+        channel = message.channel
 
-    if not ut.author_is_admin(message.author, admin_role):
-        await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
-        return
+        if not ut.author_is_admin(message.author, admin_role):
+            await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
+            return
 
-    invalid_message = "Invalid argument(s)"
-    arg_list = ut.get_arg_list(message, 1, True)
-    if not arg_list:
-        await ut.send_message(channel, invalid_message)
-        return
+        invalid_message = "Invalid argument(s)"
+        arg_list = ut.get_arg_list(message, 1, True)
+        if not arg_list:
+            await ut.send_message(channel, invalid_message)
+            return
 
-    first_arg = arg_list[0]
+        first_arg = arg_list[0]
 
-    # shelf: {key = player id, value = player irl name}
-    player_id = first_arg if first_arg.isdigit() else ""
-    player_name = "" if first_arg.isdigit() else first_arg
+        # shelf: {key = player id, value = player irl name}
+        player_id = first_arg if first_arg.isdigit() else ""
+        player_name = "" if first_arg.isdigit() else first_arg
 
-    player_list_shelf = shelve.open('./database/dota_player_list.db')
-    if player_id:
-        if player_list_shelf.get(player_id) is None:
-            await ut.send_message(channel, "This user doesn't exist")
-        else:
-            del player_list_shelf[player_id]
-            await ut.send_message(channel, "Successfully removed player " + str(player_id))
-            successfully_removed = True
-    elif player_name:
-        successfully_removed = False
-        for id, name in player_list_shelf.items():
-            if name.lower() == player_name.lower():
-                del player_list_shelf[id]
+        player_list_shelf = shelve.open('./database/dota_player_list.db')
+        if player_id:
+            if player_list_shelf.get(player_id) is None:
+                await ut.send_message(channel, "This user doesn't exist")
+            else:
+                del player_list_shelf[player_id]
                 await ut.send_message(channel, "Successfully removed player " + str(player_id))
                 successfully_removed = True
-        if not successfully_removed:
-            await ut.send_message(channel, "This user doesn't exist")
-    else:
-        await ut.send_message(channel, invalid_message)
+        elif player_name:
+            successfully_removed = False
+            for id, name in player_list_shelf.items():
+                if name.lower() == player_name.lower():
+                    del player_list_shelf[id]
+                    await ut.send_message(channel, "Successfully removed player " + str(player_id))
+                    successfully_removed = True
+            if not successfully_removed:
+                await ut.send_message(channel, "This user doesn't exist")
+        else:
+            await ut.send_message(channel, invalid_message)
 
-    player_list_shelf.close()
+        player_list_shelf.close()
+    except Exception as e:
+        await ut.mainChannel.send("Error Removing Player's Dotabuff: " + str(e))
 
 
 # Lists the currently tracked players. Does not need admin access.
@@ -161,14 +167,14 @@ async def list_players(channel):
 
 # The method that checks the recent matches for a timeframe and creates the messages accordingly
 async def check_recent_matches(channel):
-    open_dota_players_url = "https://api.opendota.com/api/players/"
-    curr_epoch_time = int(datetime.now().timestamp())
-    match_ids = {}
-    match_hero_data_list = []
-    
-    game_mode_json = ut.create_json('../common/dota/game_mode_constants.json', __file__)
-
     try:
+        open_dota_players_url = "https://api.opendota.com/api/players/"
+        curr_epoch_time = int(datetime.now().timestamp())
+        match_ids = {}
+        match_hero_data_list = []
+    
+        game_mode_json = ut.create_json('../common/dota/game_mode_constants.json', __file__)
+
         player_list_shelf = shelve.open('./database/dota_player_list.db')
         for player in player_list_shelf.keys():
             res = requests.get(open_dota_players_url + player + '/recentMatches')
@@ -195,4 +201,4 @@ async def check_recent_matches(channel):
                     await ut.send_message(channel, "", embedded_msg)
 
     except Exception as e:
-        await channel.send("Looks like the opendota api is down or ur code is bugged. George pls fix.")
+        await channel.send("Error Checking Recent Matches: " + str(e))

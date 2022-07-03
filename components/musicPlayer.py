@@ -1,7 +1,6 @@
-import asyncio
 from discord import FFmpegPCMAudio
 import googleapiclient.discovery
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 from collections import deque
 from datetime import datetime
 import sys
@@ -13,13 +12,15 @@ import discord
 import random
 from math import ceil
 
-YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'quiet': 'True', 'no_warnings': 'True','ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
+
+YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'quiet': 'True', 'no_warnings': 'True',
+'ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 MAX_SONGS = 1500
-MAX_DISCONNECT_TIME = 180
 LOOPDISABLED = "LOOPDISABLED"
 LOOPQUEUE = "LOOPQUEUE"
 LOOPSONG = "LOOPSONG"
+LOOPSTATES = [LOOPDISABLED, LOOPQUEUE, LOOPSONG]
 
 
 class SongItem:
@@ -37,58 +38,81 @@ class SongQueue:
         self.curr_song = None
         self.queue = deque([])
 
-# RESET GLOBALS IN DISCONNECT
-sq = SongQueue()
-voice_connection = None
-loop_status = LOOPDISABLED
-invalid_start = datetime.now()
+vc = None
+sq = None
+loop_status = None
+should_disconnect = None
+
+def reset_state():
+    global sq, vc, loop_status, should_disconnect
+    sq = SongQueue()
+    vc = None
+    loop_status = 0
+    should_disconnect = False
+
+async def check_disconnect():
+    try:
+        if not vc:
+            return
+        
+        global should_disconnect
+        if not sq.curr_song or (len(vc.channel.members) == 1):
+            if should_disconnect:
+                await disconnect(ut.botChannel, is_bot=True)
+            else:
+                should_disconnect = True
+        else:
+            should_disconnect = False
+    except Exception as e:
+        await ut.botChannel.send('Error Checking Disconnect: ' + str(e))
+    
 
 # Constantly checking if the next song in queue should be played
 async def play_song():
     try:
         global sq
-        if not await process_song(sq):
+        while not await process_song(sq):
+            pass
+        if not vc or vc.is_playing() or vc.is_paused() or (not sq.queue and not sq.curr_song):
             return
-
-        if not voice_connection or voice_connection.is_playing() or not voice_connection.is_connected() or voice_connection.is_paused() or (not sq.queue and not sq.curr_song):
-            # if bot disconnected from vc, ensure state is reset (in case someone disconnects using discord ui)
-            if voice_connection and not voice_connection.is_connected():
-                await disconnect(ut.botChannel, is_bot=True)
-            # disconnect if no songs playing or no members in vc
-            if not (voice_connection and (not sq.curr_song or (len(voice_connection.channel.members) == 1))):
-                global invalid_start
-                invalid_start = datetime.now()
-            elif (datetime.now() - invalid_start).total_seconds() >= MAX_DISCONNECT_TIME:
-                await disconnect(ut.botChannel, is_bot=True)
-            return
-
-        # if queue is empty, nothing left to play
         if not sq.queue and sq.curr_song:
             sq.curr_song = None
             return
 
-        if (loop_status == LOOPQUEUE):
+        if (LOOPSTATES[loop_status] == LOOPQUEUE):
             sq.queue.append(sq.curr_song)
-        if not (loop_status == LOOPSONG):
-            sq.curr_song = sq.queue.popleft()
+        if (LOOPSTATES[loop_status] == LOOPSONG):
+            sq.queue.appendleft(sq.curr_song)
+        sq.curr_song = sq.queue.popleft()
 
         sq.curr_song.start_time = datetime.now()
-        voice_connection.play(FFmpegPCMAudio(sq.curr_song.song_url, **FFMPEG_OPTIONS))
+        vc.play(FFmpegPCMAudio(sq.curr_song.song_url, **FFMPEG_OPTIONS))
         await now_playing(ut.botChannel, delete_after=sq.curr_song.duration, is_bot=True)
+
     except Exception as e:
         await ut.botChannel.send('Error Playing Next Song: ' + str(e))
 
 # Constantly processing urls into sq
 async def process_song(sq):
-    if not sq.queue or sq.queue[0].song_url is not None:
+    if not sq.queue:
         return True
+
     next_song = sq.queue[0]
     info = YoutubeDL(YDL_OPTIONS).extract_info(next_song.yt_url, download=False)
     if not info:
-        await ut.botChannel.send(f'Removed {next_song.title} ({next_song.yt_url}). Song is inappropriate or unavailable')
+        await ut.botChannel.send(f'Skipped {next_song.title} ({next_song.yt_url}). Song is unavailable')
         sq.queue.popleft()
         return False
-    next_song.song_url = info["formats"][0]["url"]
+    
+    for format in info["formats"]:
+        if format["ext"] != "mhtml": break
+
+    if format["ext"] == "mhtml":
+        await ut.botChannel.send(f"Skipped {next_song.title} ({next_song.yt_url}). Video url couldn't be found")
+        sq.queue.popleft()
+        return False
+
+    next_song.song_url = format["url"]
     return True
 
 # Returns list of SongItems given input
@@ -150,15 +174,15 @@ async def play(message, user_input):
         if not await is_valid_command(message):
             return False
 
-        global voice_connection
-        if voice_connection is None:
-            voice_connection = await message.author.voice.channel.connect()
+        global vc
+        if not vc:
+            vc = await message.author.voice.channel.connect()
         
         global sq
         processed_songs = await process_input(user_input, message.author)
         added_songs = processed_songs[:MAX_SONGS - len(sq.queue)]
         sq.queue += added_songs
-        
+
         if len(processed_songs) != len(added_songs):
             await message.channel.send(f"{MAX_SONGS} song limit reached!")
         if len(processed_songs) == 0:
@@ -237,7 +261,7 @@ async def shuffle(message):
     except Exception as e:
         await message.channel.send('Error Shuffling: ' + str(e))
     
-async def move(message, move_from):
+async def move(message, message_content):
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -247,15 +271,21 @@ async def move(message, move_from):
             await message.channel.send("Queue is empty.")
             return
 
-        move_from = int(move_from) - 1
-        if move_from < 0 or move_from >= len(sq.queue):
+        message_content = message_content.split()
+        move_from = int(message_content[0]) - 1
+        if len(message_content) > 1:
+            move_to = int(message_content[1]) - 1
+        else:
+            move_to = 0
+
+        if move_from < 0 or move_from >= len(sq.queue) or move_to < 0 or move_to >= len(sq.queue):
             await message.channel.send(f"Index has to be between {1} and {len(sq.queue)}.")
             return
 
         moved_song = sq.queue[move_from]
         del sq.queue[move_from]
-        sq.queue.appendleft(moved_song)
-        await message.channel.send(f"Moved '{moved_song.title}' to the top of the queue!")
+        sq.queue.insert(move_to, moved_song)
+        await message.channel.send(f"Moved '{moved_song.title}' to position {move_to+1}!")
     except Exception as e:
         await message.channel.send('Error Moving Song: ' + str(e))
 
@@ -270,7 +300,7 @@ async def skip(message, skip_idx):
                 await message.channel.send("No songs playing currently.")
                 return
             skipped_song = sq.curr_song
-            voice_connection.stop()
+            vc.stop()
         else:
             skip_idx = int(skip_idx) - 1
             if skip_idx < 0 or skip_idx >= len(sq.queue):
@@ -307,47 +337,28 @@ async def disconnect(message, is_bot = False):
         if not is_bot:
             channel = channel.channel
 
-        global voice_connection
-        if not voice_connection:
-            await channel.send("Already disconnected.")
+        global vc
+        if not vc:
+            if not is_bot:
+                await channel.send("Already disconnected.")
             return
         
-        await voice_connection.disconnect() 
-
-        global sq, loop_status, invalid_start
-        voice_connection = None
-        sq = SongQueue()
-        loop_status = LOOPDISABLED
-        invalid_start = datetime.now()
-
-        await asyncio.sleep(1)
+        await vc.disconnect()
         await channel.send("Bot Disconnected.")
     except Exception as e:
         await channel.send('Error Disconnecting: ' + str(e))
-
-async def resume(message):
-    try:
-        if not await is_valid_command(message, check_bot_connected = False):
-            return False
-
-        if voice_connection.is_paused():
-            voice_connection.resume()
-            await message.channel.send('Bot Resumed.')
-        else:
-            await message.channel.send('Bot is not paused.')
-    except Exception as e:
-        await message.channel.send('Error Resuming: ' + str(e))
 
 async def pause(message):
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
 
-        if not voice_connection.is_paused():
-            voice_connection.pause()
+        if not vc.is_paused():
+            vc.pause()
             await message.channel.send('Bot Paused.')
         else:
-            await message.channel.send('Bot is already paused.')
+            vc.resume()
+            await message.channel.send('Bot Resumed.')
     except Exception as e:
         await message.channel.send('Error Pausing: ' + str(e))
 
@@ -357,29 +368,29 @@ async def loop(message):
             return False
 
         global loop_status
-        if loop_status == LOOPDISABLED:
-            loop_status = LOOPQUEUE
+        if LOOPSTATES[loop_status] == LOOPDISABLED:
             await message.channel.send('Looped Queue.')
-        elif loop_status == LOOPQUEUE:
-            loop_status = LOOPSONG
+        elif LOOPSTATES[loop_status] == LOOPQUEUE:
             await message.channel.send('Looped Song.')
-        elif loop_status == LOOPSONG:
-            loop_status = LOOPDISABLED
+        elif LOOPSTATES[loop_status] == LOOPSONG:
             await message.channel.send('Disabled Loop.')
         else:
             raise Exception("Invalid loop state")
+        
+        loop_status = (loop_status + 1) % 3
+
     except Exception as e:
         await message.channel.send('Error Looping: ' + str(e))
 
 async def is_valid_command(message, check_bot_connected = False):
     try:
         if message.channel != ut.botChannel:
-            await message.channel.send(f"Music Commands should only be in '{ut.botChannel.name}'", delete_after=300)
+            await message.channel.send(f"Music Commands should only be in '{ut.botChannel.name}'")
         elif not message.author.voice or not message.author.voice.channel:
             await message.channel.send('Please enter a voice channel')
-        elif voice_connection and ut.botObject.voice.channel != message.author.voice.channel:
+        elif vc and ut.botObject.voice.channel != message.author.voice.channel:
             await message.channel.send('Please enter the same voice channel as the bot')
-        elif not voice_connection and check_bot_connected:
+        elif not vc and check_bot_connected:
             await message.channel.send('Bot is not playing music currently')
         else:
             return True

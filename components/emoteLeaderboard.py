@@ -14,6 +14,14 @@ def score_algorithm(emoji_count):
     return 0.61 + (1.37 * math.log(emoji_count))
 
 
+def init_emote_leaderboard():
+    starting_date = shelve.open('./database/starting_date_shelf.db')
+
+    if "date" not in starting_date:
+        today = date.today()
+        starting_date["date"] = today.strftime("%d/%m/%Y")
+
+
 async def updateCounts(s_all_time, s, key, increment=1):
     WEEKLY_LIMIT = 250
 
@@ -172,11 +180,6 @@ async def check_reaction(payload, guild, channel):
     try:
         s = shelve.open('./database/weekly_georgechamp_shelf.db')
         s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
-        starting_date = shelve.open('./database/starting_date_shelf.db')
-
-        if "date" not in starting_date:
-            today = date.today()
-            starting_date["date"] = today.strftime("%d/%m/%Y")
             
         if payload.emoji.is_custom_emoji() and not payload.emoji.animated:
             for emoji in guild.emojis:
@@ -189,7 +192,7 @@ async def check_reaction(payload, guild, channel):
         s.close()
         s_all_time.close()
     except Exception as e:
-        await message.channel.send('Error Checking Reaction: ' + str(e))
+        await channel.send('Error Checking Reaction: ' + str(e))
 
 async def transfer_emotes(transfer_from,transfer_to):
     s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')

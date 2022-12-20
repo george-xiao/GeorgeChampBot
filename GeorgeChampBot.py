@@ -32,9 +32,17 @@ env = {
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }
 
+
+
 @ut.client.event
 async def on_ready():
-    init_utils(env)
+    
+    ut.init_utils(env)
+    emoteLeaderboard.init_emote_leaderboard()
+    musicPlayer.reset_state()
+    
+    if not(os.path.exists("database")):
+        os.mkdir("database")
 
     msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
     try:
@@ -45,11 +53,6 @@ async def on_ready():
         await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
     except:
         pass
-    
-    if not(os.path.exists("database")):
-        os.mkdir("database")
-    
-    musicPlayer.reset_state()
 
     while 1:
         curr_date = datetime.now()

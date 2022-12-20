@@ -163,9 +163,8 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
                 reactionEmoji = reaction.emoji.name
             if isGoodMemeReaction(reactionEmoji) or isBadMemeReaction(reactionEmoji):
                 sameUser = False
-                for user in await reaction.users().flatten():
-                    if user.id == payload.user_id:
-                        sameUser = True
+                async for user in reaction.users():
+                    sameUser = sameUser or (user.id == payload.user_id)
                 # if user alredy voted before, replace the previous emote with current one
                 if reactionEmoji != payloadEmoji and sameUser:
                     await message.remove_reaction(reaction.emoji, payloadUser)

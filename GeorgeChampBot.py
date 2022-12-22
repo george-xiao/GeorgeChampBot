@@ -38,7 +38,7 @@ env = {
 async def on_ready():
     
     ut.init_utils(env)
-    emoteLeaderboard.init_emote_leaderboard()
+    await emoteLeaderboard.init_emote_leaderboard()
     musicPlayer.reset_state()
     
     if not(os.path.exists("database")):
@@ -63,7 +63,7 @@ async def on_ready():
         
         # Announcements
         if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-            await emoteLeaderboard.announcement_task(ut.mainChannel)
+            await emoteLeaderboard.announcement_task()
         if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
             await memeReview.best_announcement_task(ut.mainChannel)
 
@@ -110,7 +110,10 @@ async def on_message(message):
     command_name = " ".join(message.content.lower().split()[:1])
     message_content = " ".join(message.content.split()[1:])
 
-    if command_name in ['!p', '!play']:
+    if command_name in ['!plshelp']:
+        await print_help(message, message_content)
+    # Music Player commands
+    elif command_name in ['!p', '!play']:
         await musicPlayer.play(message, message_content)
     elif command_name in ['!pause', '!resume', '!stop']:
         await musicPlayer.pause(message)
@@ -130,18 +133,21 @@ async def on_message(message):
         await musicPlayer.move(message, message_content)
     elif command_name in ['!loop']:
         await musicPlayer.loop(message)
-    elif command_name in ['!plshelp']:
-        await print_help(message, message_content)
+    # Emote Leaderboard commands
     elif command_name in ['!plscount']:
-        await emoteLeaderboard.print_count(message)
+        await emoteLeaderboard.print_count(message, message_content)
     elif command_name in ['!leaderboard']:
-        await emoteLeaderboard.print_leaderboard(message)
+        await emoteLeaderboard.print_leaderboard(message, message_content)
+    elif command_name in ['!plstransfer']:
+        await emoteLeaderboard.pls_transfer(message, message_content, env["ADMIN_ROLE"])
+    elif command_name in ['!plsdelete']:
+        await emoteLeaderboard.pls_delete(message, message_content, env["ADMIN_ROLE"])
+    elif command_name in ['!plsaddscore_h']:
+        await emoteLeaderboard.plsaddscore_h(message, message_content, env["ADMIN_ROLE"])
+    # Meme Review commands
     elif command_name in ['!memerboard']:
         await memeReview.print_memerboard(message)
-    elif command_name in ['!plstransfer']:
-        await emoteLeaderboard.pls_transfer(message, get_role(env["ADMIN_ROLE"]))
-    elif command_name in ['!plsdelete']:
-        await emoteLeaderboard.pls_delete(message, get_role(env["ADMIN_ROLE"]))
+    # Dota Replay commands
     elif command_name in ['!plsadd-dota']:
         await dotaReplay.add_player(message, env["ADMIN_ROLE"])
     elif command_name in ['!plsremove-dota']:
@@ -150,14 +156,14 @@ async def on_message(message):
         await dotaReplay.list_players(message.channel)
     else:
         await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
-        await emoteLeaderboard.check_emoji(message, ut.guildObject)
+        await emoteLeaderboard.check_emoji(message)
 
 
 @ut.client.event
 async def on_raw_reaction_add(payload):
     is_meme = await memeReview.add_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]), ut.guildObject, get_role(env["ADMIN_ROLE"]))
     if not is_meme:
-        await emoteLeaderboard.check_reaction(payload, ut.guildObject, ut.mainChannel)
+        await emoteLeaderboard.check_reaction(payload)
     
 @ut.client.event
 async def on_raw_reaction_remove(payload):
@@ -165,7 +171,7 @@ async def on_raw_reaction_remove(payload):
 
 @ut.client.event
 async def on_guild_emojis_update(guild, before, after):
-    await emoteLeaderboard.rename_emote(ut.mainChannel,before,after)
+    await emoteLeaderboard.rename_emote(before, after)
 
 @ut.client.event
 async def on_voice_state_update(member, before, after):
@@ -178,11 +184,15 @@ async def print_help(message, message_content):
     message_content = message_content.lower()
     help_msg = ""
     embed = ut.DiscordEmbedBuilder()
-    if message_content == "emote":
+    if message_content == "hidden":
+        description = inspect.cleandoc("""
+            !plsaddscore_h <emote> <score> - Manually adds <score> to <emote>""")
+        embed = ut.DiscordEmbedBuilder(colour_ = 0xFFDE34, title_ = "Emote Leaderboard Commands", description_ = description, thumbnail_url = "https://cdn.discordapp.com/emojis/815268205010485318.webp?size=96&quality=lossless")
+    elif message_content == "emote":
         description = inspect.cleandoc("""
             !plscount <emote> - All time score of <emote>
-            !leaderboard <page# OR 'last'> - All time emoji scores
-            !plstransfer <emoteFrom> -> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)
+            !leaderboard <page# OR 'last'> - All time emoji scores. -u shows deleted emotes.
+            !plstransfer <emoteFrom> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)
             !plsdelete <emote> - Deletes emote from database (Admin Only)""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0xFFDE34, title_ = "Emote Leaderboard Commands", description_ = description, thumbnail_url = "https://cdn.discordapp.com/emojis/815268205010485318.webp?size=96&quality=lossless")
     elif message_content == "music":

@@ -36,148 +36,171 @@ env = {
 
 @ut.client.event
 async def on_ready():
-    
-    ut.init_utils(env)
-    await emoteLeaderboard.init_emote_leaderboard()
-    musicPlayer.reset_state()
-    
-    if not(os.path.exists("database")):
-        os.mkdir("database")
-
-    msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
     try:
-        georgechamp_emoji = None
-        for emoji in ut.guildObject.emojis:
-            if 'georgechamp' in emoji.name:
-                georgechamp_emoji = emoji
-        await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
-    except:
-        pass
-
-    while 1:
-        curr_date = datetime.now()
+        ut.init_utils(env)
+        await emoteLeaderboard.init_emote_leaderboard()
+        musicPlayer.reset_state()
         
-        announceDay = env["ANNOUNCEMENT_DAY"]
-        announceHour = env["ANNOUNCEMENT_HOUR"]
-        announceMinute = env["ANNOUNCEMENT_MIN"]
-        
-        # Announcements
-        if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-            await emoteLeaderboard.announcement_task()
-        if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-            await memeReview.best_announcement_task(ut.mainChannel)
+        if not(os.path.exists("database")):
+            os.mkdir("database")
 
-        # every 24 hours
-        if (curr_date.hour % 24 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-            await memeReview.resetLimit()
+        msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
+        try:
+            georgechamp_emoji = None
+            for emoji in ut.guildObject.emojis:
+                if 'georgechamp' in emoji.name:
+                    georgechamp_emoji = emoji
+            await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
+        except:
+            pass
 
-        # every 1 hour
-        if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-            await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
+        while 1:
+            curr_date = datetime.now()
+            
+            announceDay = env["ANNOUNCEMENT_DAY"]
+            announceHour = env["ANNOUNCEMENT_HOUR"]
+            announceMinute = env["ANNOUNCEMENT_MIN"]
+            
+            # Announcements
+            if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
+                await emoteLeaderboard.announcement_task()
+            if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
+                await memeReview.best_announcement_task(ut.mainChannel)
 
-        # # every 3 minutes
-        if (curr_date.minute % 3) == 0 and curr_date.second == 0:
-            await musicPlayer.check_disconnect()
+            # every 24 hours
+            if (curr_date.hour % 24 == 0) and curr_date.minute == 0 and curr_date.second == 0:
+                await memeReview.resetLimit()
 
-        # every 1 minute
-        if (curr_date.minute % 1) == 0 and curr_date.second == 0:
-            await twitchAnnouncement.check_twitch_live(ut.mainChannel)
+            # every 1 hour
+            if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
+                await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
 
-        # every 1 second
-        if (curr_date.second % 1) == 0:
-            await musicPlayer.play_song()
+            # # every 3 minutes
+            if (curr_date.minute % 3) == 0 and curr_date.second == 0:
+                await musicPlayer.check_disconnect()
 
-        await asyncio.sleep(1)
+            # every 1 minute
+            if (curr_date.minute % 1) == 0 and curr_date.second == 0:
+                await twitchAnnouncement.check_twitch_live(ut.mainChannel)
 
+            # every 1 second
+            if (curr_date.second % 1) == 0:
+                await musicPlayer.play_song()
+
+            await asyncio.sleep(1)
+            
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Ready Event: ' + str(e))
 
 @ut.client.event
 async def on_member_join(member):
-    await ut.mainChannel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
-    role = get_role(env["WELCOME_ROLE"])
-    await member.add_roles(discord.utils.get(member.guild.roles, name=role.name))
+    try:
+        await ut.mainChannel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
+        role = get_role(env["WELCOME_ROLE"])
+        await member.add_roles(discord.utils.get(member.guild.roles, name=role.name))
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Member Join Event: ' + str(e))
 
 
 @ut.client.event
 async def on_member_remove(member):
-    await ut.mainChannel.send(member.name + " has decided to leave us :(")
+    try:
+        await ut.mainChannel.send(member.name + " has decided to leave us :(")
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Ready Event: ' + str(e))
 
 
 @ut.client.event
 async def on_message(message):
-    if message.author == ut.client.user:
-        return None
-    
-    command_name = " ".join(message.content.lower().split()[:1])
-    message_content = " ".join(message.content.split()[1:])
+    try:
+        if message.author == ut.client.user:
+            return None
+        
+        command_name = " ".join(message.content.lower().split()[:1])
+        message_content = " ".join(message.content.split()[1:])
 
-    if command_name in ['!plshelp']:
-        await print_help(message, message_content)
-    # Music Player commands
-    elif command_name in ['!p', '!play']:
-        await musicPlayer.play(message, message_content)
-    elif command_name in ['!pause', '!resume', '!stop']:
-        await musicPlayer.pause(message)
-    elif command_name in ['!queue']:
-        await musicPlayer.queue(message, message_content)
-    elif command_name in ['!nowplaying', '!np']:
-        await musicPlayer.now_playing(message)
-    elif command_name in ['!skip', '!next']:
-        await musicPlayer.skip(message, message_content)
-    elif command_name in ['!clear']:
-        await musicPlayer.clear(message)
-    elif command_name in ['!disconnect']:
-        await musicPlayer.disconnect(message)
-    elif command_name in ['!shuffle']:
-        await musicPlayer.shuffle(message)
-    elif command_name in ['!move']:
-        await musicPlayer.move(message, message_content)
-    elif command_name in ['!loop']:
-        await musicPlayer.loop(message)
-    # Emote Leaderboard commands
-    elif command_name in ['!plscount']:
-        await emoteLeaderboard.print_count(message, message_content)
-    elif command_name in ['!leaderboard']:
-        await emoteLeaderboard.print_leaderboard(message, message_content)
-    elif command_name in ['!plstransfer']:
-        await emoteLeaderboard.pls_transfer(message, message_content, env["ADMIN_ROLE"])
-    elif command_name in ['!plsdelete']:
-        await emoteLeaderboard.pls_delete(message, message_content, env["ADMIN_ROLE"])
-    elif command_name in ['!plsaddscore_h']:
-        await emoteLeaderboard.plsaddscore_h(message, message_content, env["ADMIN_ROLE"])
-    # Meme Review commands
-    elif command_name in ['!memerboard']:
-        await memeReview.print_memerboard(message)
-    # Dota Replay commands
-    elif command_name in ['!plsadd-dota']:
-        await dotaReplay.add_player(message, env["ADMIN_ROLE"])
-    elif command_name in ['!plsremove-dota']:
-        await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
-    elif command_name in ['!plslist-dota']:
-        await dotaReplay.list_players(message.channel)
-    else:
-        await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
-        await emoteLeaderboard.check_emoji(message)
+        if command_name in ['!plshelp']:
+            await print_help(message, message_content)
+        # Music Player commands
+        elif command_name in ['!p', '!play']:
+            await musicPlayer.play(message, message_content)
+        elif command_name in ['!pause', '!resume', '!stop']:
+            await musicPlayer.pause(message)
+        elif command_name in ['!queue']:
+            await musicPlayer.queue(message, message_content)
+        elif command_name in ['!nowplaying', '!np']:
+            await musicPlayer.now_playing(message)
+        elif command_name in ['!skip', '!next']:
+            await musicPlayer.skip(message, message_content)
+        elif command_name in ['!clear']:
+            await musicPlayer.clear(message)
+        elif command_name in ['!disconnect']:
+            await musicPlayer.disconnect(message)
+        elif command_name in ['!shuffle']:
+            await musicPlayer.shuffle(message)
+        elif command_name in ['!move']:
+            await musicPlayer.move(message, message_content)
+        elif command_name in ['!loop']:
+            await musicPlayer.loop(message)
+        # Emote Leaderboard commands
+        elif command_name in ['!plscount']:
+            await emoteLeaderboard.print_count(message, message_content)
+        elif command_name in ['!leaderboard']:
+            await emoteLeaderboard.print_leaderboard(message, message_content)
+        elif command_name in ['!plstransfer']:
+            await emoteLeaderboard.pls_transfer(message, message_content, env["ADMIN_ROLE"])
+        elif command_name in ['!plsdelete']:
+            await emoteLeaderboard.pls_delete(message, message_content, env["ADMIN_ROLE"])
+        elif command_name in ['!plsaddscore_h']:
+            await emoteLeaderboard.plsaddscore_h(message, message_content, env["ADMIN_ROLE"])
+        # Meme Review commands
+        elif command_name in ['!memerboard']:
+            await memeReview.print_memerboard(message)
+        # Dota Replay commands
+        elif command_name in ['!plsadd-dota']:
+            await dotaReplay.add_player(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plsremove-dota']:
+            await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plslist-dota']:
+            await dotaReplay.list_players(message.channel)
+        else:
+            await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
+            await emoteLeaderboard.check_emoji(message)
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Message Event: ' + str(e))
 
 
 @ut.client.event
 async def on_raw_reaction_add(payload):
-    is_meme = await memeReview.add_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]), ut.guildObject, get_role(env["ADMIN_ROLE"]))
-    if not is_meme:
-        await emoteLeaderboard.check_reaction(payload)
+    try:
+        is_meme = await memeReview.add_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]), ut.guildObject, get_role(env["ADMIN_ROLE"]))
+        if not is_meme:
+            await emoteLeaderboard.check_reaction(payload)
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Reaction Add Event: ' + str(e))
     
 @ut.client.event
 async def on_raw_reaction_remove(payload):
-    await memeReview.remove_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]))
+    try:
+        await memeReview.remove_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]))
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Reaction Remove Event: ' + str(e))
 
 @ut.client.event
 async def on_guild_emojis_update(guild, before, after):
-    await emoteLeaderboard.rename_emote(before, after)
+    try:
+        await emoteLeaderboard.rename_emote(before, after)
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Emoji Update Event: ' + str(e))
 
 @ut.client.event
 async def on_voice_state_update(member, before, after):
-    # When Bot Disconnects
-    if member == ut.botObject and before.channel is not None and after.channel is None:
-        musicPlayer.reset_state()
+    try:
+        # When Bot Disconnects
+        if member == ut.botObject and before.channel is not None and after.channel is None:
+            musicPlayer.reset_state()
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Voice State Update Event: ' + str(e))
 
 
 async def print_help(message, message_content):

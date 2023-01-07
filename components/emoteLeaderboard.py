@@ -126,13 +126,22 @@ def update_counts(display_name, increment=1):
 async def announcement_task():
     channel = ut.mainChannel
     try:
-        shelf_as_dict = get_all_emotes().items
+        shelf_as_dict = get_all_emotes().items()
         most_used_emotes = sorted(shelf_as_dict, key=lambda item: item[1].w_score, reverse=True)[:7]
-
-        leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
-        for i in range(7):
-            if i < len(most_used_emotes):
-                leaderboard_msg = leaderboard_msg + str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
+        
+        temp = []
+        for emote in most_used_emotes:
+            if emote[1].w_score != 0:
+                temp.append((emote[1].display_name, emote[1].w_score))
+        most_used_emotes = temp
+        
+        if len(most_used_emotes) == 0:
+            leaderboard_msg = "No emotes were used this week. :("
+        else:
+            leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
+            for i in range(7):
+                if i < len(most_used_emotes):
+                    leaderboard_msg += str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
 
         await channel.send(leaderboard_msg)
 

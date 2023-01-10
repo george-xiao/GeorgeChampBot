@@ -26,27 +26,27 @@ class DiscordEmbedBuilder:
         self.embed_msg.set_thumbnail(url = thumbnail_url)
 
     # Set the url for the embed, only accepts http, https or local storage
-    def set_thumbnail(image_url: str):
+    def set_thumbnail(self, image_url: str):
         self.embed_msg.set_thumbnail(url=image_url)
 
     # Accepts hex value for colour of embed
-    def set_colour(colour: int):
+    def set_colour(self, colour: int):
         self.embed_msg.colour = colour
 
     # Sets title of embed (only single line, no newlines)
-    def set_title(title: str):
+    def set_title(self, title: str):
         self.embed_msg.title = title
 
     # Sets description of embed
-    def set_description(description: str):
+    def set_description(self, description: str):
         self.embed_msg.description = description
 
     # Sets url for embed title
-    def set_url(url: str):
+    def set_url(self, url: str):
         self.embed_msg.url = url
 
     # Sets image
-    def set_image(image_url: str):
+    def set_image(self, image_url: str):
         self.embed_msg.set_image(url=image_url)
 
 

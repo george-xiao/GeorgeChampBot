@@ -68,5 +68,6 @@ async def generateTwitchOAuthToken(channel):
         response = response.json()
         twitch_OAuth_token = response['access_token']
     except Exception as e:
-        await channel.send('Error Generating Twitch OAuth Token: ' + str(e))
+        # TODO: Fix Twitch Announcements
+        # await channel.send('Error Generating Twitch OAuth Token: ' + str(e))
         twitch_OAuth_token = None

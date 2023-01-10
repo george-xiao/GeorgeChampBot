@@ -30,6 +30,7 @@ pip install requests
 pip install google-api-python-client
 pip install yt_dlpt
 pip install isodate
+sudo apt install ffmpeg
 ```
 
 Environment:  

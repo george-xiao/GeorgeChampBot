@@ -24,16 +24,32 @@ LOOPSTATES = [LOOPDISABLED, LOOPQUEUE, LOOPSONG]
 
 
 class SongItem:
+    """
+    Represents a Song inside the queue.
+    """
     def __init__(self, entry, requester):
         self.yt_url = f'https://www.youtube.com/watch?v={entry["id"]}'
         self.song_url = None
         self.title = entry["snippet"]["title"]
         self.channel_title = entry["snippet"]["channelTitle"]
         self.requester = requester
-        self.duration = int(isodate.parse_duration(entry["contentDetails"]["duration"]).total_seconds()) # in seconds
+        self.duration = int(isodate.parse_duration(entry["contentDetails"]["duration"]).total_seconds())
         self.start_time = None # in seconds
-        
+
+    def __str__(self):
+        output = f"Name: {self.title}"
+        output += f"Url: {self.yt_url}"
+        output += f"Channel: {self.channel_title}"
+        output += f"Requester: {self.requester}"
+        output += f"Duration: {self.duration}"
+        output += f"Start Time: {self.start_time}"
+        return output
+
+
 class SongQueue:
+    """
+    Represents a queue of SongItems.
+    """
     def __init__(self):
         self.curr_song = None
         self.queue = deque([])
@@ -44,6 +60,9 @@ loop_status = None
 should_disconnect = None
 
 def reset_state():
+    """
+    Resets the state of the music player when the bot disconnects
+    """
     global sq, vc, loop_status, should_disconnect
     sq = SongQueue()
     vc = None
@@ -51,10 +70,13 @@ def reset_state():
     should_disconnect = False
 
 async def check_disconnect():
+    """
+    Disconnects the bot if it is alone or there are no songs in the queue
+    """
     try:
         if not vc:
             return
-        
+
         global should_disconnect
         if not sq.curr_song or (len(vc.channel.members) == 1):
             if should_disconnect:
@@ -65,10 +87,12 @@ async def check_disconnect():
             should_disconnect = False
     except Exception as e:
         await ut.botChannel.send('Error Checking Disconnect: ' + str(e))
-    
 
-# Constantly checking if the next song in queue should be played
+
 async def play_song():
+    """
+    Plays song if previous one ends and queue is not empty 
+    """
     try:
         global sq
         while not await process_song(sq):
@@ -79,9 +103,9 @@ async def play_song():
             sq.curr_song = None
             return
 
-        if (LOOPSTATES[loop_status] == LOOPQUEUE):
+        if LOOPSTATES[loop_status] == LOOPQUEUE:
             sq.queue.append(sq.curr_song)
-        if (LOOPSTATES[loop_status] == LOOPSONG):
+        if LOOPSTATES[loop_status] == LOOPSONG:
             sq.queue.appendleft(sq.curr_song)
         sq.curr_song = sq.queue.popleft()
 
@@ -94,6 +118,15 @@ async def play_song():
 
 # Constantly processing urls into sq
 async def process_song(sq):
+    """
+    Downloads the song that is next up.
+
+    Args:
+        sq (SongQueue): Current queue
+
+    Returns:
+        bool: Whether the song was successfully downloaded
+    """
     if not sq.queue:
         return True
 
@@ -117,6 +150,17 @@ async def process_song(sq):
 
 # Returns list of SongItems given input
 async def process_input(user_input, requester):
+    """
+    Converts user's song requests into SongItems
+
+    Args:
+        user_input (str): Either a link or the name of the song
+        requester (str): The name of the person who requested the song/playlist
+
+    Returns:
+        SongItem: The SongItem(s) that the user requested
+    """
+    
     video_ids = []
     query = parse_qs(urlparse(user_input).query, keep_blank_values=True)
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey = ut.env["YOUTUBE_API_KEY"])
@@ -146,7 +190,7 @@ async def process_input(user_input, requester):
             request = youtube.playlistItems().list_next(request, response)
             if len(video_ids) > MAX_SONGS+1:
                 break
-    
+            
     if not video_ids:
         return []
 
@@ -166,10 +210,15 @@ async def process_input(user_input, requester):
             for item in response["items"]:
                 song_items.append(SongItem(item, requester))
             request = youtube.playlistItems().list_next(request, response)
-
     return song_items
 
 async def play(message, user_input):
+    """
+    Play command
+
+    Args:
+        user_input (str): User's requested song name or url
+    """
     try:
         if not await is_valid_command(message):
             return False
@@ -180,6 +229,7 @@ async def play(message, user_input):
         
         global sq
         processed_songs = await process_input(user_input, message.author)
+        
         added_songs = processed_songs[:MAX_SONGS - len(sq.queue)]
         sq.queue += added_songs
 
@@ -195,6 +245,9 @@ async def play(message, user_input):
         await message.channel.send('Error Playing Song: ' + str(e))
     
 async def queue(message, page_num):
+    """
+    Queue Command
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -223,6 +276,9 @@ async def queue(message, page_num):
         await message.channel.send('Error Printing Queue: ' + str(e))
     
 async def now_playing(message, is_bot = False, delete_after=None):
+    """
+    Now Playing Command
+    """
     try:
         if not is_bot and not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -247,6 +303,9 @@ async def now_playing(message, is_bot = False, delete_after=None):
         await channel.send('Error Printing Now Playing: ' + str(e))
     
 async def shuffle(message):
+    """
+    Shuffle Command
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -262,6 +321,9 @@ async def shuffle(message):
         await message.channel.send('Error Shuffling: ' + str(e))
     
 async def move(message, message_content):
+    """
+    Move Command
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -290,6 +352,9 @@ async def move(message, message_content):
         await message.channel.send('Error Moving Song: ' + str(e))
 
 async def skip(message, skip_idx):
+    """
+    Skip Command
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -314,6 +379,9 @@ async def skip(message, skip_idx):
         await message.channel.send('Error Skipping: ' + str(e))
 
 async def clear(message):
+    """
+    Clear Command.
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -329,6 +397,9 @@ async def clear(message):
         await message.channel.send('Error Clearing Queue: ' + str(e))
 
 async def disconnect(message, is_bot = False):
+    """
+    Disconnect Command.
+    """
     try:
         if not is_bot and not await is_valid_command(message):
             return False
@@ -349,6 +420,9 @@ async def disconnect(message, is_bot = False):
         await channel.send('Error Disconnecting: ' + str(e))
 
 async def pause(message):
+    """
+    Pause Command.
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -363,6 +437,9 @@ async def pause(message):
         await message.channel.send('Error Pausing: ' + str(e))
 
 async def loop(message):
+    """
+    Loop Command.
+    """
     try:
         if not await is_valid_command(message, check_bot_connected = False):
             return False
@@ -383,6 +460,16 @@ async def loop(message):
         await message.channel.send('Error Looping: ' + str(e))
 
 async def is_valid_command(message, check_bot_connected = False):
+    """
+    Ensures the user is using the music commands in valid setting.
+    - All music commands should be in the bot-commands channel
+    - Only users who are in vc can run music commands
+    - If bot is in a vc, user needs to be in the same vc
+    - Some commands are only valid if the bot is playing music
+
+    Returns:
+        bool: Whether the user command is used in a valid setting
+    """
     try:
         if message.channel != ut.botChannel:
             await message.channel.send(f"Music Commands should only be in '{ut.botChannel.name}'")

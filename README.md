@@ -28,7 +28,7 @@ pip install python-dotenv
 pip install emoji
 pip install requests
 pip install google-api-python-client
-pip install yt_dlpt
+pip install yt_dlp
 pip install isodate
 sudo apt install ffmpeg
 ```

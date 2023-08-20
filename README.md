@@ -16,26 +16,28 @@ Change your directory in the terminal to the cloned project:
 cd your/path/here
 ```
 
-Requirements:
+In `.env` file, provide the required fields.
 
-[discord.py](https://discordpy.readthedocs.io/en/latest/) - a modern, easy to use, feature-rich, and async ready API wrapper for Discord.  
-[dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from a .env file  
-[emoji](https://pypi.org/project/emoji/) - emojis for Python
-[reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
+Finally start the application using the `run.sh` script.
+
 ```
-pip install discord.py
-pip install python-dotenv
-pip install emoji
-pip install requests
-pip install google-api-python-client
-pip install yt_dlp
-pip install isodate
-sudo apt install ffmpeg
+./run.sh
 ```
 
-Environment:  
-  
-In .env, provide the required fields.
+## Run Manually
+
+To run the bot directly on your local machine, the following dependencies have to be installed.
+
+```
+pip3 install discord.py
+pip3 install python-dotenv
+pip3 install emoji=1.7
+pip3 install requests
+pip3 install google-api-python-client
+pip3 install yt_dlp
+pip3 install isodate
+sudo apt-get install ffmpeg
+```
 
 Use the following command to start the bot:
 
@@ -44,6 +46,7 @@ python GeorgeChampBot.py
 ```
 
 ## Built With
+
 * [asyncio](https://docs.python.org/3/library/asyncio.html) - write concurrent code using the async/await syntax 
 * [collections](https://docs.python.org/3/library/collections.html) - specialized container datatypes providing alternatives to Python’s general purpose built-in containers
 * [datetime](https://docs.python.org/3/library/datetime.html) - classes for manipulating dates and times

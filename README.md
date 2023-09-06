@@ -16,47 +16,54 @@ Change your directory in the terminal to the cloned project:
 cd your/path/here
 ```
 
-Requirements:
+Completely fill out all fields in the `.env` file. This will require you to set up the following:
+ - a [Discord bot](https://discordpy.readthedocs.io/en/stable/discord.html), 
+ - [Twitch Authentication Key](https://dev.twitch.tv/docs/authentication/),
+ - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application) and
+ - Dedicated [server channels and roles](https://discord.com/blog/starting-your-first-discord-server)
 
-[discord.py](https://discordpy.readthedocs.io/en/latest/) - a modern, easy to use, feature-rich, and async ready API wrapper for Discord.  
-[dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from a .env file  
-[emoji](https://pypi.org/project/emoji/) - emojis for Python
-[reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
+Finally, start the application using the `run.sh` script. Installing Docker is a prerequisite to this step.
+
 ```
-pip install discord.py
-pip install python-dotenv
-pip install emoji
-pip install requests
-pip install google-api-python-client
-pip install yt_dlp
-pip install isodate
-sudo apt install ffmpeg
+./run.sh
 ```
 
-Environment:  
-  
-In .env, provide the required fields.
+## Run Manually
+
+To run the bot directly on your local machine, the following dependencies have to be installed.
+
+```
+sudo apt-get install -y python3 python3-dev python3-pip
+pip3 install -r requirements.txt
+sudo apt-get install ffmpeg
+```
 
 Use the following command to start the bot:
 
 ```
-python GeorgeChampBot.py
+python3 GeorgeChampBot.py
 ```
 
 ## Built With
+
 * [asyncio](https://docs.python.org/3/library/asyncio.html) - write concurrent code using the async/await syntax 
 * [collections](https://docs.python.org/3/library/collections.html) - specialized container datatypes providing alternatives to Python’s general purpose built-in containers
 * [datetime](https://docs.python.org/3/library/datetime.html) - classes for manipulating dates and times
 * [discord.py](https://discordpy.readthedocs.io/en/latest/) - API wrapper for Discord
 * [dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from .env file
 * [emoji](https://pypi.org/project/emoji/) - emojis for Python
+* [google-api-python-client](https://pypi.org/project/google-api-python-client/) - Google API Python client library for Google's discovery based APIs
+* [isodate](https://pypi.org/project/isodate/) - ISO 8601 date, time and duration parsing module
 * [math](https://docs.python.org/3/library/math.html) - mathematical functions defined by the C standard
 * [operator](https://docs.python.org/3/library/operator.html) - set of efficient functions corresponding to the intrinsic operators of Python
 * [os](https://docs.python.org/3/library/os.html) - operating system dependent functionality
+* [PyNaCl](https://pypi.org/project/PyNaCl/) - enables networking and cryptography operations
 * [python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 * [re](https://docs.python.org/3/library/re.html) - regular expression matching operations
 * [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
 * [shelve](https://docs.python.org/3/library/shelve.html) - a persistent, dictionary-like object
+* [urllib3](https://pypi.org/project/urllib3/) - a powerful, user-friendly HTTP client for Python
+* [yt-dlp](https://pypi.org/project/yt-dlp/) - youtube-dl fork with additional features and fixes
 
 ## Authors
 

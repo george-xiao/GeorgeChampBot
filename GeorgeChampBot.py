@@ -38,12 +38,11 @@ env = {
 async def on_ready():
     try:
         ut.init_utils(env)
+        if not(os.path.exists("database")):
+            os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
         
-        if not(os.path.exists("database")):
-            os.mkdir("database")
-
         msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
         try:
             georgechamp_emoji = None

@@ -27,7 +27,6 @@ env = {
 "DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
 "TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
 "TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
-"twitch_user_list": [TWITCH_USER_1, TWITCH_USER_2],
 "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }
@@ -162,6 +161,12 @@ async def on_message(message):
             await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
         elif command_name in ['!plslist-dota']:
             await dotaReplay.list_players(message.channel)
+        elif command_name in ['!plsadd-twitch']:
+            await twitchAnnouncement.add_streamer(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plsremove-twitch']:
+            await twitchAnnouncement.remove_streamer(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plslist-twitch']:
+            await twitchAnnouncement.list_streamers(message.channel)
         else:
             await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)

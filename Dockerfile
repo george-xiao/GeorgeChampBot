@@ -10,6 +10,10 @@ RUN apt-get install -y python3-gdbm
 COPY ./requirements.txt ./
 RUN pip3 install -r requirements.txt
 
+# Install Python dependencies
+COPY ./requirements.txt ./
+RUN pip3 install -r requirements.txt
+
 # Copy source files
 COPY ./.env ./
 COPY ./GeorgeChampBot.py ./

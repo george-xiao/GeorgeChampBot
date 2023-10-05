@@ -35,13 +35,13 @@ env = {
 
 @ut.client.event
 async def on_ready():
-    try:
         ut.init_utils(env)
         if not(os.path.exists("database")):
             os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
-        
+        await ut.commandTree.sync(guild=ut.guildObject)
+
         msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
         try:
             georgechamp_emoji = None
@@ -86,9 +86,6 @@ async def on_ready():
                 await musicPlayer.play_song()
 
             await asyncio.sleep(1)
-            
-    except Exception as e:
-        await ut.mainChannel.send('Error With On Ready Event: ' + str(e))
 
 @ut.client.event
 async def on_member_join(member):
@@ -260,5 +257,10 @@ async def print_help(message, message_content):
             !plshelp twitch - Twitch Commands""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x4F7942, title_ = "What do you need help with?", description_ = description, thumbnail_url = "https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
     await ut.send_message(message.channel, "", embed.embed_msg)
+
+
+@ut.commandTree.command(name="testing", description="testing something", guild=ut.guildObject)
+async def testingSlash(interaction:discord.Interaction,member:discord.Member):
+    await interaction.response.send_message(member.display_avatar)
 
 ut.client.run(env["TOKEN"])

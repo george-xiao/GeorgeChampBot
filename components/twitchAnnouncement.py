@@ -3,7 +3,7 @@ import requests
 import sys
 sys.path.insert(1, '../common')
 import common.utils as ut
-from database import MemberDatabase
+from common.memberDatabase import MemberDatabase
 
 twitch_OAuth_token = None
 twitch_curr_livestreams = []

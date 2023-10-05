@@ -250,7 +250,7 @@ async def print_help(message, message_content):
             !plsadd-twitch <Name> <Twitch Username> - Add streamer to tracking list (Admin Only)
             !plsremove-twitch <Name or Twitch Username> - Remove streamer from tracking list (Admin Only)
             !plslist-twitch - List currently tracked players""")
-        embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
+        embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Twitch Commands", description_ = description, thumbnail_url = "https://brand.twitch.tv/assets/images/black.png")
     else:
         description = inspect.cleandoc("""
             !plshelp emote - Emote Leaderboard Commands

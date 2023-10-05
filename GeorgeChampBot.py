@@ -245,12 +245,19 @@ async def print_help(message, message_content):
             !plsremove-dota <Name or Player ID> - Remove player from tracking list (Admin Only)
             !plslist-dota - List currently tracked players""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
+    elif message_content == "twitch":
+        description = inspect.cleandoc("""
+            !plsadd-twitch <Name> <Twitch Username> - Add streamer to tracking list (Admin Only)
+            !plsremove-twitch <Name or Twitch Username> - Remove streamer from tracking list (Admin Only)
+            !plslist-twitch - List currently tracked players""")
+        embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
     else:
         description = inspect.cleandoc("""
             !plshelp emote - Emote Leaderboard Commands
             !plshelp music - Music Leaderboard Commands
             !plshelp meme - Meme Review Commands
-            !plshelp dota - Dota Commands""")
+            !plshelp dota - Dota Commands
+            !plshelp twitch - Twitch Commands""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x4F7942, title_ = "What do you need help with?", description_ = description, thumbnail_url = "https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
     await ut.send_message(message.channel, "", embed.embed_msg)
 

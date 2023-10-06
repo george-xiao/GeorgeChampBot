@@ -1,13 +1,15 @@
 import shelve
 import common.utils as ut
 
-# A class to allow adding, removing and listing presistent group of members using shelve library
-# Each entry in the database consists of:
-#   - Unique Identifier (Twitch Userid/DotaBuff Id) as its key
-#   - Discord Member Name as its value
-# This application uses MemberDatabase in the following manner:
-#   - twitchAnnouncements: <Twitch UserId, Discord Member Name>
-#   - TODO: dotaReplay: <DotaBuff Id, Discord Member Name>
+'''
+A class to allow adding, removing and listing presistent group of members using shelve library
+Each entry in the database consists of:
+  - Unique Identifier (Twitch Userid/DotaBuff Id) as its key
+  - Discord Member Name as its value
+This application uses MemberDatabase in the following manner:
+  - twitchAnnouncements: <Twitch UserId, Discord Member Name>
+  - TODO: dotaReplay: <DotaBuff Id, Discord Member Name>
+'''
 class MemberDatabase:
     def __init__(self, database_path):
         self.database_path = database_path

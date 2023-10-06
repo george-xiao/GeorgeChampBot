@@ -9,9 +9,6 @@ import inspect
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview
 
 load_dotenv()
-# TODO: Make these Ids not hardcoded
-TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
-TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
 env = {
 "TOKEN": os.getenv('DISCORD_TOKEN'),
 "GUILD": os.getenv('DISCORD_GUILD'),

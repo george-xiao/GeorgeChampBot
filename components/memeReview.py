@@ -10,10 +10,20 @@ ehMeme = 'one'
 goodMeme = 'two'
 bestMeme = 'three'
 
-def isMeme(attachments):
+def isMeme(attachment):
     formatList = ["jpg", "jpeg", "JPG", "JPEG", "png", "PNG", "gif", "gifv", "webm", "mp4", "wav", "mov"]
-    fileFormat = attachments.url.split(".")[-1]
-    return fileFormat in formatList
+    fileFormat = get_attachment_format(attachment)
+    return any(fileFormat.startswith(format) for format in formatList)
+
+def is_video(attachment):
+    formatList = ["webm", "mp4", "wav", "mov"]
+    fileFormat = get_attachment_format(attachment)
+    return any(fileFormat.startswith(format) for format in formatList)
+
+def get_attachment_format(attachment):
+    fileUrl = attachment.url.split("?")[0]
+    fileFormat = fileUrl.split(".")[-1]
+    return fileFormat
 
 def getUser(message):
     return message.embeds[0].description[2:-1]
@@ -39,7 +49,7 @@ async def check_meme(message, guild, channel, memeChannel):
 
         embed = discord.Embed(description='<@' + str(message.author.id) + '>')
         embed.set_image(url=message.attachments[0].url)
-        if message.attachments[0].url[-4:] in ["webm", ".mp4", ".wav", ".mov"]:
+        if is_video(message.attachments[0]):
             await memeChannel.send(content=message.attachments[0].url)
         memeMessage = await memeChannel.send(embed=embed)
         

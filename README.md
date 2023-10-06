@@ -22,7 +22,15 @@ Completely fill out all fields in the `.env` file. This will require you to set 
  - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application) and
  - Dedicated [server channels and roles](https://discord.com/blog/starting-your-first-discord-server)
 
-Finally, start the application using the `run.sh` script. Installing Docker is a prerequisite to this step.
+Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
+
+Give the `run.sh` script permission to execute by running the following command in the terminal.
+
+```
+chmod +x run.sh
+```
+
+Finally, start the application using the `run.sh` script. Note that only this step is needed to start the bot on subsequent runs.
 
 ```
 ./run.sh
@@ -30,7 +38,7 @@ Finally, start the application using the `run.sh` script. Installing Docker is a
 
 ## Run Manually
 
-To run the bot directly on your local machine, the following dependencies have to be installed.
+To run the bot directly on your local machine, the additional dependencies have to be installed (on top the ones installed in [Getting Started](#getting-started)).
 
 ```
 sudo apt-get install -y python3 python3-dev python3-pip

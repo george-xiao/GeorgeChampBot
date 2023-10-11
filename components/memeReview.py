@@ -10,18 +10,21 @@ ehMeme = 'one'
 goodMeme = 'two'
 bestMeme = 'three'
 
-def isMeme(attachment):
-    formatList = ["jpg", "jpeg", "JPG", "JPEG", "png", "PNG", "gif", "gifv", "webm", "mp4", "wav", "mov"]
-    fileFormat = get_attachment_format(attachment)
+def isMeme(attachment: discord.Attachment) -> bool:
+    return is_image(attachment.url) or is_video(attachment.url)
+
+def is_image(attachment_url: str) -> bool:
+    formatList = ["jpg", "jpeg", "JPG", "JPEG", "png", "PNG", "gif", "gifv"]
+    fileFormat = get_attachment_format(attachment_url)
     return any(fileFormat.startswith(format) for format in formatList)
 
-def is_video(attachment):
+def is_video(attachment_url: str) -> bool:
     formatList = ["webm", "mp4", "wav", "mov"]
-    fileFormat = get_attachment_format(attachment)
+    fileFormat = get_attachment_format(attachment_url)
     return any(fileFormat.startswith(format) for format in formatList)
 
-def get_attachment_format(attachment):
-    fileUrl = attachment.url.split("?")[0]
+def get_attachment_format(attachment_url: str) -> bool:
+    fileUrl = attachment_url.split("?")[0]
     fileFormat = fileUrl.split(".")[-1]
     return fileFormat
 
@@ -49,7 +52,7 @@ async def check_meme(message, guild, channel, memeChannel):
 
         embed = discord.Embed(description='<@' + str(message.author.id) + '>')
         embed.set_image(url=message.attachments[0].url)
-        if is_video(message.attachments[0]):
+        if is_video(message.attachments[0].url):
             await memeChannel.send(content=message.attachments[0].url)
         memeMessage = await memeChannel.send(embed=embed)
         
@@ -305,7 +308,7 @@ async def best_announcement_task(channel, deleteAfter=None):
             sendMsg += "Third Place: :third_place:" + "<@" + str(sorted_database[2][1][2]) + "> " + "\n"
         embed = discord.Embed(title="Best Meme:")
         embed.set_image(url=sorted_database[0][1][3])
-        if sorted_database[0][1][3][-4:] in ["webm", ".mp4", ".wav", ".mov"]:
+        if is_video(sorted_database[0][1][3]):
             sendMsg += "Best Meme:\n" + sorted_database[0][1][3]
             await channel.send(content=sendMsg, delete_after=deleteAfter)
         else:
@@ -316,7 +319,7 @@ async def best_announcement_task(channel, deleteAfter=None):
         memeDatabase.close()
         memeLeaderboard.close()
     except Exception as e:
-        await channel.send('Error Printing Best Emote: ' + str(e))
+        await channel.send('Error Printing Best Meme of the Week: ' + str(e))
       
         
 async def print_memerboard(message):

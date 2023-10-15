@@ -54,6 +54,7 @@ python3 GeorgeChampBot.py
 
 ## Built With
 
+* [aiohttp](https://docs.aiohttp.org/en/stable/) - Asynchronous HTTP Client/Server for asyncio 
 * [asyncio](https://docs.python.org/3/library/asyncio.html) - write concurrent code using the async/await syntax 
 * [collections](https://docs.python.org/3/library/collections.html) - specialized container datatypes providing alternatives to Python’s general purpose built-in containers
 * [datetime](https://docs.python.org/3/library/datetime.html) - classes for manipulating dates and times
@@ -68,7 +69,6 @@ python3 GeorgeChampBot.py
 * [PyNaCl](https://pypi.org/project/PyNaCl/) - enables networking and cryptography operations
 * [python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 * [re](https://docs.python.org/3/library/re.html) - regular expression matching operations
-* [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
 * [shelve](https://docs.python.org/3/library/shelve.html) - a persistent, dictionary-like object
 * [urllib3](https://pypi.org/project/urllib3/) - a powerful, user-friendly HTTP client for Python
 * [yt-dlp](https://pypi.org/project/yt-dlp/) - youtube-dl fork with additional features and fixes

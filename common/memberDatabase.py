@@ -14,7 +14,7 @@ class MemberDatabase:
     def __init__(self, database_path):
         self.database_path = database_path
 
-    def add_item(self, message, admin_role, validate_value_lamda):
+    async def add_item(self, message, admin_role, validate_value_lamda):
         '''
         Adds Item to the database if it is valid (Needs admin access)
         Returns a confirmation string if it succeeds
@@ -24,7 +24,7 @@ class MemberDatabase:
         ----------
         message: Discord Message Object
         admin_role: string
-        validate_value_lamda: lamda function that takes userid as its input
+        validate_value_lamda: async lamda function that takes userid as its input
                               signature: (userid) -> boolean 
                               the function is used to validate userid against an external API
                               this prevents the database from being filled with erronious entries
@@ -49,7 +49,7 @@ class MemberDatabase:
             raise Exception(member_name + " is not our Discord Member.")
 
         # Step 4: Validate key (must be validated using validate_value_lamda)
-        if not validate_value_lamda(userid):
+        if not await validate_value_lamda(userid):
             raise Exception(userid + " is not a valid argument.")
 
         # Step 5: Add key-value pair if it does not already exist

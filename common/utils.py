@@ -1,4 +1,4 @@
-
+import aiohttp
 import discord
 import json
 import os
@@ -146,3 +146,23 @@ def create_json(relative_file_path: str, file_being_called_from: str):
     json_contents = json.load(file)
     file.close()
     return json_contents
+
+# Send non-blocking get request; Returns json
+# Discord bot cannot be blocked in execution
+# As such get request is turned async with this function
+async def async_get_request(url: str, headers = None):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                response_json = await response.json()
+                return response_json
+
+# Send non-blocking post request; Returns json
+# Discord bot cannot be blocked in execution
+# As such post request is turned async with this function
+async def async_post_request(url: str, body):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, data=body) as response:
+            if response.status == 200:
+                response_json = await response.json()
+                return response_json

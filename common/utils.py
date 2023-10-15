@@ -146,3 +146,13 @@ def create_json(relative_file_path: str, file_being_called_from: str):
     json_contents = json.load(file)
     file.close()
     return json_contents
+
+# Send message and react to it with emote if emoji exists
+async def send_react_msg(msg_content: str, emoji_name: str):
+    msg = await mainChannel.send(msg_content, delete_after=21600)
+    target_emoji = None
+    for emoji in guildObject.emojis:
+        if emoji_name in emoji.name:
+            target_emoji = emoji
+    if target_emoji:
+        await msg.add_reaction(target_emoji.name + ":" + str(target_emoji.id))

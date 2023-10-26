@@ -6,7 +6,7 @@ from common import utils as ut
 from dotenv import load_dotenv
 import os
 import inspect
-from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview
+from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
 
 load_dotenv()
 env = {
@@ -27,6 +27,7 @@ env = {
 "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }
+
 # Ensures that only one for loop is running per application
 # Bypasses bug where on_ready() is called every time bot comes up after after connection lost
 instanceRunning = False
@@ -40,6 +41,7 @@ async def on_ready():
             os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
+        ut.commandTree.add_command(movieNight.movie_night_group, guild=ut.guildObject)
 
         global instanceRunning
         if instanceRunning:
@@ -161,6 +163,10 @@ async def on_message(message):
             await twitchAnnouncement.remove_streamer(message, env["ADMIN_ROLE"])
         elif command_name in ['!plslist-twitch']:
             await twitchAnnouncement.list_streamers(message.channel)
+        elif command_name in ['!plssync']:
+            ut.commandTree.copy_global_to(guild=ut.guildObject)
+            result = await ut.commandTree.sync(guild=ut.guildObject)
+            await ut.mainChannel.send('Commands Synced: ' + " ".join(command.name for command in result))        
         else:
             await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)

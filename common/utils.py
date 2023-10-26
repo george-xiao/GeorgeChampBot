@@ -8,6 +8,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 client = discord.Client(intents=intents)
+commandTree = discord.app_commands.CommandTree(client)
 env = None
 botObject = None
 guildObject = None

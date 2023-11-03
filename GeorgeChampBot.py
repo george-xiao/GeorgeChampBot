@@ -3,30 +3,9 @@ from datetime import datetime
 import discord
 from common.utils import *
 from common import utils as ut
-from dotenv import load_dotenv
 import os
 import inspect
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
-
-load_dotenv()
-env = {
-"TOKEN": os.getenv('DISCORD_TOKEN'),
-"GUILD": os.getenv('DISCORD_GUILD'),
-"BOT_ID": os.getenv('BOT_ID'),
-"ADMIN_ROLE": os.getenv('ADMIN_ROLE'),
-"MAIN_CHANNEL": os.getenv('MAIN_CHANNEL'),
-"BOT_CHANNEL": os.getenv('BOT_CHANNEL'),
-"ANNOUNCEMENT_CHANNEL": os.getenv('ANNOUNCEMENT_CHANNEL'),
-"ANNOUNCEMENT_DAY": int(os.getenv('ANNOUNCEMENT_DAY')),
-"ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
-"ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
-"WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
-"DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
-"TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
-"TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
-"MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
-"YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
-}
 
 # Ensures that only one for loop is running per application
 # Bypasses bug where on_ready() is called every time bot comes up after after connection lost
@@ -36,7 +15,7 @@ instanceRunning = False
 @ut.client.event
 async def on_ready():
     try:
-        ut.init_utils(env)
+        ut.init_utils()
         if not(os.path.exists("database")):
             os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
@@ -52,9 +31,9 @@ async def on_ready():
             while 1:
                 curr_date = datetime.now()
                 
-                announceDay = env["ANNOUNCEMENT_DAY"]
-                announceHour = env["ANNOUNCEMENT_HOUR"]
-                announceMinute = env["ANNOUNCEMENT_MIN"]
+                announceDay = ut.env["ANNOUNCEMENT_DAY"]
+                announceHour = ut.env["ANNOUNCEMENT_HOUR"]
+                announceMinute = ut.env["ANNOUNCEMENT_MIN"]
                 
                 # Announcements
                 if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
@@ -68,7 +47,7 @@ async def on_ready():
 
                 # every 1 hour
                 if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-                    await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
+                    await dotaReplay.check_recent_matches(get_channel(ut.env["DOTA_CHANNEL"]))
 
                 # every 15 minute
                 if (curr_date.minute % 15) == 0 and curr_date.second == 0:
@@ -90,7 +69,7 @@ async def on_ready():
 async def on_member_join(member):
     try:
         await ut.mainChannel.send("Welcome <@" + str(member.id) + "> to a wholesome server!")
-        role = get_role(env["WELCOME_ROLE"])
+        role = get_role(ut.env["WELCOME_ROLE"])
         await member.add_roles(discord.utils.get(member.guild.roles, name=role.name))
     except Exception as e:
         await ut.mainChannel.send('Error With On Member Join Event: ' + str(e))
@@ -142,25 +121,25 @@ async def on_message(message):
         elif command_name in ['!leaderboard']:
             await emoteLeaderboard.print_leaderboard(message, message_content)
         elif command_name in ['!plstransfer']:
-            await emoteLeaderboard.pls_transfer(message, message_content, env["ADMIN_ROLE"])
+            await emoteLeaderboard.pls_transfer(message, message_content, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plsdelete']:
-            await emoteLeaderboard.pls_delete(message, message_content, env["ADMIN_ROLE"])
+            await emoteLeaderboard.pls_delete(message, message_content, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plsaddscore_h']:
-            await emoteLeaderboard.plsaddscore_h(message, message_content, env["ADMIN_ROLE"])
+            await emoteLeaderboard.plsaddscore_h(message, message_content, ut.env["ADMIN_ROLE"])
         # Meme Review commands
         elif command_name in ['!memerboard']:
             await memeReview.print_memerboard(message)
         # Dota Replay commands
         elif command_name in ['!plsadd-dota']:
-            await dotaReplay.add_player(message, env["ADMIN_ROLE"])
+            await dotaReplay.add_player(message, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plsremove-dota']:
-            await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
+            await dotaReplay.remove_player(message, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plslist-dota']:
             await dotaReplay.list_players(message.channel)
         elif command_name in ['!plsadd-twitch']:
-            await twitchAnnouncement.add_streamer(message, env["ADMIN_ROLE"])
+            await twitchAnnouncement.add_streamer(message, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plsremove-twitch']:
-            await twitchAnnouncement.remove_streamer(message, env["ADMIN_ROLE"])
+            await twitchAnnouncement.remove_streamer(message, ut.env["ADMIN_ROLE"])
         elif command_name in ['!plslist-twitch']:
             await twitchAnnouncement.list_streamers(message.channel)
         elif command_name in ['!plssync']:
@@ -168,7 +147,7 @@ async def on_message(message):
             result = await ut.commandTree.sync(guild=ut.guildObject)
             await ut.mainChannel.send('Commands Synced: ' + " ".join(command.name for command in result))        
         else:
-            await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
+            await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(ut.env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)
     except Exception as e:
         await ut.mainChannel.send('Error With On Message Event: ' + str(e))
@@ -177,7 +156,7 @@ async def on_message(message):
 @ut.client.event
 async def on_raw_reaction_add(payload):
     try:
-        is_meme = await memeReview.add_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]), ut.guildObject, get_role(env["ADMIN_ROLE"]))
+        is_meme = await memeReview.add_meme_reactions(payload, get_channel(ut.env["MEME_CHANNEL"]), ut.guildObject, get_role(ut.env["ADMIN_ROLE"]))
         if not is_meme:
             await emoteLeaderboard.check_reaction(payload)
     except Exception as e:
@@ -186,7 +165,7 @@ async def on_raw_reaction_add(payload):
 @ut.client.event
 async def on_raw_reaction_remove(payload):
     try:
-        await memeReview.remove_meme_reactions(payload, get_channel(env["MEME_CHANNEL"]))
+        await memeReview.remove_meme_reactions(payload, get_channel(ut.env["MEME_CHANNEL"]))
     except Exception as e:
         await ut.mainChannel.send('Error With On Reaction Remove Event: ' + str(e))
 
@@ -261,5 +240,4 @@ async def print_help(message, message_content):
         embed = ut.DiscordEmbedBuilder(colour_ = 0x4F7942, title_ = "What do you need help with?", description_ = description, thumbnail_url = "https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
     await ut.send_message(message.channel, "", embed.embed_msg)
 
-
-ut.client.run(env["TOKEN"])
+ut.client.run(ut.env["TOKEN"])

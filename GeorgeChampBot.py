@@ -69,13 +69,13 @@ async def on_ready():
             if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
                 await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
 
+            # every 15 minute
+            if (curr_date.minute % 15) == 0 and curr_date.second == 0:
+                await twitchAnnouncement.check_twitch_live(ut.mainChannel)
+
             # # every 3 minutes
             if (curr_date.minute % 3) == 0 and curr_date.second == 0:
                 await musicPlayer.check_disconnect()
-
-            # every 1 minute
-            if (curr_date.minute % 1) == 0 and curr_date.second == 0:
-                await twitchAnnouncement.check_twitch_live(ut.mainChannel)
 
             # every 1 second
             if (curr_date.second % 1) == 0:

@@ -5,39 +5,69 @@ import common.utils as ut
 from common.memberDatabase import MemberDatabase
 
 twitch_OAuth_token = None
-twitch_curr_livestreams = []
+# Key: User_Name; Value: discord.Message
+twitch_curr_livestreams = {}
 CONST_STREAMER_DB_PATH = './database/twitch_streamer_list.db'
 streamerDatabase = MemberDatabase(CONST_STREAMER_DB_PATH)
 
 async def check_twitch_live(channel):
-    if not await validate_twitch_OAuth_token(channel):
-        await generate_twitch_OAuth_token(channel)
-
     global twitch_OAuth_token
     global twitch_curr_livestreams
 
     try:
+        # Need to generate OAuth token on startup and failed generation
+        if not twitch_OAuth_token:
+            await generate_twitch_OAuth_token(channel)
+
         streamer_list_shelf = shelve.open(CONST_STREAMER_DB_PATH)
-        if streamer_list_shelf:
-            twitch_streamers = '?user_login=' + '&user_login='.join(streamer_list_shelf.keys())
-            url = 'https://api.twitch.tv/helix/streams' + twitch_streamers
-            headers = {
-                'Client-ID': ut.env["TWITCH_CLIENT_ID"],
-                'Authorization': 'Bearer ' + twitch_OAuth_token
-            }
+        # Request list of live streamers currently online from Twitch
+        # Documentation: https://dev.twitch.tv/docs/api/reference/#get-streams
+        twitch_streamers = '?user_login=' + '&user_login='.join(streamer_list_shelf.keys())
+        url = 'https://api.twitch.tv/helix/streams' + twitch_streamers
+        headers = {
+            'Client-ID': ut.env["TWITCH_CLIENT_ID"],
+            'Authorization': 'Bearer ' + twitch_OAuth_token
+        }
 
+        stream = await ut.async_get_request(url, headers=headers)
+        # Let stream fail once before generating twitch OAuth token
+        # This will reduce the number of calls made by the application over time
+        if not stream:
+            if not await validate_twitch_OAuth_token(channel):
+                await generate_twitch_OAuth_token(channel)
             stream = await ut.async_get_request(url, headers=headers)
+        # If it fails with a newly generated OAuth, then Twitch is probably down
+        if not stream:
+            raise Exception("Twitch is probably not online. Ignoring request")
 
-            fetched_livestreams = []        
-            for livestream in stream.get('data'):
-                fetched_livestreams.append(livestream['user_name'])
-                if livestream['user_name'] not in twitch_curr_livestreams:
-                    await channel.send(livestream['user_name'] + ' is live with ' + str(livestream['viewer_count']) + ' viewers! Go support them at https://twitch.tv/' + livestream['user_name'])
+        # If livestream is new, create message
+        # else update the viewer count
+        fetched_livestreams = {}
+        for livestream in stream.get('data'):
+            user_name = livestream['user_name']
+            if user_name not in twitch_curr_livestreams:
+                message = await channel.send(generate_message(livestream))
+            else:
+                message = await twitch_curr_livestreams[user_name].edit(content=generate_message(livestream))
+            print(livestream)
+            fetched_livestreams[user_name] = message
+        twitch_curr_livestreams = fetched_livestreams
 
-            twitch_curr_livestreams = fetched_livestreams
         streamer_list_shelf.close()
     except Exception as e:
         await channel.send('Error Obtaining Live Twitch Streamer List: ' + str(e))
+
+def generate_message(livestream):
+    message_content = livestream["user_name"] + " is live"
+
+    # Don't show viewer_count if it is zero :(
+    if not livestream['viewer_count']:
+        message_content += "!"
+    else:
+        message_content += " with " + str(livestream["viewer_count"]) + " viewers!"
+
+    message_content += " Go support them at https://twitch.tv/" + livestream["user_name"]
+    return message_content
 
 async def validate_twitch_OAuth_token(channel):
     global twitch_OAuth_token
@@ -51,7 +81,7 @@ async def validate_twitch_OAuth_token(channel):
 
             response = await ut.async_get_request(url, headers=headers)
 
-            if 'status' in response and response.get('status') == 401:
+            if not response or ('status' in response and response.get('status')) == 401:
                 return False
 
             return True

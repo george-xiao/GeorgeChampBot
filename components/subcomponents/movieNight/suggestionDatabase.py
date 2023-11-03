@@ -45,7 +45,7 @@ class Suggestions:
         db.close()
 
         # Reply using Embed
-        reply = embed_movie(suggested_movie)
+        reply = self.__embed_movie(suggested_movie)
         reply.title="Movie successfully added to " + member + "'s list !"
         return reply
 
@@ -60,7 +60,7 @@ class Suggestions:
             db[member] = new_suggestion_list
             db.close()
 
-            reply = embed_movie(movie)
+            reply = self.__embed_movie(movie)
             reply.title="Movie Successfully Removed from " + member + "'s list !"
         else:
             reply.title="Removal Unsuccessful!"
@@ -97,7 +97,7 @@ class Suggestions:
 
         movie = self.get_movie(member, movie_name)
         if movie:
-            reply = embed_movie(movie)
+            reply = self.__embed_movie(movie)
             reply.title = member + "'s Suggestion"
         else:
             reply.title = "Movie not found!"
@@ -105,11 +105,11 @@ class Suggestions:
 
         return reply
 
-# Generic title; change it after
-def embed_movie(movie: Movie) -> discord.Embed:
-    embed = discord.Embed(colour= 0x4f4279)
-    embed.title = "Movie Suggestion"
-    embed.description = "**Name:** " + movie.name
-    embed.description += "\n**Genre:** " + movie.genre
-    embed.description += "\n**Reason for Picking:** " + movie.picking_reason
-    return embed
+    # Embedded message has a generic title; change it after
+    def __embed_movie(self, movie: Movie) -> discord.Embed:
+        embed = discord.Embed(colour= 0x4f4279)
+        embed.title = "Movie Suggestion"
+        embed.description = "**Name:** " + movie.name
+        embed.description += "\n**Genre:** " + movie.genre
+        embed.description += "\n**Reason for Picking:** " + movie.picking_reason
+        return embed

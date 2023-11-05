@@ -27,7 +27,9 @@ env = {
 "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }
-
+# Ensures that only one for loop is running per application
+# Bypasses bug where on_ready() is called every time bot comes up after after connection lost
+instanceRunning = False
 
 
 @ut.client.event
@@ -39,50 +41,46 @@ async def on_ready():
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
 
-        msg = await ut.mainChannel.send("GeorgeChampBot reporting for duty!", delete_after=21600)
-        try:
-            georgechamp_emoji = None
-            for emoji in ut.guildObject.emojis:
-                if 'georgechamp' in emoji.name:
-                    georgechamp_emoji = emoji
-            await msg.add_reaction(georgechamp_emoji.name + ":" + str(georgechamp_emoji.id))
-        except:
-            pass
+        global instanceRunning
+        if instanceRunning:
+            await ut.send_react_msg("GeorgeChampBot restarted! Check terminal for more information.", "georgechamp")
+        else:
+            instanceRunning = True
+            await ut.send_react_msg("GeorgeChampBot reporting for duty!", "georgechamp")
+            while 1:
+                curr_date = datetime.now()
+                
+                announceDay = env["ANNOUNCEMENT_DAY"]
+                announceHour = env["ANNOUNCEMENT_HOUR"]
+                announceMinute = env["ANNOUNCEMENT_MIN"]
+                
+                # Announcements
+                if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
+                    await emoteLeaderboard.announcement_task()
+                if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
+                    await memeReview.best_announcement_task(ut.mainChannel)
 
-        while 1:
-            curr_date = datetime.now()
-            
-            announceDay = env["ANNOUNCEMENT_DAY"]
-            announceHour = env["ANNOUNCEMENT_HOUR"]
-            announceMinute = env["ANNOUNCEMENT_MIN"]
-            
-            # Announcements
-            if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-                await emoteLeaderboard.announcement_task()
-            if curr_date.weekday() == ((announceDay-1)%7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-                await memeReview.best_announcement_task(ut.mainChannel)
+                # every 24 hours
+                if (curr_date.hour % 24 == 0) and curr_date.minute == 0 and curr_date.second == 0:
+                    await memeReview.resetLimit()
 
-            # every 24 hours
-            if (curr_date.hour % 24 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-                await memeReview.resetLimit()
+                # every 1 hour
+                if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
+                    await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
 
-            # every 1 hour
-            if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-                await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
+                # every 15 minute
+                if (curr_date.minute % 15) == 0 and curr_date.second == 0:
+                    await twitchAnnouncement.check_twitch_live(ut.mainChannel)
 
-            # every 15 minute
-            if (curr_date.minute % 15) == 0 and curr_date.second == 0:
-                await twitchAnnouncement.check_twitch_live(ut.mainChannel)
+                # every 3 minutes
+                if (curr_date.minute % 3) == 0 and curr_date.second == 0:
+                    await musicPlayer.check_disconnect()
 
-            # # every 3 minutes
-            if (curr_date.minute % 3) == 0 and curr_date.second == 0:
-                await musicPlayer.check_disconnect()
+                # every 1 second
+                if (curr_date.second % 1) == 0:
+                    await musicPlayer.play_song()
 
-            # every 1 second
-            if (curr_date.second % 1) == 0:
-                await musicPlayer.play_song()
-
-            await asyncio.sleep(1)
+                await asyncio.sleep(1)
     except Exception as e:
         await ut.mainChannel.send('Error With On Ready Event: ' + str(e))
 

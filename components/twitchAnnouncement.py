@@ -7,8 +7,8 @@ from common.memberDatabase import MemberDatabase
 twitch_OAuth_token = None
 # Key: User_Name; Value: discord.Message
 twitch_curr_livestreams = {}
-CONST_STREAMER_DB_PATH = './database/twitch_streamer_list.db'
-streamerDatabase = MemberDatabase(CONST_STREAMER_DB_PATH)
+STREAMER_DB_PATH = './database/twitch_streamer_list.db'
+streamerDatabase = MemberDatabase(STREAMER_DB_PATH)
 
 async def check_twitch_live(channel):
     global twitch_OAuth_token
@@ -19,7 +19,7 @@ async def check_twitch_live(channel):
         if not twitch_OAuth_token:
             await generate_twitch_OAuth_token(channel)
 
-        streamer_list_shelf = shelve.open(CONST_STREAMER_DB_PATH)
+        streamer_list_shelf = shelve.open(STREAMER_DB_PATH)
         # Request list of live streamers currently online from Twitch
         # Documentation: https://dev.twitch.tv/docs/api/reference/#get-streams
         twitch_streamers = '?user_login=' + '&user_login='.join(streamer_list_shelf.keys())
@@ -49,7 +49,6 @@ async def check_twitch_live(channel):
                 message = await channel.send(generate_message(livestream))
             else:
                 message = await twitch_curr_livestreams[user_name].edit(content=generate_message(livestream))
-            print(livestream)
             fetched_livestreams[user_name] = message
         twitch_curr_livestreams = fetched_livestreams
 
@@ -151,5 +150,8 @@ async def remove_streamer(message, admin_role):
 
 # Lists the currently tracked streamers. Does not need admin access.
 async def list_streamers(channel):
-    result = streamerDatabase.list_items()
-    await ut.send_message(channel, result)
+    try:
+        result = streamerDatabase.list_items()
+        await ut.send_message(channel, result)
+    except Exception as e:
+        await ut.send_message(channel, "Error Retrieving Streamers: " + str(e))

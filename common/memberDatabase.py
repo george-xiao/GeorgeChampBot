@@ -59,7 +59,7 @@ class MemberDatabase:
                 db[userid] = member_name
                 return "Successfully added " + member_name
             else:
-                raise Exception("This streamer already exists.")
+                raise Exception("This entry already exists.")
         finally:
             db.close()
 
@@ -82,7 +82,7 @@ class MemberDatabase:
         # Step 2: Validate the number of arguments
         arg_list = ut.get_arg_list(message, 1, True)
         if not arg_list:
-            raise Exception("Only argument expected.")
+            raise Exception("Only one argument expected.")
 
         first_arg = arg_list[0]
 

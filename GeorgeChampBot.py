@@ -32,6 +32,7 @@ env = {
 
 @ut.client.event
 async def on_ready():
+    try:
         ut.init_utils(env)
         if not(os.path.exists("database")):
             os.mkdir("database")
@@ -82,6 +83,8 @@ async def on_ready():
                 await musicPlayer.play_song()
 
             await asyncio.sleep(1)
+    except Exception as e:
+        await ut.mainChannel.send('Error With On Ready Event: ' + str(e))
 
 @ut.client.event
 async def on_member_join(member):
@@ -242,7 +245,7 @@ async def print_help(message, message_content):
         description = inspect.cleandoc("""
             !plsadd-twitch <Name> <Twitch Username> - Add streamer to tracking list (Admin Only)
             !plsremove-twitch <Name or Twitch Username> - Remove streamer from tracking list (Admin Only)
-            !plslist-twitch - List currently tracked players""")
+            !plslist-twitch - List currently tracked twitch streamers""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Twitch Commands", description_ = description, thumbnail_url = "https://brand.twitch.tv/assets/images/black.png")
     else:
         description = inspect.cleandoc("""

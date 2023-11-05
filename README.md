@@ -22,7 +22,15 @@ Completely fill out all fields in the `.env` file. This will require you to set 
  - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application) and
  - Dedicated [server channels and roles](https://discord.com/blog/starting-your-first-discord-server)
 
-Finally, start the application using the `run.sh` script. Installing Docker is a prerequisite to this step.
+Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
+
+Give the `run.sh` script permission to execute by running the following command in the terminal.
+
+```
+chmod +x run.sh
+```
+
+Finally, start the application using the `run.sh` script. Note that only this step is needed to start the bot on subsequent runs.
 
 ```
 ./run.sh
@@ -30,7 +38,7 @@ Finally, start the application using the `run.sh` script. Installing Docker is a
 
 ## Run Manually
 
-To run the bot directly on your local machine, the following dependencies have to be installed.
+To run the bot directly on your local machine, the additional dependencies have to be installed (on top the ones installed in [Getting Started](#getting-started)).
 
 ```
 sudo apt-get install -y python3 python3-dev python3-pip
@@ -46,6 +54,7 @@ python3 GeorgeChampBot.py
 
 ## Built With
 
+* [aiohttp](https://docs.aiohttp.org/en/stable/) - Asynchronous HTTP Client/Server for asyncio 
 * [asyncio](https://docs.python.org/3/library/asyncio.html) - write concurrent code using the async/await syntax 
 * [collections](https://docs.python.org/3/library/collections.html) - specialized container datatypes providing alternatives to Python’s general purpose built-in containers
 * [datetime](https://docs.python.org/3/library/datetime.html) - classes for manipulating dates and times
@@ -60,7 +69,6 @@ python3 GeorgeChampBot.py
 * [PyNaCl](https://pypi.org/project/PyNaCl/) - enables networking and cryptography operations
 * [python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
 * [re](https://docs.python.org/3/library/re.html) - regular expression matching operations
-* [reqests](https://requests.readthedocs.io/en/master/) - HTTP requests
 * [shelve](https://docs.python.org/3/library/shelve.html) - a persistent, dictionary-like object
 * [urllib3](https://pypi.org/project/urllib3/) - a powerful, user-friendly HTTP client for Python
 * [yt-dlp](https://pypi.org/project/yt-dlp/) - youtube-dl fork with additional features and fixes

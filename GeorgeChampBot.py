@@ -9,9 +9,6 @@ import inspect
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview
 
 load_dotenv()
-# TODO: Make these Ids not hardcoded
-TWITCH_USER_1 = os.getenv('TWITCH_USER_1')
-TWITCH_USER_2 = os.getenv('TWITCH_USER_2')
 env = {
 "TOKEN": os.getenv('DISCORD_TOKEN'),
 "GUILD": os.getenv('DISCORD_GUILD'),
@@ -27,7 +24,6 @@ env = {
 "DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
 "TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
 "TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
-"twitch_user_list": [TWITCH_USER_1, TWITCH_USER_2],
 "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
 "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY')
 }
@@ -72,13 +68,13 @@ async def on_ready():
                 if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
                     await dotaReplay.check_recent_matches(get_channel(env["DOTA_CHANNEL"]))
 
-                # # every 3 minutes
+                # every 15 minute
+                if (curr_date.minute % 15) == 0 and curr_date.second == 0:
+                    await twitchAnnouncement.check_twitch_live(ut.mainChannel)
+
+                # every 3 minutes
                 if (curr_date.minute % 3) == 0 and curr_date.second == 0:
                     await musicPlayer.check_disconnect()
-
-                # every 1 minute
-                if (curr_date.minute % 1) == 0 and curr_date.second == 0:
-                    await twitchAnnouncement.check_twitch_live(ut.mainChannel)
 
                 # every 1 second
                 if (curr_date.second % 1) == 0:
@@ -159,6 +155,12 @@ async def on_message(message):
             await dotaReplay.remove_player(message, env["ADMIN_ROLE"])
         elif command_name in ['!plslist-dota']:
             await dotaReplay.list_players(message.channel)
+        elif command_name in ['!plsadd-twitch']:
+            await twitchAnnouncement.add_streamer(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plsremove-twitch']:
+            await twitchAnnouncement.remove_streamer(message, env["ADMIN_ROLE"])
+        elif command_name in ['!plslist-twitch']:
+            await twitchAnnouncement.list_streamers(message.channel)
         else:
             await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)
@@ -237,13 +239,21 @@ async def print_help(message, message_content):
             !plsremove-dota <Name or Player ID> - Remove player from tracking list (Admin Only)
             !plslist-dota - List currently tracked players""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Dota Commands", description_ = description, thumbnail_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
+    elif message_content == "twitch":
+        description = inspect.cleandoc("""
+            !plsadd-twitch <Name> <Twitch Username> - Add streamer to tracking list (Admin Only)
+            !plsremove-twitch <Name or Twitch Username> - Remove streamer from tracking list (Admin Only)
+            !plslist-twitch - List currently tracked twitch streamers""")
+        embed = ut.DiscordEmbedBuilder(colour_ = 0x0047AB, title_ = "Twitch Commands", description_ = description, thumbnail_url = "https://brand.twitch.tv/assets/images/black.png")
     else:
         description = inspect.cleandoc("""
             !plshelp emote - Emote Leaderboard Commands
             !plshelp music - Music Leaderboard Commands
             !plshelp meme - Meme Review Commands
-            !plshelp dota - Dota Commands""")
+            !plshelp dota - Dota Commands
+            !plshelp twitch - Twitch Commands""")
         embed = ut.DiscordEmbedBuilder(colour_ = 0x4F7942, title_ = "What do you need help with?", description_ = description, thumbnail_url = "https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
     await ut.send_message(message.channel, "", embed.embed_msg)
+
 
 ut.client.run(env["TOKEN"])

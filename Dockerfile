@@ -1,4 +1,5 @@
-FROM ubuntu:latest
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive 
 
 # Install Python + dependencies 
 RUN apt-get update

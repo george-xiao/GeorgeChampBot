@@ -63,9 +63,16 @@ async def view_suggestion(interaction: discord.Integration, user: discord.Member
 @movie_night_group.command(name="pick-host", description="Pick host for upcoming movie night [Admin Only]")
 @discord.app_commands.describe(user="Host for upcoming movie night")
 @discord.app_commands.describe(time="Start time for upcoming movie night")
+@discord.app_commands.describe(prev_host="Bumps this user to the bottom of the list")
 @discord.app_commands.checks.has_role(ut.env["ADMIN_ROLE"])
-async def pick_host(interaction: discord.Integration, user: discord.Member, time: str):
-    embed = upcomingMovie.set_host(user.name, time)
+async def pick_host(interaction: discord.Integration, user: discord.Member, time: str, prev_host: discord.Member = None):
+    # Only sends embed if bump fails
+    embed = suggestion_database.bump_prev_host(prev_host)
+    if embed:
+        await interaction.response.send_message(embed=embed)
+        return
+    # Set host has no fail condition, so not validated
+    embed = upcomingMovie.set_host(user.name, time, prev_host = prev_host)
     await interaction.response.send_message(embed=embed)
 
 # reset-host command
@@ -104,12 +111,14 @@ async def member_not_admin_error(interaction: discord.Interaction, error):
 @view_suggestion.autocomplete("movie_name")
 @pick_movie.autocomplete("movie_name")
 async def movie_names_autocomplete(interaction: discord.Integration, current:str) -> list[discord.app_commands.Choice[str]]:
-    if interaction.namespace.user:
-        user = ut.get_member(str(interaction.namespace.user.id)).name
+    user = interaction.namespace.user
+    if user:
+        user_id = user.id
+        user_name = ut.get_member(str(user_id)).name
     else:
-        user = interaction.user.name
+        user_name = interaction.user.name
 
     return [
         discord.app_commands.Choice(name=movie_name, value=movie_name)
-        for movie_name in suggestion_database.get_suggestion_names(user) if current.lower() in movie_name.lower()
+        for movie_name in suggestion_database.get_suggestion_names(user_name) if current.lower() in movie_name.lower()
     ]

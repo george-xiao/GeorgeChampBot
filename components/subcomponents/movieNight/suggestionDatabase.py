@@ -141,6 +141,18 @@ class Suggestions:
 
         return successful
 
+    # Bumps previous_host to the end of the list
+    # Returns embed only if unsuccessful
+    def bump_prev_host(self, previous_host: discord.User) -> discord.Embed | None:
+        if previous_host:
+            if not self.bump_member(previous_host.name):
+                embed = discord.Embed(colour= 0xed4337)
+                embed.title = "Command Unsuccessful!"
+                embed.description = "`prev_host` does not exist in suggestion list!"
+                embed.description += "\nPlease pick a valid member."
+                return embed
+        return None
+
     # Embedded message has a generic title; change it after
     def __embed_movie(self, movie: Movie) -> discord.Embed:
         embed = discord.Embed(colour= 0x4f4279)

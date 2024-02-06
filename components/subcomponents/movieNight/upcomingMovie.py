@@ -21,7 +21,7 @@ reminderTask: asyncio.Task | None = None
 
 # Allows admins to set upcoming movie night host
 # This check has to be done before the function is called
-def set_host(member_name: str, time: str) -> discord.Embed:
+def set_host(member_name: str, time: str, prev_host: discord.User = None) -> discord.Embed:
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
     db["upcoming_host_name"] = member_name
     if db.get("upcoming_movie"):
@@ -37,6 +37,9 @@ def set_host(member_name: str, time: str) -> discord.Embed:
     embed.title = "Movie night host selected!"
     embed.description = member_name + " has been selected as the upcoming movie night host."
     embed.description += "\nThe movie will be watched on " + time + "."
+    # If prev_host exists, then it is assumed to be successful
+    if prev_host:
+        embed.description += "\n" + prev_host.name + " was successfully bumped to the end of the list!"
     return embed
 
 # Allows admins to reset upcoming movie night host

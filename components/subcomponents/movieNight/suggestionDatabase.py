@@ -8,7 +8,7 @@ import discord
 from common.orderedShelve import OrderedShelve
 from .movie import Movie
 
-CONST_MAX_SUGGESTIONS = 10
+MAX_SUGGESTIONS = 10
 
 class Suggestions:
     def __init__(self, database_path):
@@ -18,7 +18,7 @@ class Suggestions:
         db = self.shelve.open()
         has_space = False
 
-        if db.get(member) is None or len(db[member]) < CONST_MAX_SUGGESTIONS:
+        if db.get(member) is None or len(db[member]) < MAX_SUGGESTIONS:
             has_space = True
         self.shelve.close(db)
 
@@ -42,19 +42,26 @@ class Suggestions:
 
         return movie
 
-    # If number of suggestions must be limited, then use has_space() before add_suggestion()
+    # Allows up to MAX_SUGGESTIONS suggestions to be stored per user
     def add_suggestion(self, member:str, suggested_movie: Movie) -> discord.Embed:
-        # Update Database
-        db = self.shelve.open()
-        if db.get(member) is None:
-            db[member] = [suggested_movie]
-        else:
-            db[member] = db[member] + [suggested_movie]
-        self.shelve.close(db)
-
-        # Reply using Embed
         reply = self.__embed_movie(suggested_movie)
-        reply.title="Movie successfully added to " + member + "'s list !"
+
+        if self.has_space(member):
+            # Update Database if there is space
+            db = self.shelve.open()
+            if db.get(member) is None:
+                db[member] = [suggested_movie]
+            else:
+                db[member] = db[member] + [suggested_movie]
+            self.shelve.close(db)
+
+            reply.title="Movie successfully added to " + member + "'s list !"
+        else:
+            # Send error if suggestion list is full
+            reply.color = 0xed4337
+            reply.title="Suggestion List at Capacity!"
+            reply.description = "Please remove some suggestions before adding new ones."
+
         return reply
 
     def remove_suggestion(self, member:str, movie_name: str) -> discord.Embed:
@@ -71,6 +78,7 @@ class Suggestions:
             reply = self.__embed_movie(movie)
             reply.title="Movie Successfully Removed from " + member + "'s list !"
         else:
+            reply.colour = 0xed4337
             reply.title="Removal Unsuccessful!"
             reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
 
@@ -99,6 +107,7 @@ class Suggestions:
                 suggested_names_str = ", ".join(self.get_suggestion_names(member))
                 reply.description += "**" + member + "**: " + suggested_names_str + "\n"
         else:
+            reply.colour = 0xed4337
             reply.title = "Movies not found!"
             reply.description = "Everyone's suggestion list is empty."
 
@@ -112,6 +121,7 @@ class Suggestions:
             reply = self.__embed_movie(movie)
             reply.title = member + "'s Suggestion"
         else:
+            reply.colour = 0xed4337
             reply.title = "Movie not found!"
             reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
 

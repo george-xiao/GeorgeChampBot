@@ -4,8 +4,8 @@ import components.subcomponents.movieNight.upcomingMovie as upcomingMovie
 from .subcomponents.movieNight.movie import Movie
 from .subcomponents.movieNight.suggestionDatabase import Suggestions
 
-CONST_SUGGESTION_DB_PATH = "./database/movie_suggestion_list.db"
-suggestion_database = Suggestions(CONST_SUGGESTION_DB_PATH)
+SUGGESTION_DB_PATH = "./database/movie_suggestion_list.db"
+suggestion_database = Suggestions(SUGGESTION_DB_PATH)
 movie_night_group = discord.app_commands.Group(name="movie", description="Movie night slash commands")
 
 # Code that needs to execute every time the bot starts
@@ -14,19 +14,12 @@ def init():
 
 # add-suggestion command
 # Creates a modal that takes movie name, genre and reason for picking as input
-# Only allows 10 suggestions to be stored per user
-@movie_night_group.command(name="add-suggestion", description="Suggest a movie")
+@movie_night_group.command(name="add-suggestion", description="Suggest a movie using a popup")
 async def add_suggestion(interaction: discord.Interaction):
-    if suggestion_database.has_space(interaction.user.name):
-        await interaction.response.send_modal(suggestion_modal())
-    else:
-        reply = discord.Embed(colour= 0x4f4279)
-        reply.title="Suggestion List at Capacity!"
-        reply.description = "Please remove some suggestions before adding new ones."
-        await interaction.response.send_message(embed=reply)
+    await interaction.response.send_modal(SuggestionModal())
 
 # add-suggestion modal
-class suggestion_modal(discord.ui.Modal, title = "Suggest a Movie"):
+class SuggestionModal(discord.ui.Modal, title = "Suggest a Movie"):
     movie_name = discord.ui.TextInput(label="Movie Name")
     movie_genre = discord.ui.TextInput(label="Movie Genre")
     movie_reason = discord.ui.TextInput(label="Reason for Picking", style = discord.TextStyle.paragraph)

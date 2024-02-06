@@ -48,12 +48,9 @@ async def remove_suggestion(interaction: discord.Integration, movie_name: str):
 
 # list-suggestions command
 # Lists all suggestions of a specific user
-@movie_night_group.command(name="list-suggestions", description="List all suggestions")
-@discord.app_commands.describe(user="User's movie-suggestion list. Defaults to sender")
-async def list_suggestions(interaction: discord.Integration, user: discord.Member = None):
-    if not user:
-        user = interaction.user
-    reply = suggestion_database.get_suggestions_embed(user.name)
+@movie_night_group.command(name="list-suggestions", description="List everyone's suggestions")
+async def list_suggestions(interaction: discord.Integration):
+    reply = suggestion_database.get_list_embed()
     await interaction.response.send_message(embed=reply)
 
 # view-suggestion command

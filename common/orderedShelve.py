@@ -17,13 +17,14 @@ class OrderedShelve:
 
     def open(self) -> dict:
         self.shelve_db = shelve.open(self.database_path)
-        db_dict = self.shelve_db["dict"]
+        db_dict = self.shelve_db.get("dict")
         if not db_dict:
             return {}
         return db_dict
 
-    def close(self, modified_dict: dict):
-        self.__modify(modified_dict)
+    def close(self, modified_dict: dict = None):
+        if modified_dict:
+            self.__modify(modified_dict)
         self.shelve_db.close()
 
     def __modify(self, modified_dict: dict):

@@ -20,14 +20,14 @@ class Suggestions:
 
         if db.get(member) is None or len(db[member]) < MAX_SUGGESTIONS:
             has_space = True
-        self.shelve.close(db)
+        self.shelve.close()
 
         return has_space
 
     def get_members(self) -> [str]:
         db = self.shelve.open()
         members = list(db.keys())
-        self.shelve.close(db)
+        self.shelve.close()
 
         return members
 
@@ -38,7 +38,7 @@ class Suggestions:
         movies = db.get(member)
         if movies:
             movie = next((movie for movie in movies if movie.name == movie_name), None)
-        self.shelve.close(db)
+        self.shelve.close()
 
         return movie
 
@@ -53,7 +53,7 @@ class Suggestions:
                 db[member] = [suggested_movie]
             else:
                 db[member] = db[member] + [suggested_movie]
-            self.shelve.close(db)
+            self.shelve.close(modified_dict=db)
 
             reply.title="Movie successfully added to " + member + "'s list !"
         else:
@@ -73,7 +73,7 @@ class Suggestions:
             new_suggestion_list = db.get(member)
             new_suggestion_list.remove(movie)
             db[member] = new_suggestion_list
-            self.shelve.close(db)
+            self.shelve.close(modified_dict=db)
 
             reply = self.__embed_movie(movie)
             reply.title="Movie Successfully Removed from " + member + "'s list !"
@@ -91,7 +91,7 @@ class Suggestions:
         suggested_movies = db.get(member)
         if suggested_movies:
             suggested_movies_names = [movie.name for movie in suggested_movies]
-        self.shelve.close(db)
+        self.shelve.close()
 
         return suggested_movies_names
 
@@ -137,7 +137,7 @@ class Suggestions:
             del db[member]
             db[member] = movies
             successful = True
-        self.shelve.close(db)
+        self.shelve.close(modified_dict=db)
 
         return successful
 

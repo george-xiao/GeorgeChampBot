@@ -12,28 +12,33 @@ client = discord.Client(intents=intents)
 commandTree = discord.app_commands.CommandTree(client)
 load_dotenv()
 env = {
-"TOKEN": os.getenv('DISCORD_TOKEN'),
-"GUILD": os.getenv('DISCORD_GUILD'),
-"BOT_ID": os.getenv('BOT_ID'),
-"ADMIN_ROLE": os.getenv('ADMIN_ROLE'),
-"MAIN_CHANNEL": os.getenv('MAIN_CHANNEL'),
-"BOT_CHANNEL": os.getenv('BOT_CHANNEL'),
-"ANNOUNCEMENT_CHANNEL": os.getenv('ANNOUNCEMENT_CHANNEL'),
-"ANNOUNCEMENT_DAY": int(os.getenv('ANNOUNCEMENT_DAY')),
-"ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
-"ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
-"WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
-"DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
-"TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
-"TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
-"MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
-"YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY'),
-"MOVIE_CHANNEL": os.getenv('MOVIE_CHANNEL')
+    "TOKEN": os.getenv('DISCORD_TOKEN'),
+    "GUILD": os.getenv('DISCORD_GUILD'),
+    "BOT_ID": os.getenv('BOT_ID'),
+    "ADMIN_ROLE": os.getenv('ADMIN_ROLE'),
+    "MAIN_CHANNEL": os.getenv('MAIN_CHANNEL'),
+    "BOT_CHANNEL": os.getenv('BOT_CHANNEL'),
+    "ANNOUNCEMENT_CHANNEL": os.getenv('ANNOUNCEMENT_CHANNEL'),
+    "ANNOUNCEMENT_DAY": int(os.getenv('ANNOUNCEMENT_DAY')),
+    "ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
+    "ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
+    "WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
+    "DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
+    "TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
+    "TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
+    "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
+    "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY'),
+    "MOVIE_CHANNEL": os.getenv('MOVIE_CHANNEL')
 }
 botObject = None
 guildObject = None
 mainChannel = None
 botChannel = None
+# Color for Embedded Messages
+embed_colour = {
+    "MOVIE_NIGHT": 0x4f4279,
+    "ERROR": 0xed4337
+}
 
 class DiscordEmbedBuilder:
     def __init__(self, thumbnail_url="", colour_=0, title_="", description_="", title_url=""):
@@ -203,7 +208,8 @@ async def async_post_request(url: str, body):
 # Sends an embedded message back to requestor
 async def member_not_admin_error(interaction:discord.Interaction):
     global env
-    embed = discord.Embed(colour= 0xed4337)    
+    global embed_colour
+    embed = discord.Embed(colour= embed_colour["ERROR"])
     embed.title = "Request Denied!"
     embed.description = "Admin access is required for this command. Please contact a " + env["ADMIN_ROLE"] + " for more information."
     await interaction.response.send_message(embed=embed)

@@ -33,7 +33,7 @@ def set_host(member_name: str, time: str, prev_host: discord.User = None) -> dis
     start_reminder()
 
     # Create and return embedded success-message
-    embed = discord.Embed(colour= 0x4f4279)
+    embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
     embed.title = "Movie night host selected!"
     embed.description = member_name + " has been selected as the upcoming movie night host."
     embed.description += "\nThe movie will be watched on " + time + "."
@@ -57,7 +57,7 @@ def reset_host() -> discord.Embed:
     stop_reminder()
 
     # Create and return embedded success-message
-    embed = discord.Embed(colour= 0x4f4279)
+    embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
     embed.title = "Movie night host reset!"
     embed.description = "Upcoming movie night host has been successfully been reset."
     return embed
@@ -71,7 +71,7 @@ def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestion
     upcoming_host_name: str | None = db.get("upcoming_host_name")
     upcoming_time: str | None = db.get("upcoming_time")
 
-    embed = discord.Embed(colour= 0xed4337)
+    embed = discord.Embed(colour= ut.embed_colour["ERROR"])
     if not upcoming_host_name:
         embed.title = "You are not the upcoming movie night host!"
         embed.description = "Upcoming movie night host has not been selected yet."
@@ -85,7 +85,7 @@ def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestion
         embed.description = "Please add the movie to your suggestion list and then try again."
     else:
         db["upcoming_movie"] = movie
-        embed.colour = 0x4f4279
+        embed.colour = ut.embed_colour["MOVIE_NIGHT"]
         embed.title = member_name + " finally picked a movie!"
         embed.description = "Next movie set as " + movie.name
         embed.description += "\nThe movie will be watched on " + upcoming_time + "."
@@ -101,11 +101,11 @@ def get_upcoming() -> discord.Embed:
     upcoming_time: str | None = db.get("upcoming_time")
     db.close()
 
-    embed = discord.Embed(colour= 0x4f4279)
+    embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
     if upcoming_host_name:
         embed.title = upcoming_host_name + "'s Movie Night Detail"
     else:
-        embed.colour = 0xed4337
+        embed.colour = ut.embed_colour["ERROR"]
         embed.title = "Host not selected!"
         embed.description = "Please contact a dictator so that they can select a host."
         return embed
@@ -164,7 +164,7 @@ async def __remind_host():
                 break
 
             # Send reminder since movie has not been picked
-            embed = discord.Embed(colour= 0x4f4279)
+            embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
             embed.title = upcoming_host_name + ", please select the upcoming movie!"
             embed.description = "Please select a movie before " + upcoming_time +"."
             host_id = str(ut.get_member(upcoming_host_name).id)

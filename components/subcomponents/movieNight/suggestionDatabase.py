@@ -5,6 +5,7 @@ Each entry in the database consists of:
     - List of Movies (list[Movies]) as its value
 '''
 import discord
+import common.utils as ut
 from common.orderedShelve import OrderedShelve
 from .movie import Movie
 
@@ -58,14 +59,14 @@ class Suggestions:
             reply.title="Movie successfully added to " + member + "'s list !"
         else:
             # Send error if suggestion list is full
-            reply.color = 0xed4337
+            reply.color = ut.embed_colour["ERROR"]
             reply.title="Suggestion List at Capacity!"
             reply.description = "Please remove some suggestions before adding new ones."
 
         return reply
 
     def remove_suggestion(self, member:str, movie_name: str) -> discord.Embed:
-        reply = discord.Embed(colour= 0x4f4279)
+        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
 
         movie = self.get_movie(member, movie_name)
         if movie:
@@ -78,7 +79,7 @@ class Suggestions:
             reply = self.__embed_movie(movie)
             reply.title="Movie Successfully Removed from " + member + "'s list !"
         else:
-            reply.colour = 0xed4337
+            reply.colour = ut.embed_colour["ERROR"]
             reply.title="Removal Unsuccessful!"
             reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
 
@@ -96,7 +97,7 @@ class Suggestions:
         return suggested_movies_names
 
     def get_list_embed(self) -> discord.Embed:
-        reply = discord.Embed(colour= 0x4f4279)
+        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
 
         members = self.get_members()
         if members:
@@ -107,21 +108,21 @@ class Suggestions:
                 suggested_names_str = ", ".join(self.get_suggestion_names(member))
                 reply.description += "**" + member + "**: " + suggested_names_str + "\n"
         else:
-            reply.colour = 0xed4337
+            reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Movies not found!"
             reply.description = "Everyone's suggestion list is empty."
 
         return reply
 
     def get_suggestion_embed(self, member:str, movie_name: str) -> discord.Embed:
-        reply = discord.Embed(colour= 0x4f4279)
+        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
 
         movie = self.get_movie(member, movie_name)
         if movie:
             reply = self.__embed_movie(movie)
             reply.title = member + "'s Suggestion"
         else:
-            reply.colour = 0xed4337
+            reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Movie not found!"
             reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
 
@@ -146,7 +147,7 @@ class Suggestions:
     def bump_prev_host(self, previous_host: discord.User) -> discord.Embed | None:
         if previous_host:
             if not self.bump_member(previous_host.name):
-                embed = discord.Embed(colour= 0xed4337)
+                embed = discord.Embed(colour= ut.embed_colour["ERROR"])
                 embed.title = "Command Unsuccessful!"
                 embed.description = "`prev_host` does not exist in suggestion list!"
                 embed.description += "\nPlease pick a valid member."
@@ -155,7 +156,7 @@ class Suggestions:
 
     # Embedded message has a generic title; change it after
     def __embed_movie(self, movie: Movie) -> discord.Embed:
-        embed = discord.Embed(colour= 0x4f4279)
+        embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
         embed.title = "Movie Suggestion"
         embed.description = "**Name:** " + movie.name
         embed.description += "\n**Genre:** " + movie.genre

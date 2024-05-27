@@ -1,9 +1,3 @@
-'''
-A class to allow adding, removing and listing movie suggestions persistent using shelve library
-Each entry in the database consists of:
-    - Discord Member Name (str) as its key
-    - List of Movies (list[Movies]) as its value
-'''
 import discord
 import common.utils as ut
 from common.orderedShelve import OrderedShelve
@@ -12,6 +6,12 @@ from .movie import Movie
 MAX_SUGGESTIONS = 10
 
 class Suggestions:
+    '''
+    A class to allow adding, removing and listing movie suggestions persistent using shelve library
+    Each entry in the database consists of:
+        - Discord Member Name (str) as its key
+        - List of Movies (list[Movies]) as its value
+    '''
     def __init__(self, database_path):
         self.shelve = OrderedShelve(database_path)
 

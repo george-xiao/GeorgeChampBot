@@ -1,10 +1,10 @@
 import asyncio
 from datetime import datetime
+import os
+import inspect
 import discord
 from common.utils import *
 from common import utils as ut
-import os
-import inspect
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
 
 # Ensures that only one for loop is running per application
@@ -20,6 +20,7 @@ async def on_ready():
             os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
+        movieNight.init()
         ut.commandTree.add_command(movieNight.movie_night_group, guild=ut.guildObject)
 
         global instanceRunning
@@ -29,12 +30,17 @@ async def on_ready():
             instanceRunning = True
             await ut.send_react_msg("GeorgeChampBot reporting for duty!", "georgechamp")
             while 1:
+                '''
+                DEPRECATED!
+                Please use asyncio.Task which avoids race condition issues that are prevalent in this method.
+                https://docs.python.org/3/library/asyncio-task.html
+                '''
                 curr_date = datetime.now()
-                
+
                 announceDay = ut.env["ANNOUNCEMENT_DAY"]
                 announceHour = ut.env["ANNOUNCEMENT_HOUR"]
                 announceMinute = ut.env["ANNOUNCEMENT_MIN"]
-                
+
                 # Announcements
                 if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
                     await emoteLeaderboard.announcement_task()
@@ -85,6 +91,11 @@ async def on_member_remove(member):
 
 @ut.client.event
 async def on_message(message):
+    '''
+    DEPRECATED!
+    Please use slash commands which is more powerful and integrates better with Discord.
+    https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands
+    '''
     try:
         if message.author == ut.client.user:
             return None
@@ -143,9 +154,13 @@ async def on_message(message):
         elif command_name in ['!plslist-twitch']:
             await twitchAnnouncement.list_streamers(message.channel)
         elif command_name in ['!plssync']:
+            channel = message.channel
+            if not ut.author_is_admin(message.author, ut.env["ADMIN_ROLE"]):
+                await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
+                return
             ut.commandTree.copy_global_to(guild=ut.guildObject)
             result = await ut.commandTree.sync(guild=ut.guildObject)
-            await ut.mainChannel.send('Commands Synced: ' + " ".join(command.name for command in result))        
+            await ut.send_message(channel, 'Commands Synced: ' + " ".join(command.name for command in result))        
         else:
             await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, get_channel(ut.env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)
@@ -187,6 +202,11 @@ async def on_voice_state_update(member, before, after):
 
 
 async def print_help(message, message_content):
+    '''
+    DEPRECATED!
+    Please use slash commands which is more powerful and integrates better with Discord.
+    https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands
+    '''
     message_content = message_content.lower()
     help_msg = ""
     embed = ut.DiscordEmbedBuilder()

@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import shelve
 import discord
 import common.utils as ut
@@ -9,9 +9,6 @@ from .suggestionDatabase import Suggestions
 # The database stores the following variables:
 #   1) upcoming_host_name: str | None
 #   2) upcoming_movie: Movie | None
-#   3) upcoming_time: str | None
-#      NOTE: upcoming_time is neither parsed nor validated so erroneous output is expected
-#      TODO: Parse and validate upcoming_time in set_host
 UPCOMING_MOVIE_NIGHT_DB_PATH = "./database/upcoming_movie_night.db"
 
 # Reminder task is a task that runs in the background
@@ -21,25 +18,31 @@ reminderTask: asyncio.Task | None = None
 
 # Allows admins to set upcoming movie night host
 # This check has to be done before the function is called
-def set_host(member_name: str, time: str, prev_host: discord.User = None) -> discord.Embed:
+def set_host(member_name: str, prev_host: discord.User = None) -> discord.Embed:
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
     db["upcoming_host_name"] = member_name
     if db.get("upcoming_movie"):
         del db["upcoming_movie"]
-    db["upcoming_time"] = time
     db.close()
 
-    # Set reminder
-    start_reminder()
+    event: discord.ScheduledEvent | None = ut.get_event("Movie Night")
+    if not event:
+        embed = discord.Embed(colour= ut.embed_colour["ERROR"])
+        embed.title = "\"Movie Night\" event does not exist!"
+        embed.description = "A Discord Event needs to exist before a host can be picked!"
+        embed.description += "Please contact a dictator so that they can create the event."
+    else:
+        # Set reminder
+        start_reminder()
 
-    # Create and return embedded success-message
-    embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
-    embed.title = "Movie night host selected!"
-    embed.description = member_name + " has been selected as the upcoming movie night host."
-    embed.description += "\nThe movie will be watched on " + time + "."
-    # If prev_host exists, then it is assumed to be successful
-    if prev_host:
-        embed.description += "\n" + prev_host.name + " was successfully bumped to the end of the list!"
+        # Create and return embedded success-message
+        embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
+        embed.title = "Movie night host selected!"
+        embed.description = member_name + " has been selected as the upcoming movie night host."
+        embed.description += "\nThe movie will be watched on " + ut.ottawa_time(event.start_time) + "."
+        # If prev_host exists, then it is assumed to be successful
+        if prev_host:
+            embed.description += "\n" + prev_host.name + " was successfully bumped to the end of the list!"
     return embed
 
 # Allows admins to reset upcoming movie night host
@@ -49,8 +52,6 @@ def reset_host() -> discord.Embed:
         del db["upcoming_host_name"]
     if db.get("upcoming_movie"):
         del db["upcoming_movie"]
-    if db.get("upcoming_time"):
-        del db["upcoming_time"]
     db.close()
 
     # Stop reminders
@@ -69,7 +70,7 @@ def reset_host() -> discord.Embed:
 def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestions) -> discord.Embed:
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
     upcoming_host_name: str | None = db.get("upcoming_host_name")
-    upcoming_time: str | None = db.get("upcoming_time")
+    event: discord.ScheduledEvent | None = ut.get_event("Movie Night")
 
     embed = discord.Embed(colour= ut.embed_colour["ERROR"])
     if not upcoming_host_name:
@@ -88,7 +89,7 @@ def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestion
         embed.colour = ut.embed_colour["MOVIE_NIGHT"]
         embed.title = member_name + " finally picked a movie!"
         embed.description = "Next movie set as " + movie.name
-        embed.description += "\nThe movie will be watched on " + upcoming_time + "."
+        embed.description += "\nThe movie will be watched on " + ut.ottawa_time(event.start_time) + "."
 
     db.close()
     return embed
@@ -98,8 +99,9 @@ def get_upcoming() -> discord.Embed:
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
     upcoming_host_name: str | None = db.get("upcoming_host_name")
     upcoming_movie: Movie | None = db.get("upcoming_movie")
-    upcoming_time: str | None = db.get("upcoming_time")
     db.close()
+
+    event: discord.ScheduledEvent | None = ut.get_event("Movie Night")
 
     embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
     if upcoming_host_name:
@@ -116,7 +118,7 @@ def get_upcoming() -> discord.Embed:
         embed.description += "\n**Reason for Picking:** " + upcoming_movie.picking_reason
     else:
         embed.description = "**Movie Name:** Movie has not been picked yet!"
-    embed.description += "\n**Time:** " + upcoming_time
+    embed.description += "\n**Time:** " + ut.ottawa_time(event.start_time) + "."
 
     return embed
 
@@ -149,15 +151,16 @@ async def __remind_host():
     try:
         while True:
             # Set reminder for tomorrow at noon
-            next_noon = (datetime.datetime.now() + datetime.timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
-            delta = next_noon - datetime.datetime.now()
+            next_noon = (datetime.now() + timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
+            delta = next_noon - datetime.now()
             await asyncio.sleep(delta.total_seconds())
 
             db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
             upcoming_host_name: str | None = db.get("upcoming_host_name")
             upcoming_movie: Movie | None = db.get("upcoming_movie")
-            upcoming_time: str | None = db.get("upcoming_time")
             db.close()
+
+            event: discord.ScheduledEvent | None = ut.get_event("Movie Night")
 
             # Don't send reminders if host already picked the movie or host has been reset
             if upcoming_movie or not upcoming_host_name:
@@ -166,7 +169,7 @@ async def __remind_host():
             # Send reminder since movie has not been picked
             embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
             embed.title = upcoming_host_name + ", please select the upcoming movie!"
-            embed.description = "Please select a movie before " + upcoming_time +"."
+            embed.description = "Please select a movie before " + ut.ottawa_time(event.start_time) +"."
             host_id = str(ut.get_member(upcoming_host_name).id)
             await ut.send_message(ut.get_channel(ut.env['MOVIE_CHANNEL']), "<@" + host_id + ">", embedded_msg=embed)
     except Exception as e:

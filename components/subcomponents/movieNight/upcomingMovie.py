@@ -30,7 +30,7 @@ def set_host(member_name: str, prev_host: discord.User = None) -> discord.Embed:
         embed = discord.Embed(colour= ut.embed_colour["ERROR"])
         embed.title = "\"Movie Night\" event does not exist!"
         embed.description = "A Discord Event needs to exist before a host can be picked!"
-        embed.description += "Please contact a dictator so that they can create the event."
+        embed.description += "\nPlease contact a dictator so that they can create the event."
     else:
         # Set reminder
         start_reminder()
@@ -76,11 +76,11 @@ def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestion
     if not upcoming_host_name:
         embed.title = "You are not the upcoming movie night host!"
         embed.description = "Upcoming movie night host has not been selected yet."
-        embed.description += "Please contact a dictator so that they can select a host."
+        embed.description += "\nPlease contact a dictator so that they can select a host."
     elif member_name != upcoming_host_name:
         embed.title = "You are not the upcoming movie night host!"
         embed.description = upcoming_host_name + " is the upcoming movie night host."
-        embed.description += "Please contact a dictator if you think there has been a mixup."
+        embed.description += "\nPlease contact a dictator if you think there has been a mixup."
     elif not(movie := suggestion_database.get_movie(member_name, movie_name)):
         embed.title = movie_name + " does not exist in your suggestion list!"
         embed.description = "Please add the movie to your suggestion list and then try again."

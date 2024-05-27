@@ -1,8 +1,10 @@
-import aiohttp
-import discord
+from datetime import datetime
 import json
 import os
+import aiohttp
+import discord
 from dotenv import load_dotenv
+import pytz
 
 # Frequently used Objects
 intents = discord.Intents.default()
@@ -117,6 +119,13 @@ def get_member(member_name):
         if guild_member.name == member_name or str(guild_member.id) == member_name:
             return guild_member
 
+# Get event object given object_name. Returns None if not found
+def get_event(event_name: str) -> discord.ScheduledEvent | None:
+    for event in guildObject.scheduled_events:
+        if event.name == event_name:
+            return event
+    return None
+
 # Converts seconds to MM:SS
 def seconds_to_time(seconds):
     mins = str(int(seconds // 60))
@@ -126,7 +135,13 @@ def seconds_to_time(seconds):
     if len(secs) == 1:
         secs = "0" + secs
     return mins + ":" + secs
-    
+
+# Convert time to EDT/EST; Sample Output: May 27, 02:00 PM
+def ottawa_time(original_time: datetime) -> datetime:
+    desired_timezone = pytz.timezone('US/Eastern')
+    desired_format = "%b %d, %I:%M %p %Z"
+    return original_time.astimezone(desired_timezone).strftime(desired_format)
+
 # Send a message using channel object
 async def send_message(channel, msg: str, embedded_msg=None):
     if embedded_msg:
@@ -159,7 +174,7 @@ def author_is_admin(author, admin_role: str):
     for author_role in author.roles:
         if author_role == admin:
             is_admin = True
-    
+
     return is_admin
 
 # Given a relative path to a json file (from the place which it is called)

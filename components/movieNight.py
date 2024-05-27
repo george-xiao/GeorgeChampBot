@@ -62,17 +62,16 @@ async def view_suggestion(interaction: discord.Integration, user: discord.Member
 # User gets reminder to pick movie everyday at noon
 @movie_night_group.command(name="pick-host", description="Pick host for upcoming movie night [Admin Only]")
 @discord.app_commands.describe(user="Host for upcoming movie night")
-@discord.app_commands.describe(time="Start time for upcoming movie night")
 @discord.app_commands.describe(prev_host="Bumps this user to the bottom of the list")
 @discord.app_commands.checks.has_role(ut.env["ADMIN_ROLE"])
-async def pick_host(interaction: discord.Integration, user: discord.Member, time: str, prev_host: discord.Member = None):
+async def pick_host(interaction: discord.Integration, user: discord.Member, prev_host: discord.Member = None):
     # Only sends embed if bump fails
     embed = suggestion_database.bump_prev_host(prev_host)
     if embed:
         await interaction.response.send_message(embed=embed)
         return
     # Set host has no fail condition, so not validated
-    embed = upcomingMovie.set_host(user.name, time, prev_host = prev_host)
+    embed = upcomingMovie.set_host(user.name, prev_host = prev_host)
     await interaction.response.send_message(embed=embed)
 
 # reset-host command

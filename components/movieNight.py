@@ -4,6 +4,7 @@ import components.subcomponents.movieNight.upcomingMovie as upcomingMovie
 from .subcomponents.movieNight.movie import Movie
 from .subcomponents.movieNight.suggestionDatabase import Suggestions
 
+DELETE_AFTER_SECONDS = 10*60
 SUGGESTION_DB_PATH = "./database/movie_suggestion_list.db"
 suggestion_database = Suggestions(SUGGESTION_DB_PATH)
 movie_night_group = discord.app_commands.Group(name="movie", description="Movie night slash commands")
@@ -29,7 +30,7 @@ class SuggestionModal(discord.ui.Modal, title = "Suggest a Movie"):
         sender = interaction.user.name
         reply = suggestion_database.add_suggestion(sender, suggested_movie)
 
-        await interaction.response.send_message(embed=reply)
+        await interaction.response.send_message(embed=reply, delete_after=DELETE_AFTER_SECONDS)
 
 # remove-suggestion command
 # Removes movie from user's suggestion list
@@ -37,14 +38,14 @@ class SuggestionModal(discord.ui.Modal, title = "Suggest a Movie"):
 @discord.app_commands.describe(movie_name="Name of the movie to be removed from suggestion list")
 async def remove_suggestion(interaction: discord.Integration, movie_name: str):
     reply = suggestion_database.remove_suggestion(interaction.user.name, movie_name)
-    await interaction.response.send_message(embed=reply)
+    await interaction.response.send_message(embed=reply, delete_after=DELETE_AFTER_SECONDS)
 
 # list-suggestions command
 # Lists all suggestions of a specific user
 @movie_night_group.command(name="list-suggestions", description="List everyone's suggestions")
 async def list_suggestions(interaction: discord.Integration):
     reply = suggestion_database.get_list_embed()
-    await interaction.response.send_message(embed=reply)
+    await interaction.response.send_message(embed=reply, delete_after=DELETE_AFTER_SECONDS)
 
 # view-suggestion command
 # View a specific suggestion of a specific user
@@ -55,7 +56,7 @@ async def view_suggestion(interaction: discord.Integration, user: discord.Member
     if not user:
         user = interaction.user
     reply = suggestion_database.get_suggestion_embed(user.name, movie_name)
-    await interaction.response.send_message(embed=reply)
+    await interaction.response.send_message(embed=reply, delete_after=DELETE_AFTER_SECONDS)
 
 # pick-host command
 # Allows admins to pick the host for upcoming movie night
@@ -66,13 +67,13 @@ async def view_suggestion(interaction: discord.Integration, user: discord.Member
 @discord.app_commands.checks.has_role(ut.env["ADMIN_ROLE"])
 async def pick_host(interaction: discord.Integration, user: discord.Member, prev_host: discord.Member = None):
     # Only sends embed if bump fails
-    embed = suggestion_database.bump_prev_host(prev_host)
-    if embed:
-        await interaction.response.send_message(embed=embed)
+    bump_failed_embed = suggestion_database.bump_prev_host(prev_host)
+    if bump_failed_embed:
+        await interaction.response.send_message(embed=bump_failed_embed, delete_after=DELETE_AFTER_SECONDS)
         return
     # Set host has no fail condition, so not validated
     embed = upcomingMovie.set_host(user.name, prev_host = prev_host)
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, delete_after=DELETE_AFTER_SECONDS)
 
 # reset-host command
 # Allows admins to reset the host for upcoming movie night
@@ -80,7 +81,7 @@ async def pick_host(interaction: discord.Integration, user: discord.Member, prev
 @discord.app_commands.checks.has_role(ut.env["ADMIN_ROLE"])
 async def reset_host(interaction: discord.Integration):
     embed = upcomingMovie.reset_host()
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, delete_after=DELETE_AFTER_SECONDS)
 
 # pick-movie command
 # Allows upcoming host to pick the upcoming movie from suggestion-list
@@ -88,14 +89,14 @@ async def reset_host(interaction: discord.Integration):
 @discord.app_commands.describe(movie_name="Name of the movie from suggested list")
 async def pick_movie(interaction: discord.Interaction, movie_name: str):
     embed = upcomingMovie.set_movie(interaction.user.name, movie_name, suggestion_database)
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, delete_after=DELETE_AFTER_SECONDS)
 
 # view-upcoming command
 # View more details on the upcoming movie night
 @movie_night_group.command(name="view-upcoming", description="View more details on upcoming movie night")
 async def pick_upcoming(interaction: discord.Interaction):
     embed = upcomingMovie.get_upcoming()
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, delete_after=DELETE_AFTER_SECONDS)
 
 # Member not admin error
 @pick_host.error

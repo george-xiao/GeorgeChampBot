@@ -14,44 +14,37 @@ client = discord.Client(intents=intents)
 commandTree = discord.app_commands.CommandTree(client)
 load_dotenv()
 env = {
-    "TOKEN": os.getenv('DISCORD_TOKEN'),
-    "GUILD": os.getenv('DISCORD_GUILD'),
-    "BOT_ID": os.getenv('BOT_ID'),
-    "ADMIN_ROLE": os.getenv('ADMIN_ROLE'),
-    "MAIN_CHANNEL": os.getenv('MAIN_CHANNEL'),
-    "BOT_CHANNEL": os.getenv('BOT_CHANNEL'),
-    "ANNOUNCEMENT_CHANNEL": os.getenv('ANNOUNCEMENT_CHANNEL'),
-    "ANNOUNCEMENT_DAY": int(os.getenv('ANNOUNCEMENT_DAY')),
-    "ANNOUNCEMENT_HOUR": int(os.getenv('ANNOUNCEMENT_HOUR')),
-    "ANNOUNCEMENT_MIN": int(os.getenv('ANNOUNCEMENT_MIN')),
+    "TOKEN": os.getenv("DISCORD_TOKEN"),
+    "GUILD": os.getenv("DISCORD_GUILD"),
+    "BOT_ID": os.getenv("BOT_ID"),
+    "ADMIN_ROLE": os.getenv("ADMIN_ROLE"),
+    "MAIN_CHANNEL": os.getenv("MAIN_CHANNEL"),
+    "BOT_CHANNEL": os.getenv("BOT_CHANNEL"),
+    "ANNOUNCEMENT_CHANNEL": os.getenv("ANNOUNCEMENT_CHANNEL"),
+    "ANNOUNCEMENT_DAY": int(os.getenv("ANNOUNCEMENT_DAY")),
+    "ANNOUNCEMENT_HOUR": int(os.getenv("ANNOUNCEMENT_HOUR")),
+    "ANNOUNCEMENT_MIN": int(os.getenv("ANNOUNCEMENT_MIN")),
     "WELCOME_ROLE": os.getenv("WELCOME_ROLE"),
     "DOTA_CHANNEL": os.getenv("DOTA_CHANNEL"),
-    "TWITCH_CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
-    "TWITCH_CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
-    "MEME_CHANNEL": os.getenv('MEME_CHANNEL'),
-    "YOUTUBE_API_KEY": os.getenv('YOUTUBE_API_KEY'),
-    "MOVIE_CHANNEL": os.getenv('MOVIE_CHANNEL')
+    "TWITCH_CLIENT_ID": os.getenv("TWITCH_CLIENT_ID"),
+    "TWITCH_CLIENT_SECRET": os.getenv("TWITCH_CLIENT_SECRET"),
+    "MEME_CHANNEL": os.getenv("MEME_CHANNEL"),
+    "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY"),
+    "MOVIE_CHANNEL": os.getenv("MOVIE_CHANNEL"),
+    "MOVIE_ROLE": os.getenv("MOVIE_ROLE"),
 }
 botObject = None
 guildObject = None
 mainChannel = None
 botChannel = None
 # Color for Embedded Messages
-embed_colour = {
-    "MOVIE_NIGHT": 0x4f4279,
-    "ERROR": 0xed4337
-}
+embed_colour = {"MOVIE_NIGHT": 0x4F4279, "ERROR": 0xED4337}
+
 
 class DiscordEmbedBuilder:
     def __init__(self, thumbnail_url="", colour_=0, title_="", description_="", title_url=""):
-        self.embed_msg = discord.Embed(
-            title=title_,
-            colour=colour_,
-            description=description_,
-            url=title_url,
-            type="rich"
-        )
-        self.embed_msg.set_thumbnail(url = thumbnail_url)
+        self.embed_msg = discord.Embed(title=title_, colour=colour_, description=description_, url=title_url, type="rich")
+        self.embed_msg.set_thumbnail(url=thumbnail_url)
 
     # Set the url for the embed, only accepts http, https or local storage
     def set_thumbnail(self, image_url: str):
@@ -96,11 +89,13 @@ def init_utils():
     global botObject
     botObject = get_member(env["BOT_ID"])
 
+
 # Get channel object given channel_name. channel_name can also be an id
 def get_channel(channel_name):
     for guild_channel in guildObject.channels:
         if guild_channel.name == channel_name or str(guild_channel.id) == channel_name:
             return guild_channel
+
 
 # Get role object.
 def get_role(role_name):
@@ -113,11 +108,13 @@ def get_role(role_name):
         if role.name in role_name_list:
             return role
 
+
 # Get member object given member_name. member_name can also be an id
 def get_member(member_name):
     for guild_member in guildObject.members:
         if guild_member.name == member_name or str(guild_member.id) == member_name:
             return guild_member
+
 
 # Get event object given object_name. Returns None if not found
 def get_event(event_name: str) -> discord.ScheduledEvent | None:
@@ -125,6 +122,7 @@ def get_event(event_name: str) -> discord.ScheduledEvent | None:
         if event.name == event_name:
             return event
     return None
+
 
 # Converts seconds to MM:SS
 def seconds_to_time(seconds):
@@ -136,11 +134,13 @@ def seconds_to_time(seconds):
         secs = "0" + secs
     return mins + ":" + secs
 
+
 # Convert time to EDT/EST; Sample Output: May 27, 02:00 PM
 def ottawa_time(original_time: datetime) -> datetime:
-    desired_timezone = pytz.timezone('US/Eastern')
+    desired_timezone = pytz.timezone("US/Eastern")
     desired_format = "%b %d, %I:%M %p %Z"
     return original_time.astimezone(desired_timezone).strftime(desired_format)
+
 
 # Send a message using channel object
 async def send_message(channel, msg: str, embedded_msg=None):
@@ -149,13 +149,14 @@ async def send_message(channel, msg: str, embedded_msg=None):
     else:
         await channel.send(msg)
 
+
 # Get list of arguments after the command. If strict is true, arg_list will return empty if the number of arguments
 # is not exactly correct. If false, it will return all arguments.
 def get_arg_list(message, expected_num_args: int, strict: bool):
     arg_list = message.content.split()
     # ignore command
     if strict:
-        arg_list = arg_list[1:expected_num_args+1]
+        arg_list = arg_list[1 : expected_num_args + 1]
         if len(arg_list) != expected_num_args:
             return []
     else:
@@ -164,6 +165,7 @@ def get_arg_list(message, expected_num_args: int, strict: bool):
             return []
 
     return arg_list
+
 
 # Given author object and admin role string, check if author is an admin
 def author_is_admin(author, admin_role: str):
@@ -177,6 +179,7 @@ def author_is_admin(author, admin_role: str):
 
     return is_admin
 
+
 # Given a relative path to a json file (from the place which it is called)
 # and the file path from which it is called (__file__), return the contents
 def create_json(relative_file_path: str, file_being_called_from: str):
@@ -186,6 +189,7 @@ def create_json(relative_file_path: str, file_being_called_from: str):
     json_contents = json.load(file)
     file.close()
     return json_contents
+
 
 # Send message and react to it with emote if emoji exists
 async def send_react_msg(msg_content: str, emoji_name: str):
@@ -197,15 +201,17 @@ async def send_react_msg(msg_content: str, emoji_name: str):
     if target_emoji:
         await msg.add_reaction(target_emoji.name + ":" + str(target_emoji.id))
 
+
 # Send non-blocking get request; Returns json
 # Discord bot cannot be blocked in execution
 # As such get request is turned async with this function
-async def async_get_request(url: str, headers = None):
+async def async_get_request(url: str, headers=None):
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers) as response:
             if response.status == 200:
                 response_json = await response.json()
                 return response_json
+
 
 # Send non-blocking post request; Returns json
 # Discord bot cannot be blocked in execution
@@ -217,14 +223,15 @@ async def async_post_request(url: str, body):
                 response_json = await response.json()
                 return response_json
 
+
 # Exception handling for admin-only slash commands
 # Preceded by the decorator:
 #   @<command_name>.error
 # Sends an embedded message back to requestor
-async def member_not_admin_error(interaction:discord.Interaction):
+async def member_not_admin_error(interaction: discord.Interaction):
     global env
     global embed_colour
-    embed = discord.Embed(colour= embed_colour["ERROR"])
+    embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
     embed.description = "Admin access is required for this command. Please contact a " + env["ADMIN_ROLE"] + " for more information."
     await interaction.response.send_message(embed=embed)

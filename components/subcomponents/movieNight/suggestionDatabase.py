@@ -1,3 +1,4 @@
+from typing import List
 import discord
 import common.utils as ut
 from common.orderedShelve import OrderedShelve
@@ -5,13 +6,15 @@ from .movie import Movie
 
 MAX_SUGGESTIONS = 10
 
+
 class Suggestions:
-    '''
+    """
     A class to allow adding, removing and listing movie suggestions persistent using shelve library
     Each entry in the database consists of:
         - Discord Member Name (str) as its key
         - List of Movies (list[Movies]) as its value
-    '''
+    """
+
     def __init__(self, database_path):
         self.shelve = OrderedShelve(database_path)
 
@@ -25,7 +28,7 @@ class Suggestions:
 
         return has_space
 
-    def get_members(self) -> [str]:
+    def get_members(self) -> List[str]:
         db = self.shelve.open()
         members = list(db.keys())
         self.shelve.close()
@@ -44,7 +47,7 @@ class Suggestions:
         return movie
 
     # Allows up to MAX_SUGGESTIONS suggestions to be stored per user
-    def add_suggestion(self, member:str, suggested_movie: Movie) -> discord.Embed:
+    def add_suggestion(self, member: str, suggested_movie: Movie) -> discord.Embed:
         reply = self.__embed_movie(suggested_movie)
 
         if self.has_space(member):
@@ -56,17 +59,17 @@ class Suggestions:
                 db[member] = db[member] + [suggested_movie]
             self.shelve.close(modified_dict=db)
 
-            reply.title="Movie successfully added to " + member + "'s list !"
+            reply.title = f"Movie successfully added to {member}'s list!"
         else:
             # Send error if suggestion list is full
             reply.color = ut.embed_colour["ERROR"]
-            reply.title="Suggestion List at Capacity!"
+            reply.title = "Suggestion List at Capacity!"
             reply.description = "Please remove some suggestions before adding new ones."
 
         return reply
 
-    def remove_suggestion(self, member:str, movie_name: str) -> discord.Embed:
-        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
+    def remove_suggestion(self, member: str, movie_name: str) -> discord.Embed:
+        reply = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
 
         movie = self.get_movie(member, movie_name)
         if movie:
@@ -77,15 +80,15 @@ class Suggestions:
             self.shelve.close(modified_dict=db)
 
             reply = self.__embed_movie(movie)
-            reply.title="Movie Successfully Removed from " + member + "'s list !"
+            reply.title = f"Movie Successfully Removed from {member}'s list !"
         else:
             reply.colour = ut.embed_colour["ERROR"]
-            reply.title="Removal Unsuccessful!"
-            reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
+            reply.title = "Removal Unsuccessful!"
+            reply.description = f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
 
         return reply
 
-    def get_suggestion_names(self, member:str) -> [str]:
+    def get_suggestion_names(self, member: str) -> List[str]:
         db = self.shelve.open()
 
         suggested_movies_names = []
@@ -97,7 +100,7 @@ class Suggestions:
         return suggested_movies_names
 
     def get_list_embed(self) -> discord.Embed:
-        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
+        reply = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
 
         members = self.get_members()
         if members:
@@ -106,7 +109,7 @@ class Suggestions:
             for member in members:
                 # Format list
                 suggested_names_str = ", ".join(self.get_suggestion_names(member))
-                reply.description += "**" + member + "**: " + suggested_names_str + "\n"
+                reply.description += f"**{ut.get_member_str(member)}**: {suggested_names_str}\n"
         else:
             reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Movies not found!"
@@ -114,17 +117,17 @@ class Suggestions:
 
         return reply
 
-    def get_suggestion_embed(self, member:str, movie_name: str) -> discord.Embed:
-        reply = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
+    def get_suggestion_embed(self, member: str, movie_name: str) -> discord.Embed:
+        reply = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
 
         movie = self.get_movie(member, movie_name)
         if movie:
             reply = self.__embed_movie(movie)
-            reply.title = member + "'s Suggestion"
+            reply.title = f"{member}'s Suggestion"
         else:
             reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Movie not found!"
-            reply.description = "The movie `" + movie_name + "` was not found in " + member + "'s suggestion list."
+            reply.description = f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
 
         return reply
 
@@ -147,18 +150,18 @@ class Suggestions:
     def bump_prev_host(self, previous_host: discord.User) -> discord.Embed | None:
         if previous_host:
             if not self.bump_member(previous_host.name):
-                embed = discord.Embed(colour= ut.embed_colour["ERROR"])
+                embed = discord.Embed(colour=ut.embed_colour["ERROR"])
                 embed.title = "Command Unsuccessful!"
-                embed.description = "`prev_host` does not exist in suggestion list!"
+                embed.description = f"{ut.get_member_str(previous_host.name)} does not exist in suggestion list!"
                 embed.description += "\nPlease pick a valid member."
                 return embed
         return None
 
     # Embedded message has a generic title; change it after
     def __embed_movie(self, movie: Movie) -> discord.Embed:
-        embed = discord.Embed(colour= ut.embed_colour["MOVIE_NIGHT"])
+        embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
         embed.title = "Movie Suggestion"
-        embed.description = "**Name:** " + movie.name
-        embed.description += "\n**Genre:** " + movie.genre
-        embed.description += "\n**Reason for Picking:** " + movie.picking_reason
+        embed.description = f"**Name:** {movie.name}"
+        embed.description += f"\n**Genre:** {movie.genre}"
+        embed.description += f"\n**Reason for Picking:** {movie.picking_reason}"
         return embed

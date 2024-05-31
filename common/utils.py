@@ -39,6 +39,9 @@ mainChannel = None
 botChannel = None
 # Color for Embedded Messages
 embed_colour = {"MOVIE_NIGHT": 0x4F4279, "ERROR": 0xED4337}
+MOVIE_EVENT_NAME = "Movie Night"
+DELETE_AFTER_SECONDS = 10 * 60
+DELETE_AFTER_HOURS = 24 * 60 * 60
 
 
 class DiscordEmbedBuilder:
@@ -73,8 +76,6 @@ class DiscordEmbedBuilder:
 
 # initialize the constants
 def init_utils():
-    global env
-
     global guildObject
     for guild in client.guilds:
         if guild.name == env["GUILD"]:
@@ -109,18 +110,57 @@ def get_role(role_name):
             return role
 
 
-# Get member object given member_name. member_name can also be an id
+# Get printable version of role that will ping role when sent as a message
+# role_name is key for env as all role_names should be stored within the .env file
+def get_role_str(role_name: str) -> str | None:
+    if role_id := get_role(env[role_name]).id:
+        return f"<@&{str(role_id)}>"
+    return None
+
+
+# Get member object given member_name. member_name can be their username or their id
 def get_member(member_name):
     for guild_member in guildObject.members:
         if guild_member.name == member_name or str(guild_member.id) == member_name:
             return guild_member
 
 
-# Get event object given object_name. Returns None if not found
-def get_event(event_name: str) -> discord.ScheduledEvent | None:
+# Get printable version of member_name that will ping member when sent as a message
+# member_name can be string or an id
+def get_member_str(member_name) -> str | None:
+    if member_object := get_member(member_name):
+        return f"<@{str(member_object.id)}>"
+    return None
+
+
+# Get movie night's ScheduledEvent object. Returns None if not found
+def get_movie_event() -> discord.ScheduledEvent | None:
     for event in guildObject.scheduled_events:
-        if event.name == event_name:
+        if event.name.startswith(MOVIE_EVENT_NAME):
             return event
+    return None
+
+
+# Get shareable link for movie night's ScheduledEvent
+def get_movie_event_link() -> str | None:
+    if event := get_movie_event():
+        return "https://discord.com/events/" + str(event.guild_id) + "/" + str(event.id)
+    return None
+
+
+# Checks to see if movie night's ScheduledEvent exists
+# Returns an embed if ScheduledEvent does not exist
+def movie_event_not_present(updating_description=False):
+    if not get_movie_event():
+        embed = discord.Embed(colour=embed_colour["ERROR"])
+        embed.title = f'"{MOVIE_EVENT_NAME}" event does not exist!'
+        if updating_description:
+            embed.description = f'A Discord Event named "{MOVIE_EVENT_NAME}" needs to exist for movie night features to work as intended!'
+            embed.description += "\nPicking host and movie will not work until this event is created."
+        else:
+            embed.description = f'A Discord Event named "{MOVIE_EVENT_NAME}" needs to exist for this command to work!'
+            embed.description += f"\nPlease contact {get_role_str('ADMIN_ROLE')} so that they can create this event."
+        return embed
     return None
 
 
@@ -136,18 +176,15 @@ def seconds_to_time(seconds):
 
 
 # Convert time to EDT/EST; Sample Output: May 27, 02:00 PM
-def ottawa_time(original_time: datetime) -> datetime:
+def convert_to_ottawa_time(original_time: datetime) -> datetime:
     desired_timezone = pytz.timezone("US/Eastern")
     desired_format = "%b %d, %I:%M %p %Z"
     return original_time.astimezone(desired_timezone).strftime(desired_format)
 
 
 # Send a message using channel object
-async def send_message(channel, msg: str, embedded_msg=None):
-    if embedded_msg:
-        await channel.send(msg, embed=embedded_msg)
-    else:
-        await channel.send(msg)
+async def send_message(channel, msg: str = "", embed: discord.Embed = None, delete_after: float = None):
+    await channel.send(msg, embed=embed, delete_after=delete_after)
 
 
 # Get list of arguments after the command. If strict is true, arg_list will return empty if the number of arguments
@@ -228,10 +265,17 @@ async def async_post_request(url: str, body):
 # Preceded by the decorator:
 #   @<command_name>.error
 # Sends an embedded message back to requestor
-async def member_not_admin_error(interaction: discord.Interaction):
-    global env
-    global embed_colour
+async def handle_member_missing_role_error(interaction: discord.Interaction):
     embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
-    embed.description = "Admin access is required for this command. Please contact a " + env["ADMIN_ROLE"] + " for more information."
-    await interaction.response.send_message(embed=embed)
+    embed.description = f"Admin access is required for this command. Please contact {get_role_str('ADMIN_ROLE')} for more information."
+    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=DELETE_AFTER_HOURS)
+
+
+# Exception handling for slash commands
+# Handles generic error
+async def handle_slash_command_error(interaction: discord, error):
+    embed = discord.Embed(colour=embed_colour["ERROR"])
+    embed.title = "Request Denied!"
+    embed.description = f"{str(error)}. Please contact {get_role_str('ADMIN_ROLE')} for more information."
+    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=DELETE_AFTER_HOURS)

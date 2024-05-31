@@ -14,7 +14,7 @@ eventReminderTask: AsyncTask | None = AsyncTask(lambda: __remind_event_coroutine
 #   2) event is not live
 #   2) event occurs in the future
 def start_event_reminder():
-    event: discord.ScheduledEvent | None = ut.get_event("Movie Night")
+    event: discord.ScheduledEvent | None = ut.get_movie_event()
     if event and event.status is not discord.EventStatus.active and datetime.now(timezone.utc) <= event.start_time:
         eventReminderTask.start()
 
@@ -27,7 +27,10 @@ async def on_scheduled_event_create(_created_event: discord.ScheduledEvent):
 
 
 @ut.client.event
-async def on_scheduled_event_update(_old_event: discord.ScheduledEvent, _new_event: discord.ScheduledEvent):
+async def on_scheduled_event_update(old_event: discord.ScheduledEvent, new_event: discord.ScheduledEvent):
+    # The bot updating event description is a false positive
+    if old_event.start_time == new_event.start_time:
+        return
     start_event_reminder()
 
 
@@ -38,12 +41,12 @@ async def on_scheduled_event_delete(_deleted_event: discord.ScheduledEvent):
 
 # Coroutine to remind everyone with MOVIE_ROLE REMINDER_THRESHOLD_SECONDS before the event starts
 # Runs in the background task in the following situations:
-#   1) every time the ScheduledEvent "Movie Night" changes
+#   1) every time the ScheduledEvent MOVIE_EVENT_NAME changes
 #   2) every time the application restarts
 async def __remind_event_coroutine():
     try:
         # Set reminder for REMINDER_THRESHOLD_SECONDS before event starts
-        event: discord.ScheduledEvent = ut.get_event("Movie Night")
+        event: discord.ScheduledEvent = ut.get_movie_event()
         reminder_threshold = event.start_time - timedelta(seconds=REMINDER_THRESHOLD_SECONDS)
         delta = reminder_threshold - datetime.now(timezone.utc)
         await asyncio.sleep(delta.total_seconds())
@@ -51,16 +54,13 @@ async def __remind_event_coroutine():
         # Ensure that currently it is REMINDER_THRESHOLD_SECONDS before the event is supposed to start.
         reminder_threshold = event.start_time - timedelta(seconds=REMINDER_THRESHOLD_SECONDS)
         now = datetime.now(timezone.utc)
-        if not (reminder_threshold <= now <= event.start_time):
+        if not reminder_threshold <= now <= event.start_time:
             return
 
         # Send reminder since movie starts within REMINDER_THRESHOLD_SECONDS
-        embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
-        embed.title = "Movie night alert!"
-        time_format = str(event.start_time - now).split(".", maxsplit=1)[0]
-        embed.description = "T-minus " + time_format + " until movie night starts!"
-        embed.description += "\nGet your popcorn ready! 🍿"
-        movie_role = ut.get_role(ut.env["MOVIE_ROLE"])
-        await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), "<@&" + str(movie_role.id) + "> ", embedded_msg=embed)
+        event_link = ut.get_movie_event_link()
+        movie_role = ut.get_role_str("MOVIE_ROLE")
+        event_description = f"Movie night alert! [Get your popcorn ready!]({event_link}) 🍿"
+        await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), f"{movie_role} {event_description}", delete_after=ut.DELETE_AFTER_HOURS)
     except Exception as e:
         await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), "Error with Event Reminder: " + str(e))

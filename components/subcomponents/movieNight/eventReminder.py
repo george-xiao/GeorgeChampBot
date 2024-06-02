@@ -1,21 +1,31 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+import pickle
 import discord
 from common.asyncTask import AsyncTask
 import common.utils as ut
 
 REMINDER_THRESHOLD_SECONDS = 1 * 60 * 60
 eventReminderTask: AsyncTask | None = AsyncTask(lambda: __remind_event_coroutine())
+LAST_EVENT_PATH= "./database/last_event_start_time.pkl"
 
 
 # Sends reminder to everyone with MOVIE_ROLE REMINDER_THRESHOLD_SECONDS before the event starts
 # Only set up reminders if:
 #   1) event has been created
-#   2) event is not live
-#   2) event occurs in the future
+#   2) event is scheduled
+#   3) event occurs in the future
+#   4) a reminder was not already sent for this event
 def start_event_reminder():
     event: discord.ScheduledEvent | None = ut.get_movie_event()
-    if event and event.status is not discord.EventStatus.active and datetime.now(timezone.utc) <= event.start_time:
+    is_event_sent: bool
+    try:
+        with open(LAST_EVENT_PATH, 'rb') as file:
+            last_event_start_time = pickle.load(file)
+            is_event_sent = isinstance(last_event_start_time, datetime) and last_event_start_time == event.start_time
+    except FileNotFoundError:
+        is_event_sent = False
+    if event.status is discord.EventStatus.scheduled and datetime.now(timezone.utc) <= event.start_time and not is_event_sent:
         eventReminderTask.start()
 
 
@@ -62,5 +72,8 @@ async def __remind_event_coroutine():
         movie_role = ut.get_role_str("MOVIE_ROLE")
         event_description = f"Movie night alert! [Get your popcorn ready!]({event_link}) 🍿"
         await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), f"{movie_role} {event_description}", delete_after=ut.DELETE_AFTER_HOURS)
+
+        with open(LAST_EVENT_PATH, 'wb') as file:
+            pickle.dump(event.start_time, file)
     except Exception as e:
         await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), "Error with Event Reminder: " + str(e))

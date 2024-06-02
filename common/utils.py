@@ -134,9 +134,10 @@ def get_member_str(member_name) -> str | None:
 
 
 # Get movie night's ScheduledEvent object. Returns None if not found
+# Ignores cached ScheduledEvents that have been completed or cancelled
 def get_movie_event() -> discord.ScheduledEvent | None:
     for event in guildObject.scheduled_events:
-        if event.name.startswith(MOVIE_EVENT_NAME):
+        if event.name.startswith(MOVIE_EVENT_NAME) and (event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active) :
             return event
     return None
 

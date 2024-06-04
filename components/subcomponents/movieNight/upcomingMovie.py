@@ -13,14 +13,14 @@ from .suggestionDatabase import Suggestions
 UPCOMING_MOVIE_NIGHT_DB_PATH = "./database/upcoming_movie_night.db"
 
 pickReminderTask: AsyncTask = AsyncTask(lambda: __remind_host_coroutine())
-updateEventDescriptionTask = AsyncTask(lambda: __update_movie_event_description(True))
+updateEventDescriptionTask = AsyncTask(lambda x: __update_description_coroutine(*x))
 
 
 # Allows admins to set upcoming movie night host
 # This check has to be done before the function is called
 async def set_host(member_name: str) -> discord.Embed:
     # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-    if failed_embed := ut.movie_event_not_present():
+    if failed_embed := ut.movie_event_not_present(True):
         return failed_embed
 
     event: discord.ScheduledEvent | None = ut.get_movie_event()
@@ -38,14 +38,14 @@ async def set_host(member_name: str) -> discord.Embed:
     embed.title = "Movie night host selected!"
     embed.description = f"{ut.get_member_str(member_name)} has been selected as the upcoming movie night host."
     embed.description += f"\nThe movie will be watched on {ut.convert_to_ottawa_time(event.start_time)}."
-    await __update_movie_event_description()
+    update_event_description(True)
     return embed
 
 
 # Allows admins to reset upcoming movie night host
 async def reset_host() -> discord.Embed:
     # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-    if failed_embed := ut.movie_event_not_present():
+    if failed_embed := ut.movie_event_not_present(True):
         return failed_embed
 
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
@@ -62,7 +62,7 @@ async def reset_host() -> discord.Embed:
     embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
     embed.title = "Movie night host reset!"
     embed.description = "Upcoming movie night host has been successfully reset."
-    await __update_movie_event_description()
+    update_event_description(True)
     return embed
 
 
@@ -72,7 +72,7 @@ async def reset_host() -> discord.Embed:
 #   movie:  Only movies from upcoming_member's suggested list can be picked
 async def set_movie(member_name: str, movie_name: str, suggestion_database: Suggestions) -> discord.Embed:
     # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-    if failed_embed := ut.movie_event_not_present():
+    if failed_embed := ut.movie_event_not_present(True):
         return failed_embed
 
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
@@ -99,7 +99,7 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Sugg
         embed.description += f"\nThe movie will be watched on {ut.convert_to_ottawa_time(event.start_time)}."
 
     db.close()
-    await __update_movie_event_description()
+    update_event_description(True)
     return embed
 
 
@@ -108,7 +108,7 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Sugg
 # Otherwise, returns an embed that can be sent with a message
 def get_upcoming() -> discord.Embed | str:
     # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-    if failed_embed := ut.movie_event_not_present():
+    if failed_embed := ut.movie_event_not_present(True):
         return failed_embed
 
     return f"[Click here for more details.]({ut.get_movie_event_link()})"
@@ -120,27 +120,9 @@ def start_pick_reminder():
         pickReminderTask.start()
 
 
-# Initializes event description whenever the bot restarts
-def init_event_description():
-    updateEventDescriptionTask.start()
-
-
-# Event handlers that handles reminder based on how ScheduledEvent is updated
-# NOTE: Since a ScheduledEvent's name is not unique, start_event_reminder() is used in every case to ensure consistency
-@ut.client.event
-async def on_scheduled_event_create(_created_event: discord.ScheduledEvent):
-    __update_movie_event_description(updating_description=True)
-
-
-@ut.client.event
-async def on_scheduled_event_update(_old_event: discord.ScheduledEvent, _new_event: discord.ScheduledEvent):
-    # The bot updating event description is a false positive
-    __update_movie_event_description(updating_description=True)
-
-
-@ut.client.event
-async def on_scheduled_event_delete(_deleted_event: discord.ScheduledEvent):
-    __update_movie_event_description(updating_description=True)
+# Updates the description of ScheduledEvent
+def update_event_description(is_command):
+    updateEventDescriptionTask.start(is_command)
 
 
 # Check to see if host should be reminded to pick a movie for movie night
@@ -194,11 +176,12 @@ async def __remind_host_coroutine():
 #   1) when a host is picked or reset for the upcoming movie night
 #   2) when a host picks a movie for the upcoming movie night
 #   3) when the bot restarts
+#   4) when ScheduledEvent is updated
 # NOTE: Will only send an edit request if title or description has changed to save on bandwidth
-async def __update_movie_event_description(updating_description=False):
+async def __update_description_coroutine(is_command):
     try:
         # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-        if failed_embed := ut.movie_event_not_present(updating_description=updating_description):
+        if failed_embed := ut.movie_event_not_present(is_command):
             await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), ut.get_role_str("ADMIN_ROLE"), failed_embed)
             return
 

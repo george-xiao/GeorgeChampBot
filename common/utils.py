@@ -151,16 +151,16 @@ def get_movie_event_link() -> str | None:
 
 # Checks to see if movie night's ScheduledEvent exists
 # Returns an embed if ScheduledEvent does not exist
-def movie_event_not_present(updating_description=False):
+def movie_event_not_present(is_command):
     if not get_movie_event():
         embed = discord.Embed(colour=embed_colour["ERROR"])
         embed.title = f'"{MOVIE_EVENT_NAME}" event does not exist!'
-        if updating_description:
-            embed.description = f'A Discord Event named "{MOVIE_EVENT_NAME}" needs to exist for movie night features to work as intended!'
-            embed.description += "\nPicking host and movie will not work until this event is created."
-        else:
+        if is_command:
             embed.description = f'A Discord Event named "{MOVIE_EVENT_NAME}" needs to exist for this command to work!'
             embed.description += f"\nPlease contact {get_role_str('ADMIN_ROLE')} so that they can create this event."
+        else:
+            embed.description = f'A Discord Event named "{MOVIE_EVENT_NAME}" needs to exist for movie night features to work as intended!'
+            embed.description += "\nPicking host and movie will not work until this event is created."
         return embed
     return None
 

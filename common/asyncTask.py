@@ -1,4 +1,4 @@
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, Tuple
 import asyncio
 
 
@@ -32,13 +32,17 @@ class AsyncTask:
         self.async_task: asyncio.Task | None = None
         self.coroutine_factory = coroutine_factory
 
-    def start(self):
+    def start(self, *args: Tuple):
         """
         Starts the asynchronous task.
         Any existing task under this object will be stopped.
         """
         self.stop()
-        self.async_task = asyncio.create_task(self.coroutine_factory())
+
+        if args:
+            self.async_task = asyncio.create_task(self.coroutine_factory(args))
+        else:
+            self.async_task = asyncio.create_task(self.coroutine_factory())
 
     def stop(self):
         """

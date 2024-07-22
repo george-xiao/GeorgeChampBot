@@ -1,0 +1,15 @@
+{
+    "pylint.args": [
+        "--disable=C0116",
+        "--disable=C0115",
+        "--disable=C0114",
+        "--disable=C0301"
+    ],
+    "black-formatter.args": [
+        "--line-length=500"
+    ],
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    }
+}

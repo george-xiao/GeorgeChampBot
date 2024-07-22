@@ -3,7 +3,6 @@ import shelve
 import re
 from collections import Counter
 from datetime import date
-from emoji import UNICODE_EMOJI
 import common.utils as ut
 
 

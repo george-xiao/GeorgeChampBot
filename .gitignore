@@ -107,3 +107,6 @@ ENV/
 
 # database
 /database
+
+# Removing .env from repo
+.env

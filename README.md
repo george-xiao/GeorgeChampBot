@@ -16,7 +16,7 @@ Change your directory in the terminal to the cloned project:
 cd your/path/here
 ```
 
-Completely fill out all fields in the `.env` file. This will require you to set up the following:
+Copy the `.env.template` file to create a `.env` file, and fill in the `.env`. This will require you to set up the following:
  - a [Discord bot](https://discordpy.readthedocs.io/en/stable/discord.html), 
  - [Twitch Authentication Key](https://dev.twitch.tv/docs/authentication/),
  - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application) and

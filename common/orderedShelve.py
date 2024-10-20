@@ -1,7 +1,7 @@
 import shelve
 
 class OrderedShelve:
-    '''
+    """
     Workaround to achieve ordered shelve; a dict is stored under db["dict"]
     Why is this workaround needed?
         Note that dbm implements a dict using internal hash-function that does not keep track of insertion order
@@ -10,7 +10,7 @@ class OrderedShelve:
     How does it work?
         Since dict maintains insertion order in Python3.7+, we can use it to bypass having to maintain order ourselves
     TODO: Find a non-hacky solution
-    '''
+    """
     def __init__(self, database_path: str):
         self.shelve_db = None
         self.database_path = database_path

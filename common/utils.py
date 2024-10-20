@@ -117,7 +117,7 @@ def get_role_str(role_name: str) -> str | None:
     if role_id := get_role(env[role_name]).id:
         return f"<@&{str(role_id)}>"
     else:
-        print("Error! role_name is missing!")
+        print(f"Error! role_name &{env[role_name]} is missing!")
     return None
 
 

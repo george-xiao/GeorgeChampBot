@@ -13,8 +13,17 @@ import random
 from math import ceil
 
 
-YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'quiet': 'True', 'no_warnings': 'True',
-'ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
+PO_TOKEN = "EnterYourToken" # ToDo: put a valid value from env file.
+YDL_OPTIONS = {
+    'format': 'bestaudio/best', 
+    'default_search': 'auto', 
+    'extractor-args': f'youtube:player-client=web,default;po_token=web+{PO_TOKEN}', # missing cookie file potentially
+    'cookiefile': 'cookies.txt',
+    'quiet': 'True', 'no_warnings': 'True', 'ignoreerrors': 'False', 
+    'source_address': '0.0.0.0', 
+    'nocheckcertificate': 'True', 
+    'noplaylist': 'True'
+    }
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 MAX_SONGS = 1500
 LOOPDISABLED = "LOOPDISABLED"
@@ -22,8 +31,7 @@ LOOPQUEUE = "LOOPQUEUE"
 LOOPSONG = "LOOPSONG"
 LOOPSTATES = [LOOPDISABLED, LOOPQUEUE, LOOPSONG]
 
-
-class SongItem:
+class Song:
     """
     Represents a Song inside the queue.
     """
@@ -48,7 +56,7 @@ class SongItem:
 
 class SongQueue:
     """
-    Represents a queue of SongItems.
+    Represents a queue of Songs.
     """
     def __init__(self):
         self.curr_song = None
@@ -148,17 +156,17 @@ async def process_song(sq):
     next_song.song_url = format["url"]
     return True
 
-# Returns list of SongItems given input
+# Returns list of Songs given input
 async def process_input(user_input, requester):
     """
-    Converts user's song requests into SongItems
+    Converts user's song requests into Songs
 
     Args:
         user_input (str): Either a link or the name of the song
         requester (str): The name of the person who requested the song/playlist
 
     Returns:
-        SongItem: The SongItem(s) that the user requested
+        Song: The Song(s) that the user requested
     """
     
     video_ids = []
@@ -194,7 +202,7 @@ async def process_input(user_input, requester):
     if not video_ids:
         return []
 
-    song_items = []
+    songs = []
     for i in range(len(video_ids)//50 + 1):
         start = i * 50
         end = min((i+1) * 50, len(video_ids))
@@ -208,10 +216,10 @@ async def process_input(user_input, requester):
             response = request.execute()
             
             for item in response["items"]:
-                song_items.append(SongItem(item, requester))
+                songs.append(Song(item, requester))
             request = youtube.playlistItems().list_next(request, response)
-    return song_items
-
+    return songs
+    
 async def play(message, user_input):
     """
     Play command

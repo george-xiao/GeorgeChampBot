@@ -16,5 +16,9 @@ COPY ./GeorgeChampBot.py ./
 COPY ./common ./common
 COPY ./components ./components
 
+# Copy cookies file
+COPY ./cookies.txt ./cookies.txt
+
+
 # Run GeorgeChampBot
 CMD ["python3", "./GeorgeChampBot.py"]

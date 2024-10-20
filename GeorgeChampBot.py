@@ -20,7 +20,7 @@ async def on_ready():
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
         movieNight.init()
-        ut.commandTree.add_command(movieNight.movie_night_group, guild=ut.guildObject)
+        ut.commandTree.add_command(movieNight.MOVIE_NIGHT_GROUP, guild=ut.guildObject)
 
         global instanceRunning
         if instanceRunning:
@@ -31,8 +31,8 @@ async def on_ready():
             while 1:
                 """
                 DEPRECATED!
-                Utilizing a global while loop to handle asynchronous commands introduces various race condtions and timeout issues.
-                Please use the AsyncTask ckass under common/asyncTask.py instead.
+                Utilizing a global while loop to handle asynchronous commands introduces various race conditions and timeout issues.
+                Please use the AsyncTask class under common/asyncTask.py instead.
                 TODO: Refactor existing statements within this while loop to use AsyncTask instead.
                 """
                 curr_date = datetime.now()

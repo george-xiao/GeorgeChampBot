@@ -1,3 +1,4 @@
+from typing import List
 from datetime import datetime
 import json
 import os
@@ -40,8 +41,8 @@ botChannel = None
 # Color for Embedded Messages
 embed_colour = {"MOVIE_NIGHT": 0x4F4279, "ERROR": 0xED4337}
 MOVIE_EVENT_NAME = "Movie Night"
-DELETE_AFTER_SECONDS = 10 * 60
-DELETE_AFTER_HOURS = 24 * 60 * 60
+DEFAULT_MESSAGE_DURATION = 10 * 60
+EXTENDED_MESSAGE_DURATION = 24 * 60 * 60
 
 
 class DiscordEmbedBuilder:
@@ -115,6 +116,8 @@ def get_role(role_name):
 def get_role_str(role_name: str) -> str | None:
     if role_id := get_role(env[role_name]).id:
         return f"<@&{str(role_id)}>"
+    else:
+        print("Error! role_name is missing!")
     return None
 
 
@@ -135,24 +138,38 @@ def get_member_str(member_name) -> str | None:
 
 # Get movie night's ScheduledEvent object. Returns None if not found
 # Ignores cached ScheduledEvents that have been completed or cancelled
-def get_movie_event() -> discord.ScheduledEvent | None:
-    for event in guildObject.scheduled_events:
-        if event.name.startswith(MOVIE_EVENT_NAME) and (event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active) :
-            return event
+async def get_movie_event() -> discord.ScheduledEvent | None:
+    # Check both local cache and online database
+    if scheduled_event := __iterate_movie_events(guildObject.scheduled_events):
+        return scheduled_event
+
+    if scheduled_event := __iterate_movie_events(await guildObject.fetch_scheduled_events()):
+        return scheduled_event
+    return None
+
+
+# Iterate through movie events and return MOVIE_EVENT_NAME if it exists
+def __iterate_movie_events(scheduled_events: List[discord.ScheduledEvent]) -> discord.ScheduledEvent | None:
+    if scheduled_events:
+        print(scheduled_events)
+        for event in guildObject.scheduled_events:
+            print(event)
+            if event.name.startswith(MOVIE_EVENT_NAME) and (event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active):
+                return event
     return None
 
 
 # Get shareable link for movie night's ScheduledEvent
-def get_movie_event_link() -> str | None:
-    if event := get_movie_event():
+async def get_movie_event_link() -> str | None:
+    if event := await get_movie_event():
         return "https://discord.com/events/" + str(event.guild_id) + "/" + str(event.id)
     return None
 
 
 # Checks to see if movie night's ScheduledEvent exists
 # Returns an embed if ScheduledEvent does not exist
-def movie_event_not_present(is_command):
-    if not get_movie_event():
+async def movie_event_not_present(is_command):
+    if not await get_movie_event():
         embed = discord.Embed(colour=embed_colour["ERROR"])
         embed.title = f'"{MOVIE_EVENT_NAME}" event does not exist!'
         if is_command:
@@ -177,7 +194,7 @@ def seconds_to_time(seconds):
 
 
 # Convert time to EDT/EST; Sample Output: May 27, 02:00 PM
-def convert_to_ottawa_time(original_time: datetime) -> datetime:
+def convert_to_est_time(original_time: datetime) -> datetime:
     desired_timezone = pytz.timezone("US/Eastern")
     desired_format = "%b %d, %I:%M %p %Z"
     return original_time.astimezone(desired_timezone).strftime(desired_format)
@@ -266,11 +283,11 @@ async def async_post_request(url: str, body):
 # Preceded by the decorator:
 #   @<command_name>.error
 # Sends an embedded message back to requestor
-async def handle_member_missing_role_error(interaction: discord.Interaction):
+async def handle_member_not_admin_error(interaction: discord.Interaction):
     embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
     embed.description = f"Admin access is required for this command. Please contact {get_role_str('ADMIN_ROLE')} for more information."
-    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=DELETE_AFTER_HOURS)
+    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION)
 
 
 # Exception handling for slash commands
@@ -279,4 +296,4 @@ async def handle_slash_command_error(interaction: discord, error):
     embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
     embed.description = f"{str(error)}. Please contact {get_role_str('ADMIN_ROLE')} for more information."
-    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=DELETE_AFTER_HOURS)
+    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION)

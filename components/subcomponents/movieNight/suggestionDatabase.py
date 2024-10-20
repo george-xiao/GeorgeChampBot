@@ -7,7 +7,7 @@ from .movie import Movie
 MAX_SUGGESTIONS = 10
 
 
-class Suggestions:
+class MovieSuggestions:
     """
     A class to allow adding, removing and listing movie suggestions persistent using shelve library
     Each entry in the database consists of:

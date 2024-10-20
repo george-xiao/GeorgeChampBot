@@ -70,7 +70,7 @@ async def remove_host() -> discord.Embed:
 # Validation of member and movie is done here as well
 #   member: Only member selected as upcoming_member can select a movie
 #   movie:  Only movies from upcoming_member's suggested list can be picked
-async def set_movie(member_name: str, movie_name: str, SUGGESTION_DATABASE: MovieSuggestions) -> discord.Embed:
+async def set_movie(member_name: str, movie_name: str, suggestion_database: MovieSuggestions) -> discord.Embed:
     # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
     if failed_embed := await ut.movie_event_not_present(True):
         return failed_embed
@@ -88,7 +88,7 @@ async def set_movie(member_name: str, movie_name: str, SUGGESTION_DATABASE: Movi
         embed.title = "You are not the upcoming movie night host!"
         embed.description = "{upcoming_host_name} is the upcoming movie night host."
         embed.description += "\nPlease contact a dictator if you think there has been a mixup."
-    elif not (movie := SUGGESTION_DATABASE.get_movie(member_name, movie_name)):
+    elif not (movie := suggestion_database.get_movie(member_name, movie_name)):
         embed.title = f"{movie_name} does not exist in your suggestion list!"
         embed.description = "Please add the movie to your suggestion list and then try again."
     else:

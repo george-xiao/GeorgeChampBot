@@ -6,13 +6,13 @@ from common.asyncTask import AsyncTask
 import common.utils as ut
 
 REMINDER_THRESHOLD = 1 * 60 * 60
-eventReminderTask: AsyncTask | None = AsyncTask(lambda: __remind_event_coroutine())
+EVENT_REMINDER_TASK: AsyncTask | None = AsyncTask(lambda: __remind_event_coroutine())
 LAST_EVENT_PATH = "./database/last_event_start_time.pkl"
 
 
 # Sends reminder to everyone with MOVIE_ROLE REMINDER_THRESHOLD before the event starts
 def start_event_reminder():
-    eventReminderTask.start()
+    EVENT_REMINDER_TASK.start()
 
 
 # Check to see if everyone with MOVIE_ROLE needs to be reminded about the event

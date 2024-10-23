@@ -11,9 +11,8 @@ from .suggestionDatabase import MovieSuggestions
 #   1) upcoming_host_name: str | None
 #   2) upcoming_movie: Movie | None
 UPCOMING_MOVIE_NIGHT_DB_PATH = "./database/upcoming_movie_night.db"
-
-pickReminderTask: AsyncTask = AsyncTask(lambda: __remind_host_coroutine())
-updateEventDescriptionTask = AsyncTask(lambda x: __update_description_coroutine(*x))
+PICK_REMINDER_TASK: AsyncTask = AsyncTask(lambda: __remind_host_coroutine())
+UPDATE_EVENT_DESCRIPTION_TASK = AsyncTask(lambda x: __update_description_coroutine(*x))
 
 
 # Allows admins to set upcoming movie night host
@@ -56,7 +55,7 @@ async def remove_host() -> discord.Embed:
     db.close()
 
     # Stop pick reminder for host
-    pickReminderTask.stop()
+    PICK_REMINDER_TASK.stop()
 
     # Create and return embedded success-message
     embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
@@ -116,12 +115,12 @@ async def get_upcoming() -> discord.Embed | str:
 
 # Sends reminder to upcoming_host every noon until a movie from suggestion-list is picked
 def start_pick_reminder():
-    pickReminderTask.start()
+    PICK_REMINDER_TASK.start()
 
 
 # Updates the description of ScheduledEvent
 def update_event_description(is_command):
-    updateEventDescriptionTask.start(is_command)
+    UPDATE_EVENT_DESCRIPTION_TASK.start(is_command)
 
 
 # Check to see if host should be reminded to pick a movie for movie night

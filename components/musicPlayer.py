@@ -13,8 +13,18 @@ import random
 from math import ceil
 
 
-YDL_OPTIONS = {'format': 'bestaudio/best', 'default_search': 'auto', 'quiet': 'True', 'no_warnings': 'True',
-'ignoreerrors': 'False', 'source_address': '0.0.0.0', 'nocheckcertificate': 'True', "noplaylist": 'True'}
+# Reference: https://github.com/yt-dlp/yt-dlp/blob/aa220d0aaac0f1562af658e34a28de72ec0ecb9f/yt_dlp/YoutubeDL.py#L199
+YDL_OPTIONS = {
+    'format': 'bestaudio/best',
+    'default_search': 'auto',
+    'quiet': True,
+    'no_warnings': True,
+    'ignoreerrors': False,
+    'source_address': '0.0.0.0',
+    'noplaylist': True,
+    'geo_bypass': True,
+  }
+
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 MAX_SONGS = 1500
 LOOPDISABLED = "LOOPDISABLED"

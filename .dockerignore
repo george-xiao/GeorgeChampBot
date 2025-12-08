@@ -1,0 +1,19 @@
+# Git
+.git/
+.gitignore
+
+# Database (mounted separately)
+database/
+
+# Documentation
+README.md
+CLAUDE.md
+
+# Development files
+requirements.in
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/

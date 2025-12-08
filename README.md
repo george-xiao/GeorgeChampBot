@@ -2,80 +2,75 @@
 
 GeorgeChampBot, a multi-purpose discord bot
 
-## Getting Started
+## Setup
 
-To get a copy of this project, install [git](https://git-scm.com/), and then run the following command in the terminal:
+- To get a copy of this project, install [git](https://git-scm.com/), and then run the following command in the terminal:
 
 ```
-git clone https://github.com/george-xiao/GeorgeChampBot.git
+git clone git@github.com:george-xiao/GeorgeChampBot.git
 ```
 
-Change your directory in the terminal to the cloned project:
+- Change your directory in the terminal to the cloned project:
 
 ```
 cd your/path/here
 ```
 
-Copy the `.env.template` file to create a `.env` file, and fill in the `.env`. This will require you to set up the following:
- - a [Discord bot](https://discordpy.readthedocs.io/en/stable/discord.html), 
- - [Twitch Authentication Key](https://dev.twitch.tv/docs/authentication/),
- - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application) and
- - Dedicated [server channels and roles](https://discord.com/blog/starting-your-first-discord-server)
+- Copy the `.env.template` file to create a `.env` file, and fill in the `.env`. 
 
-Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
+- This will require you to set up the following:
+  - [A Discord bot](https://discordpy.readthedocs.io/en/stable/discord.html) (This bot uses some [Gateway Intents](https://discord.com/developers/docs/events/gateway#gateway-intents), so you will need to enable them as well.)
+  - [Twitch Authentication Key](https://dev.twitch.tv/docs/authentication/),
+  - [YouTube Authentication Key](https://developers.google.com/youtube/registering_an_application)
+  - [Dedicated server channels and roles](https://discord.com/blog/starting-your-first-discord-server)
 
-Give the `run.sh` script permission to execute by running the following command in the terminal.
+## Run Application Using Docker (Recommended)
 
-```
-chmod +x run.sh
-```
+- Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
 
-Finally, start the application using the `run.sh` script. Note that only this step is needed to start the bot on subsequent runs.
+- Start the application using the `run.sh` script.
 
 ```
 ./run.sh
 ```
 
-## Run Manually
+## Run Application Locally (Not Recommended)
+> NOTE: Please consider using Docker instead. Developers are testing their code on different OS. Docker allows us to be OS-agnostic.
 
-To run the bot directly on your local machine, the additional dependencies have to be installed (on top the ones installed in [Getting Started](#getting-started)).
+
+- Install the system dependencies:
 
 ```
-sudo apt-get install -y python3 python3-dev python3-pip
+sudo apt-get install -y python3 python3-dev python3-pip ffmpeg python3-gdbm
+```
+
+- Then install the Python dependencies (you probably want to run this in a venv):
+
+```
 pip3 install -r requirements.txt
-sudo apt-get install ffmpeg
 ```
 
-Use the following command to start the bot:
+- Use the following command to start the bot:
 
 ```
 python3 GeorgeChampBot.py
 ```
+## Troubleshooting
 
-## Built With
+**1. Music Player is no Longer Working** 
 
-* [aiohttp](https://docs.aiohttp.org/en/stable/) - Asynchronous HTTP Client/Server for asyncio 
-* [asyncio](https://docs.python.org/3/library/asyncio.html) - write concurrent code using the async/await syntax 
-* [collections](https://docs.python.org/3/library/collections.html) - specialized container datatypes providing alternatives to Python’s general purpose built-in containers
-* [datetime](https://docs.python.org/3/library/datetime.html) - classes for manipulating dates and times
-* [discord.py](https://discordpy.readthedocs.io/en/latest/) - API wrapper for Discord
-* [dotenv](https://pypi.org/project/python-dotenv/) - reads the key-value pair from .env file
-* [emoji](https://pypi.org/project/emoji/) - emojis for Python
-* [google-api-python-client](https://pypi.org/project/google-api-python-client/) - Google API Python client library for Google's discovery based APIs
-* [isodate](https://pypi.org/project/isodate/) - ISO 8601 date, time and duration parsing module
-* [math](https://docs.python.org/3/library/math.html) - mathematical functions defined by the C standard
-* [operator](https://docs.python.org/3/library/operator.html) - set of efficient functions corresponding to the intrinsic operators of Python
-* [os](https://docs.python.org/3/library/os.html) - operating system dependent functionality
-* [PyNaCl](https://pypi.org/project/PyNaCl/) - enables networking and cryptography operations
-* [python-twitch-client](https://python-twitch-client.readthedocs.io/en/latest/) - Python library for accessing the Twitch API
-* [re](https://docs.python.org/3/library/re.html) - regular expression matching operations
-* [shelve](https://docs.python.org/3/library/shelve.html) - a persistent, dictionary-like object
-* [urllib3](https://pypi.org/project/urllib3/) - a powerful, user-friendly HTTP client for Python
-* [yt-dlp](https://pypi.org/project/yt-dlp/) - youtube-dl fork with additional features and fixes
+`yt-dlp` is known to break as Google changes things. It's a cat and mouse situation. You will need to [update dependencies](docs/DEVELOPMENT.md#updat-dependencies) so that the mouse can outmaneuver the cat. 
+
+Use the following command to figure out the latest `yt-dlp` package version.
+
+```
+pip index versions yt-dlp
+```
 
 ## Authors
 
 * **George Xiao** - [george-xiao](https://github.com/george-xiao)
 * **Symoom Saad** - [PSYmoom](https://github.com/PSYmoom)
 * **Maaz Mazharul** - [mmaaz1](https://github.com/mmaaz1)
-* **Steven Aung** - [teiian](https://github.com/teiian)
+- **Simon Li** - [XiaoMengLiDev](https://github.com/XiaoMengLiDev)
+* **Steven Aung** - [teiian](https://github.com/teiian) (<- **big cap**)

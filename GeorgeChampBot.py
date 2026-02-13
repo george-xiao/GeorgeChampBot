@@ -5,6 +5,7 @@ import inspect
 import discord
 from common import utils as ut
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
+from commands import load_commands
 
 # Ensures that only one for loop is running per application
 # Bypasses bug where on_ready() is called every time bot comes up after after connection lost
@@ -20,7 +21,7 @@ async def on_ready():
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
         movieNight.init()
-        ut.commandTree.add_command(movieNight.MOVIE_NIGHT_GROUP, guild=ut.guildObject)
+        load_commands(ut.commandTree)
 
         global instanceRunning
         if instanceRunning:

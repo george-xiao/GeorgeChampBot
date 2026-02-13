@@ -28,10 +28,18 @@ cd your/path/here
 
 - Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
 
-- Start the application using the `run.sh` script.
+- Start the application using the `run.sh` script. If the container is already running, it will attach to it.
 
 ```
 ./run.sh
+```
+
+- To detach from the running container without stopping it, press `Ctrl+C`.
+
+- To stop and remove the container:
+
+```
+./stop.sh
 ```
 
 ## Run Application Locally (Not Recommended)

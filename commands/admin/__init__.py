@@ -1,5 +1,8 @@
 import os, importlib
 from discord import app_commands
+import common.utils as ut
+
+admin_group = app_commands.Group(name="admin", description="Admin commands", default_permissions=ut.get_role(ut.env["ADMIN_ROLE"]).permissions)
 
 
 def load_subcommands(tree: app_commands.CommandTree):
@@ -9,5 +12,7 @@ def load_subcommands(tree: app_commands.CommandTree):
         if os.path.isdir(path):
             module_name = f"{__name__}.{subfolder}"
             module = importlib.import_module(module_name)
-            if hasattr(module, "load_subcommands"):
-                module.load_subcommands(tree)
+            if hasattr(module, "register_subgroup"):
+                module.register_subgroup(admin_group)
+
+    tree.add_command(admin_group, guild=ut.guildObject)

@@ -13,6 +13,7 @@ RUN pip3 install -r requirements.txt
 # Copy source files
 COPY ./.env ./
 COPY ./GeorgeChampBot.py ./
+COPY ./commands ./commands
 COPY ./common ./common
 COPY ./components ./components
 

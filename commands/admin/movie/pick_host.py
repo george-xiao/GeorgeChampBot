@@ -5,7 +5,7 @@ from components.subcomponents.movieNight import upcomingMovie
 
 
 def register_subcommand(group: discord.app_commands.Group):
-    @group.command(name="pick-host", description="Pick host for upcoming movie night [Admin Only]")
+    @group.command(name="pick-host", description="Pick host for upcoming movie night")
     @discord.app_commands.describe(user="Host for upcoming movie night")
     @discord.app_commands.describe(prev_host="Bumps this user to the bottom of the list")
     @discord.app_commands.checks.has_role(ut.env["ADMIN_ROLE"])

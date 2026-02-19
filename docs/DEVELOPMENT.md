@@ -10,7 +10,7 @@
 ### Running the Bot
 
 Start the bot using `./run.sh`. This script:
-1. Checks if the container is already running and attaches to it if so
+1. Checks if the container is already available and attaches to it if so
 1. Creates the `database/` directory if it doesn't exist
 1. Builds the Docker image `george_champ_bot`
 1. Runs the container with the database directory mounted for persistence

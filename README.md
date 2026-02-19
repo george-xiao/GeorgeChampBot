@@ -28,19 +28,15 @@ cd your/path/here
 
 - Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
 
-- Start the application using the `run.sh` script. If the container is already running, it will attach to it.
+- (Windows only) Install [GitBash](https://git-scm.com/downloads) to execute shell scripts.
+
+- Start the application using the `run.sh` script. If a container exists, you'll be prompted to reuse it or rebuild from scratch.
 
 ```
 ./run.sh
 ```
 
-- To detach from the running container without stopping it, press `Ctrl+C`.
-
-- To stop and remove the container:
-
-```
-./stop.sh
-```
+- To stop following logs (container keeps running), press `Ctrl+C`.
 
 ## Run Application Locally (Not Recommended)
 > NOTE: Please consider using Docker instead. Developers are testing their code on different OS. Docker allows us to be OS-agnostic.
@@ -63,6 +59,7 @@ pip3 install -r requirements.txt
 ```
 python3 GeorgeChampBot.py
 ```
+
 ## Troubleshooting
 
 **1. Music Player is no Longer Working** 
@@ -80,5 +77,5 @@ pip index versions yt-dlp
 * **George Xiao** - [george-xiao](https://github.com/george-xiao)
 * **Symoom Saad** - [PSYmoom](https://github.com/PSYmoom)
 * **Maaz Mazharul** - [mmaaz1](https://github.com/mmaaz1)
-- **Simon Li** - [XiaoMengLiDev](https://github.com/XiaoMengLiDev)
+* **Simon Li** - [XiaoMengLiDev](https://github.com/XiaoMengLiDev)
 * **Steven Aung** - [teiian](https://github.com/teiian) (<- **big cap**)

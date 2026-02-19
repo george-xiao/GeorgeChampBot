@@ -2,29 +2,69 @@
 
 ## Standard Development Process
 
-### Prerequisites
+See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in README to set up your development environment. The tools used for development (primarily Docker and less so GitBash) allows the application to be OS-agnostic. That being said, the application is hosted in a Linux-based environment so please keep that in mind while making changes in the repo.
 
-- **Linux**: Docker installed
-- **Windows**: Docker and GitBash (to execute shell scripts) installed
+### General Guidelines
+- Use Docker when developing
+- When modifying the `run.sh` script from a Windows environment, please ensure that it runs in a Linux environment (by using GitBash or similar tool to execute it)
+- Run scripts from the project root directory
 
-### Running the Bot
+### Adding Slash Commands
+> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Please take a moment to familiarize yourself with [slash commands](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) before adding/modifying them in the repo.
 
-Start the bot using `./run.sh`. This script:
-1. Checks if the container is already available and attaches to it if so
-1. Creates the `database/` directory if it doesn't exist
-1. Builds the Docker image `george_champ_bot`
-1. Runs the container with the database directory mounted for persistence
-1. Attaches to the container
+**Structure:**
+This is a simplified view of how slash commands are structured so that they can be dynamically loaded by the bot during runtime. Admin commands are hidden from everyone but people with ADMIN_ROLE. Notice how each command is defined in its own file.
+```
+commands/
+├── movie/                            # /movie <command>
+│   ├── __init__.py                   # Defines <movie> group, loads commands 
+│   ├── <command1>.py
+│   ├── ...
+│   └── <commandN>.py
+└── admin/
+    ├── __init__.py                   # Defines admin group with permissions, loads subgroups
+    └── movie/                        # /admin movie <command>
+        ├── __init__.py               # Defines <movie> subgroup, loads commands in this folder
+        ├── <command1>.py
+        ├── ...
+        └── <commandN>.py
+```
 
-To detach from the running container without stopping it, press `Ctrl+C`
+To add slash commands for new features, you will need to create:
+- a folder under `commands/` with all non-admin commands
+- (Optional) a folder under `commands/admin/` if you have any admin commands
+A new `__init__.py` will be required whenever you create a new folder.
+```
+commands/
+├── movie/                            # /movie <command>
+│   ├── __init__.py                   # Defines <movie> group, loads commands in this folder
+│   ├── <command1>.py
+│   ├── ...
+│   └── <commandN>.py
+├── <new_feature>/                    # /<new_feature> <command>
+│   ├── __init__.py                   # Should define <new_feature> group, load commands in this folder
+│   ├── <command1>.py
+│   ├── ...
+│   └── <commandN>.py
+└── admin/
+    ├── __init__.py                   # Defines admin group with permissions, loads subgroups
+    ├── movie/                        # /admin movie <command>
+    │   ├── __init__.py               # Defines <movie> subgroup, loads commands in this folder
+    │   ├── <command1>.py
+    │   ├── ...
+    │   └── <commandN>.py
+    └── <new_feature>/                # /admin <new_feature> <command>
+        ├── __init__.py               # Defines <new_feature> subgroup, loads commands in this folder
+        ├── <command1>.py
+        ├── ...
+        └── <commandN>.py
+```
 
-### Stopping the Bot
-
-Stop and remove the container using `./stop.sh`.
-
-### Alternative (Local Development) (NOT RECOMMENDED)
-
-Running the bot directly with `python3 GeorgeChampBot.py` is not recommended in development process. This is to ensure that the bot remains platform-agnostic. See the README for local setup instructions if this is unavoidable.
+**Reference files:**
+- `command/movie/__init__.py` - Defining a new group + Loading non-admin commands
+- `command/movie/pick_movie.py` - Sample non-admin command with autocomplete
+- `commands/admin/movie/__init__.py` - Defining a new subgroup + Loading admin commands
+- `commands/admin/movie/pick_host.py` - Sample admin command with error handling
 
 ## Update Dependencies
 

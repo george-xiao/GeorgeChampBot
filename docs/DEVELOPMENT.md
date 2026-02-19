@@ -2,18 +2,18 @@
 
 ## Standard Development Process
 
-See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in README to set up your development environment. The tools used for development (primarily Docker and less so GitBash) allows the application to be OS-agnostic. That being said, the application is hosted in a Linux-based environment so please keep that in mind while making changes in the repo.
+See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in README to set up your development environment.
+The development workflow (primarily using Docker, and to a lesser extent GitBash) keeps the application OS-agnostic. That being said, the production environment is Linux-based, so please keep that in mind when making changes.
 
 ### General Guidelines
-- Use Docker when developing
-- When modifying the `run.sh` script from a Windows environment, please ensure that it runs in a Linux environment (by using GitBash or similar tool to execute it)
-- Run scripts from the project root directory
+- Use Docker during development
+- When modifying the `run.sh` on Windows, verify that it will run correctly in a Linux environment (by using GitBash or a similar tool to execute it)
 
 ### Adding Slash Commands
-> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Please take a moment to familiarize yourself with [slash commands](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) before adding/modifying them in the repo.
+> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Before adding or modifying commands, review the [slash command documentation](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands).
 
 **Structure:**
-This is a simplified view of how slash commands are structured so that they can be dynamically loaded by the bot during runtime. Admin commands are hidden from everyone but people with ADMIN_ROLE. Notice how each command is defined in its own file.
+Below is a simplified view of how slash commands are structured so that they can be dynamically loaded during runtime. Admin commands are hidden from everyone but people with ADMIN_ROLE. Notice how each command is defined in its own file.
 ```
 commands/
 ├── movie/                            # /movie <command>
@@ -31,9 +31,9 @@ commands/
 ```
 
 To add slash commands for new features, you will need to create:
-- a folder under `commands/` with all non-admin commands
+- a folder under `commands/` for all non-admin commands
 - (Optional) a folder under `commands/admin/` if you have any admin commands
-A new `__init__.py` will be required whenever you create a new folder.
+- a new `__init__.py` in each new folder to define the group/subgroup and load its commands
 ```
 commands/
 ├── movie/                            # /movie <command>
@@ -61,9 +61,9 @@ commands/
 ```
 
 **Reference files:**
-- `command/movie/__init__.py` - Defining a new group + Loading non-admin commands
+- `command/movie/__init__.py` - Defining a new group and loading non-admin commands
 - `command/movie/pick_movie.py` - Sample non-admin command with autocomplete
-- `commands/admin/movie/__init__.py` - Defining a new subgroup + Loading admin commands
+- `commands/admin/movie/__init__.py` - Defining a new subgroup and loading admin commands
 - `commands/admin/movie/pick_host.py` - Sample admin command with error handling
 
 ## Update Dependencies

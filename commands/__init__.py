@@ -9,5 +9,5 @@ def load_commands(tree: app_commands.CommandTree):
         if os.path.isdir(path):
             module_name = f"{__name__}.{subfolder}"
             module = importlib.import_module(module_name)
-            if hasattr(module, "load_subcommands"):
-                module.load_subcommands(tree)
+            if hasattr(module, "register_group"):
+                module.register_group(tree)

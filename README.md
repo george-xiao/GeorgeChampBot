@@ -30,13 +30,19 @@ cd your/path/here
 
 - (Windows only) Install [GitBash](https://git-scm.com/downloads) to execute shell scripts.
 
-- Start the application using the `run.sh` script. If a container exists, you'll be prompted to reuse it or rebuild from scratch.
+- Start the application using the `run.sh` script. If a container exists, you'll be prompted to either restart or view logs of the running service.
 
 ```
 ./run.sh
 ```
 
-- To stop following logs (container keeps running), press `Ctrl+C`.
+- To stop following logs, press `Ctrl+C`.
+
+- To stop GeorgeChampBot, use the following command:
+
+```
+docker stop george_champ_bot_instance
+```
 
 ## Run Application Locally (Not Recommended)
 > NOTE: Please consider using Docker instead. Developers are testing their code on different OS. Docker allows us to be OS-agnostic.

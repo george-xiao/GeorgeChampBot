@@ -5,7 +5,7 @@ import common.utils as ut
 admin_group = app_commands.Group(name="admin", description="Admin commands", default_permissions=ut.get_role(ut.env["ADMIN_ROLE"]).permissions)
 
 
-def load_subcommands(tree: app_commands.CommandTree):
+def register_group(tree: app_commands.CommandTree):
     folder = os.path.dirname(__file__)
     for subfolder in os.listdir(folder):
         path = os.path.join(folder, subfolder)

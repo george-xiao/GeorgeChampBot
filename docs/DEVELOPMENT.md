@@ -2,69 +2,15 @@
 
 ## Standard Development Process
 
-See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in README to set up your development environment.
+See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in the README to set up your development environment.
 The development workflow (primarily using Docker, and to a lesser extent GitBash) keeps the application OS-agnostic. That being said, the production environment is Linux-based, so please keep that in mind when making changes.
 
 ### General Guidelines
 - Use Docker during development
-- When modifying the `run.sh` on Windows, verify that it will run correctly in a Linux environment (by using GitBash or a similar tool to execute it)
+- When modifying the `run.sh` on Windows, verify that it runs correctly in a Linux environment (by using GitBash or a similar tool to execute it)
 
-### Adding Slash Commands
-> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Before adding or modifying commands, review the [slash command documentation](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands).
-
-**Structure:**
-Below is a simplified view of how slash commands are structured so that they can be dynamically loaded during runtime. Admin commands are hidden from everyone but people with ADMIN_ROLE. Notice how each command is defined in its own file.
-```
-commands/
-├── movie/                            # /movie <command>
-│   ├── __init__.py                   # Defines <movie> group, loads commands 
-│   ├── <command1>.py
-│   ├── ...
-│   └── <commandN>.py
-└── admin/
-    ├── __init__.py                   # Defines admin group with permissions, loads subgroups
-    └── movie/                        # /admin movie <command>
-        ├── __init__.py               # Defines <movie> subgroup, loads commands in this folder
-        ├── <command1>.py
-        ├── ...
-        └── <commandN>.py
-```
-
-To add slash commands for new features, you will need to create:
-- a folder under `commands/` for all non-admin commands
-- (Optional) a folder under `commands/admin/` if you have any admin commands
-- a new `__init__.py` in each new folder to define the group/subgroup and load its commands
-```
-commands/
-├── movie/                            # /movie <command>
-│   ├── __init__.py                   # Defines <movie> group, loads commands in this folder
-│   ├── <command1>.py
-│   ├── ...
-│   └── <commandN>.py
-├── <new_feature>/                    # /<new_feature> <command>
-│   ├── __init__.py                   # Should define <new_feature> group, load commands in this folder
-│   ├── <command1>.py
-│   ├── ...
-│   └── <commandN>.py
-└── admin/
-    ├── __init__.py                   # Defines admin group with permissions, loads subgroups
-    ├── movie/                        # /admin movie <command>
-    │   ├── __init__.py               # Defines <movie> subgroup, loads commands in this folder
-    │   ├── <command1>.py
-    │   ├── ...
-    │   └── <commandN>.py
-    └── <new_feature>/                # /admin <new_feature> <command>
-        ├── __init__.py               # Defines <new_feature> subgroup, loads commands in this folder
-        ├── <command1>.py
-        ├── ...
-        └── <commandN>.py
-```
-
-**Reference files:**
-- `command/movie/__init__.py` - Defining a new group and loading non-admin commands
-- `command/movie/pick_movie.py` - Sample non-admin command with autocomplete
-- `commands/admin/movie/__init__.py` - Defining a new subgroup and loading admin commands
-- `commands/admin/movie/pick_host.py` - Sample admin command with error handling
+### Adding new features
+> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Before adding commands for your new feature, review the [slash command documentation](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and the [commands README](../commands/README.md).
 
 ## Update Dependencies
 

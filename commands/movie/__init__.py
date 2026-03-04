@@ -5,7 +5,7 @@ import common.utils as ut
 movie_night_group = app_commands.Group(name="movie", description="Movie night slash commands")
 
 
-def load_subcommands(tree: app_commands.CommandTree):
+def register_group(tree: app_commands.CommandTree):
     folder = os.path.dirname(__file__)
     for filename in os.listdir(folder):
         if filename.endswith(".py") and filename != "__init__.py":

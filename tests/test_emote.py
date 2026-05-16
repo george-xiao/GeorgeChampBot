@@ -40,33 +40,43 @@ async def test_emote_leaderboard_empty_page(seeded_emote_db, snap_send):
 
 @pytest.mark.asyncio
 async def test_emote_transfer_success(seeded_emote_db, snap_send):
-    # oldmeme is deleted (score 80); kekw is active. Transfer succeeds.
+    # Seed: oldmeme is deleted (score 80); kekw is active (score 500).
+    # Transfer combines oldmeme.score into kekw and deletes oldmeme entry.
     await snap_send(await emoteLeaderboard.transfer_emote_score("oldmeme", "kekw"), "emote/transfer-success")
+    assert emoteLeaderboard.get_emote("kekw").score == 580
+    assert emoteLeaderboard.get_emote("oldmeme") is None
 
 
 @pytest.mark.asyncio
 async def test_emote_transfer_failed(seeded_emote_db, snap_send):
-    # kekw is active (not deleted), so transferring FROM kekw fails.
+    # kekw is active (not deleted), so transferring FROM kekw fails — scores unchanged.
     await snap_send(await emoteLeaderboard.transfer_emote_score("kekw", "pog"), "emote/transfer-failed")
+    assert emoteLeaderboard.get_emote("kekw").score == 500
+    assert emoteLeaderboard.get_emote("pog").score == 350
 
 
 @pytest.mark.asyncio
 async def test_emote_delete_success(seeded_emote_db, snap_send):
     # oldmeme is soft-deleted, so admin delete succeeds.
     await snap_send(await emoteLeaderboard.delete_emote_entry("oldmeme"), "emote/delete-success")
+    assert emoteLeaderboard.get_emote("oldmeme") is None
 
 
 @pytest.mark.asyncio
 async def test_emote_delete_active(seeded_emote_db, snap_send):
     # kekw is active (not soft-deleted), so admin delete should NOT succeed.
     await snap_send(await emoteLeaderboard.delete_emote_entry("kekw"), "emote/delete-active")
+    assert emoteLeaderboard.get_emote("kekw") is not None
 
 
 @pytest.mark.asyncio
 async def test_emote_add_score_existing(seeded_emote_db, snap_send):
     await snap_send(await emoteLeaderboard.add_emote_score("kekw", 100), "emote/add-score-existing")
+    assert emoteLeaderboard.get_emote("kekw").score == 600
 
 
 @pytest.mark.asyncio
 async def test_emote_add_score_missing(seeded_emote_db, snap_send):
     await snap_send(await emoteLeaderboard.add_emote_score("ghostemote", 50), "emote/add-score-missing")
+    # Missing emote should NOT be created as a side effect.
+    assert emoteLeaderboard.get_emote("ghostemote") is None

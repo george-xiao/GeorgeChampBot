@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(1, "../common")
 import common.utils as ut
-from common.asyncTask import make_periodic_task, aligned_interval
+from common.periodicTask import PeriodicTask
 
 _RECENT_MATCHES_TASK = None
 
@@ -17,8 +17,7 @@ _RECENT_MATCHES_TASK = None
 def init():
     """Start the periodic Dota recent-matches check (every hour)."""
     global _RECENT_MATCHES_TASK
-    _RECENT_MATCHES_TASK = make_periodic_task(
-        aligned_interval(3600),
+    _RECENT_MATCHES_TASK = PeriodicTask.hourly(
         lambda: check_recent_matches(ut.get_channel(ut.env["DOTA_CHANNEL"])),
     )
     _RECENT_MATCHES_TASK.start()

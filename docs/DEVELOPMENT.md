@@ -2,15 +2,22 @@
 
 ## Standard Development Process
 
-See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) in the README to set up your development environment.
-The development workflow (primarily using Docker, and to a lesser extent GitBash) keeps the application OS-agnostic. That being said, the production environment is Linux-based, so please keep that in mind when making changes.
-
-### General Guidelines
-- Use Docker during development
-- When modifying the `run.sh` on Windows, verify that it runs correctly in a Linux environment (by using GitBash or a similar tool to execute it)
+See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) for environment setup. Develop in Docker; production is Linux, so verify any shell-script changes work there too (GitBash works for Windows users).
 
 ### Adding new features
-> NOTE: Prefix commands (!<command>) have been deprecated in favor of slash commands (/<command>). Before adding commands for your new feature, review the [slash command documentation](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and the [commands README](../commands/README.md).
+See the [discord.py app-commands docs](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and [commands README](../commands/README.md) for the slash-command authoring workflow.
+
+## Testing
+
+Tests run in Docker via the `test` stage of the `Dockerfile`, which extends the `base` layer with `requirements-test.txt`.
+
+```bash
+./run-tests.sh                          # all tests
+./run-tests.sh tests/test_meme.py -v    # single feature
+SNAPSHOT_UPDATE=1 ./run-tests.sh        # (re)write snapshots
+```
+
+Snapshot tests live in `tests/test_<feature>.py` and lock each slash command's output into `tests/snapshots/<feature>/<command>.json`. The `.claude/skills/slash-command-tester.md` skill automates the write/diff workflow for Claude Code users.
 
 ## Update Dependencies
 

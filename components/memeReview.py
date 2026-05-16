@@ -5,7 +5,7 @@ import math
 import discord
 
 import common.utils as ut
-from common.asyncTask import make_periodic_task, aligned_interval, weekly_at
+from common.periodicTask import PeriodicTask
 
 notMeme = 'kekegolaughands'
 badMeme = 'thumbsdown'
@@ -20,15 +20,13 @@ _RESET_LIMIT_TASK = None
 def init():
     """Start the periodic meme tasks: weekly best-of announcement + daily reset."""
     global _BEST_ANNOUNCEMENT_TASK, _RESET_LIMIT_TASK
-    _BEST_ANNOUNCEMENT_TASK = make_periodic_task(
-        weekly_at(
-            (ut.env["ANNOUNCEMENT_DAY"] - 1) % 7,
-            ut.env["ANNOUNCEMENT_HOUR"],
-            ut.env["ANNOUNCEMENT_MIN"],
-        ),
+    _BEST_ANNOUNCEMENT_TASK = PeriodicTask.weekly(
+        (ut.env["ANNOUNCEMENT_DAY"] - 1) % 7,
+        ut.env["ANNOUNCEMENT_HOUR"],
+        ut.env["ANNOUNCEMENT_MIN"],
         lambda: best_announcement_task(ut.mainChannel),
     )
-    _RESET_LIMIT_TASK = make_periodic_task(aligned_interval(86400), resetLimit)
+    _RESET_LIMIT_TASK = PeriodicTask.every(86400, resetLimit)
     _BEST_ANNOUNCEMENT_TASK.start()
     _RESET_LIMIT_TASK.start()
 

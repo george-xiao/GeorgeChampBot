@@ -27,7 +27,8 @@ python3 GeorgeChampBot.py
 GeorgeChampBot.py      # Entry point, event handlers, scheduled tasks
 common/
   utils.py             # Shared Discord client, guild, channels, config
-  asyncTask.py         # AsyncTask class for background operations
+  asyncTask.py         # AsyncTask base class (one-shot async work)
+  periodicTask.py      # PeriodicTask: AsyncTask + cron-style schedule factories
   memberDatabase.py    # Base class for persistent member tracking
   orderedShelve.py     # Ordered shelve wrapper
 components/            # Feature modules
@@ -50,27 +51,33 @@ database/              # Shelve-based persistent storage (runtime created)
 ## Important Patterns
 
 **New features should use:**
-1. **AsyncTask** for background work. For recurring/periodic tasks (e.g., "every 15 minutes" or "every Friday at noon"), use `make_periodic_task` + a scheduling helper (`aligned_interval` or `weekly_at`) from `common/asyncTask.py`. Template: `.claude/skills/templates/periodic_task.py`. Each component owns its own task(s) and exposes an `init()` that `on_ready` calls.
+1. **AsyncTask** for one-shot background work; **PeriodicTask** for recurring schedules (see usage block below). Components own their task(s) and expose an `init()` that `on_ready` calls. Template: `.claude/skills/templates/periodic_task.py`.
 2. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
 3. **Components directory** for new feature modules
 4. **utils.py** for Discord objects - never create duplicate client instances
 
-**AsyncTask usage:**
+**AsyncTask / PeriodicTask usage:**
 ```python
-from common.asyncTask import AsyncTask, make_periodic_task, aligned_interval, weekly_at
+from common.asyncTask import AsyncTask
+from common.periodicTask import PeriodicTask
 
 # One-shot background coroutine
 task = AsyncTask(my_coroutine_factory)
 task.start()  # Cancels previous run and starts new
 task.stop()   # Cancels running task
 
-# Recurring (every 15 min aligned to clock boundaries)
-periodic = make_periodic_task(aligned_interval(900), my_async_fn)
-periodic.start()
+# Recurring (every 15 min, aligned to clock boundaries: :00, :15, :30, :45)
+PeriodicTask.every(900, my_async_fn).start()
 
-# Recurring (weekly at a specific local time)
-weekly = make_periodic_task(weekly_at(weekday=4, hour=18, minute=0), my_async_fn)
-weekly.start()
+# Convenience shortcuts
+PeriodicTask.minutely(my_async_fn).start()
+PeriodicTask.hourly(my_async_fn).start()
+
+# Recurring (daily at a specific local time)
+PeriodicTask.daily(hour=11, minute=0, coroutine_factory=my_async_fn).start()
+
+# Recurring (weekly at a specific local time; weekday 0=Mon ... 6=Sun)
+PeriodicTask.weekly(weekday=4, hour=18, minute=0, coroutine_factory=my_async_fn).start()
 ```
 
 **Database:** Uses Python's shelve for persistence. Always properly open/close shelve files.
@@ -79,17 +86,7 @@ weekly.start()
 
 ## Testing
 
-Tests run inside Docker (no local Python pollution). The `test` stage of the multi-stage `Dockerfile` shares the `base` layer with the bot, then adds `requirements-test.txt` (pinned via `pip-compile --constraint=requirements.txt`).
-
-`run-tests.sh` is primarily invoked by the `slash-command-tester` skill, but is also safe to run manually:
-
-```bash
-./run-tests.sh                          # all tests
-./run-tests.sh tests/test_meme.py -v    # single feature
-SNAPSHOT_UPDATE=1 ./run-tests.sh        # (re)write snapshots
-```
-
-Snapshot tests live in `tests/test_<feature>.py` and lock the output of each slash command into `tests/snapshots/<feature>/<command>.json`. See `.claude/skills/slash-command-tester.md` for the full workflow (when to fire, how to handle drift, how to write a test from scratch).
+See [Testing in DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for how to run the suite, the Docker `test` stage, and the snapshot-test workflow.
 
 ## Configuration
 

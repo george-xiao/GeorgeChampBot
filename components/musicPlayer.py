@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(1, "../common")
 import common.utils as ut
-from common.asyncTask import make_periodic_task, aligned_interval
+from common.periodicTask import PeriodicTask
 from urllib.parse import parse_qs, urlparse
 import isodate
 import discord
@@ -24,16 +24,16 @@ def init():
     song ends, and explicitly kicked by play_song_request when a user queues
     something while nothing is playing)."""
     global _DISCONNECT_TASK
-    _DISCONNECT_TASK = make_periodic_task(aligned_interval(180), check_disconnect)
+    _DISCONNECT_TASK = PeriodicTask.every(180, check_disconnect)
     _DISCONNECT_TASK.start()
 
 
 def _schedule_next_song(loop, error):
     """`after=` callback for vc.play. Runs in discord.py's voice thread, so
     we use run_coroutine_threadsafe to bounce play_song onto the event loop.
-    Any audio error is swallowed silently (the next play_song call will
-    re-check the queue and either resume playback or stop)."""
-    asyncio.run_coroutine_threadsafe(play_song(), loop)
+    The audio error (if any) is forwarded to play_song, which logs it to
+    botChannel before continuing on to the next track."""
+    asyncio.run_coroutine_threadsafe(play_song(playback_error=error), loop)
 
 # Reference: https://github.com/yt-dlp/yt-dlp/blob/aa220d0aaac0f1562af658e34a28de72ec0ecb9f/yt_dlp/YoutubeDL.py#L199
 YDL_OPTIONS = {
@@ -127,24 +127,35 @@ async def check_disconnect():
         await ut.botChannel.send("Error Checking Disconnect: " + str(e))
 
 
-async def play_song():
+async def play_song(playback_error=None):
     """
-    Plays song if previous one ends and queue is not empty
+    Plays song if previous one ends and queue is not empty.
+    `playback_error` is forwarded from vc.play's after= callback when the
+    previous track ended abnormally (ffmpeg/stream failure) — it is logged
+    but does not stop the chain.
     """
     try:
         global sq
+        if playback_error is not None:
+            error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
+            error_embed.title = "Playback error"
+            error_embed.description = str(playback_error)
+            await ut.botChannel.send(embed=error_embed)
         while not await process_song(sq):
             pass
-        if not vc or vc.is_playing() or vc.is_paused() or (not sq.queue and not sq.curr_song):
+        if not vc or not vc.is_connected() or vc.is_playing() or vc.is_paused() or (not sq.queue and not sq.curr_song):
             return
+
+        if sq.curr_song:
+            if LOOPSTATES[loop_status] == LOOPQUEUE:
+                sq.queue.append(sq.curr_song)
+            if LOOPSTATES[loop_status] == LOOPSONG:
+                sq.queue.appendleft(sq.curr_song)
+
         if not sq.queue and sq.curr_song:
             sq.curr_song = None
             return
 
-        if LOOPSTATES[loop_status] == LOOPQUEUE:
-            sq.queue.append(sq.curr_song)
-        if LOOPSTATES[loop_status] == LOOPSONG:
-            sq.queue.appendleft(sq.curr_song)
         sq.curr_song = sq.queue.popleft()
 
         sq.curr_song.start_time = datetime.now()

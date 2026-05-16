@@ -1,4 +1,5 @@
-import os, importlib
+import os
+import importlib
 from discord import app_commands
 
 emote_group = app_commands.Group(name="emote", description="Admin emote leaderboard commands", parent=None)

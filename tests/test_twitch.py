@@ -19,6 +19,7 @@ from tests._factories import make_member
 
 # --- Twitch HTTP stub helpers ---
 
+
 def _stub_twitch(monkeypatch, *, valid_users=(), live_streams=(), validate_ok=True):
     """Stub ut.async_get_request and ut.async_post_request to mimic Twitch.
 
@@ -61,6 +62,7 @@ def reset_twitch_module_state():
 
 # --- Slash commands ---
 
+
 async def test_twitch_list_populated(seeded_twitch_db, tree, guild, regular_member):
     capture = await invoke_slash(tree, "twitch list", regular_member, guild)
     [msg] = capture.messages
@@ -79,7 +81,10 @@ async def test_twitch_add_success(db_dir, tree, guild, admin_member, monkeypatch
     _stub_twitch(monkeypatch, valid_users=("alicestream",))
     alice = make_member(101, "alice")
     capture = await invoke_slash(
-        tree, "admin twitch add", admin_member, guild,
+        tree,
+        "admin twitch add",
+        admin_member,
+        guild,
         options={"user": alice, "twitch_username": "alicestream"},
     )
     [msg] = capture.messages
@@ -91,7 +96,10 @@ async def test_twitch_add_invalid_twitch(db_dir, tree, guild, admin_member, monk
     _stub_twitch(monkeypatch, valid_users=())
     alice = make_member(101, "alice")
     capture = await invoke_slash(
-        tree, "admin twitch add", admin_member, guild,
+        tree,
+        "admin twitch add",
+        admin_member,
+        guild,
         options={"user": alice, "twitch_username": "definitelynotvalid"},
     )
     [msg] = capture.messages
@@ -104,7 +112,10 @@ async def test_twitch_add_duplicate(seeded_twitch_db, tree, guild, admin_member,
     alice = make_member(101, "alice")
     listing_before = await twitchAnnouncement.list_streamers_text()
     capture = await invoke_slash(
-        tree, "admin twitch add", admin_member, guild,
+        tree,
+        "admin twitch add",
+        admin_member,
+        guild,
         options={"user": alice, "twitch_username": "alicestream"},
     )
     [msg] = capture.messages
@@ -114,7 +125,10 @@ async def test_twitch_add_duplicate(seeded_twitch_db, tree, guild, admin_member,
 
 async def test_twitch_remove_tracked(seeded_twitch_db, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin twitch remove", admin_member, guild,
+        tree,
+        "admin twitch remove",
+        admin_member,
+        guild,
         options={"streamer": "alicestream"},
     )
     [msg] = capture.messages
@@ -124,7 +138,10 @@ async def test_twitch_remove_tracked(seeded_twitch_db, tree, guild, admin_member
 
 async def test_twitch_remove_not_tracked(db_dir, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin twitch remove", admin_member, guild,
+        tree,
+        "admin twitch remove",
+        admin_member,
+        guild,
         options={"streamer": "ghoststream"},
     )
     [msg] = capture.messages
@@ -133,9 +150,8 @@ async def test_twitch_remove_not_tracked(db_dir, tree, guild, admin_member):
 
 # --- Periodic: 15-min live-streamers poll ---
 
-async def test_periodic_announces_new_live_streamer(
-    seeded_twitch_db, patched_periodic_start, monkeypatch
-):
+
+async def test_periodic_announces_new_live_streamer(seeded_twitch_db, patched_periodic_start, monkeypatch):
     _stub_twitch(
         monkeypatch,
         live_streams=[
@@ -155,9 +171,7 @@ async def test_periodic_announces_new_live_streamer(
     assert "twitch.tv/alicestream" in msg.content
 
 
-async def test_periodic_silent_when_no_one_live(
-    seeded_twitch_db, patched_periodic_start, monkeypatch
-):
+async def test_periodic_silent_when_no_one_live(seeded_twitch_db, patched_periodic_start, monkeypatch):
     _stub_twitch(monkeypatch, live_streams=[])
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
@@ -169,9 +183,7 @@ async def test_periodic_silent_when_no_one_live(
     assert capture.messages == []
 
 
-async def test_periodic_skips_when_no_tracked_streamers(
-    db_dir, patched_periodic_start, monkeypatch
-):
+async def test_periodic_skips_when_no_tracked_streamers(db_dir, patched_periodic_start, monkeypatch):
     _stub_twitch(monkeypatch)
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)

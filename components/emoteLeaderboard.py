@@ -24,7 +24,6 @@ def init():
 
 
 class Emoji:
-
     def __init__(self, key, display_name, score=0):
         self.key = key
         self.display_name = display_name
@@ -64,51 +63,42 @@ def score_algorithm(emoji_count):
 
 
 async def add_emote(display_name):
-    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
-
     key = dname_to_key(display_name)
-    if key not in s_all_time:
-        s_all_time[key] = Emoji(key, display_name)
-    s_all_time[key].update_emote(display_name)
+    with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+        if key not in s_all_time:
+            s_all_time[key] = Emoji(key, display_name)
+        s_all_time[key].update_emote(display_name)
 
-    s_all_time.close()
     await ut.botChannel.send(f"'{key}' has been added to the database!")
 
 
 async def remove_emote(display_name):
-    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
-
     key = dname_to_key(display_name)
-    s_all_time[key].deleted = True
-    if s_all_time[key].score == 0:
-        del s_all_time[key]
+    with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+        s_all_time[key].deleted = True
+        if s_all_time[key].score == 0:
+            del s_all_time[key]
 
-    s_all_time.close()
     await ut.botChannel.send(f"'{key}' has been deleted from the database!")
 
 
 # Helper function that allows us to grab values from shelve without opening+closing
 def get_emote(key):
-    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db")
-    emote = s_all_time[key] if key in s_all_time else None
-    s_all_time.close()
-    return emote
+    with shelve.open("./database/all_time_georgechamp_shelf.db") as s_all_time:
+        return s_all_time.get(key)
 
 
 # Helper function that allows us to grab values from shelve without opening+closing
 def get_all_emotes():
-    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db")
-    shelf_as_dict = dict(s_all_time)
-    s_all_time.close()
-    return shelf_as_dict
+    with shelve.open("./database/all_time_georgechamp_shelf.db") as s_all_time:
+        return dict(s_all_time)
 
 
 async def init_emote_leaderboard():
-    starting_date = shelve.open("./database/starting_date_shelf.db")
-    if "date" not in starting_date:
-        today = date.today()
-        starting_date["date"] = today.strftime("%d/%m/%Y")
-    starting_date.close()
+    with shelve.open("./database/starting_date_shelf.db") as starting_date:
+        if "date" not in starting_date:
+            today = date.today()
+            starting_date["date"] = today.strftime("%d/%m/%Y")
 
     # Accounts for if emotes are added when bot is offline
     for emoji in ut.guildObject.emojis:
@@ -128,16 +118,12 @@ async def init_emote_leaderboard():
 
 
 def update_counts(display_name, increment=1):
-    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
-
     key = dname_to_key(display_name)
-
-    if s_all_time[key].w_score + increment <= WEEKLY_EMOTE_LIMIT:
-        s_all_time[key].award(increment)
-    else:
-        s_all_time[key].award(WEEKLY_EMOTE_LIMIT - s_all_time[key].w_score)
-
-    s_all_time.close()
+    with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+        if s_all_time[key].w_score + increment <= WEEKLY_EMOTE_LIMIT:
+            s_all_time[key].award(increment)
+        else:
+            s_all_time[key].award(WEEKLY_EMOTE_LIMIT - s_all_time[key].w_score)
 
 
 async def announcement_task():
@@ -146,11 +132,9 @@ async def announcement_task():
         shelf_as_dict = get_all_emotes().items()
         most_used_emotes = sorted(shelf_as_dict, key=lambda item: item[1].w_score, reverse=True)[:7]
 
-        temp = []
-        for emote in most_used_emotes:
-            if emote[1].w_score != 0:
-                temp.append((emote[1].display_name, emote[1].w_score))
-        most_used_emotes = temp
+        most_used_emotes = [
+            (emote[1].display_name, emote[1].w_score) for emote in most_used_emotes if emote[1].w_score != 0
+        ]
 
         if len(most_used_emotes) == 0:
             leaderboard_msg = "No emotes were used this week. :("
@@ -158,14 +142,15 @@ async def announcement_task():
             leaderboard_msg = "Weekly emote update: \nEmote - Score \n"
             for i in range(7):
                 if i < len(most_used_emotes):
-                    leaderboard_msg += str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
+                    leaderboard_msg += (
+                        str(i + 1) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
+                    )
 
         await channel.send(leaderboard_msg)
 
-        s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
-        for key in s_all_time:
-            s_all_time[key].w_score = 0
-        s_all_time.close()
+        with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+            for key in s_all_time:
+                s_all_time[key].w_score = 0
 
     except Exception as e:
         await channel.send("Error Printing Weekly Leaderboard: " + str(e))
@@ -222,9 +207,8 @@ async def get_leaderboard_text(page: int = 1, show_last: bool = False, show_dele
         if len(page_slice) == 0:
             return "Doesn't look like there are emojis here :( Try another page."
 
-        starting_date = shelve.open("./database/starting_date_shelf.db")
-        leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
-        starting_date.close()
+        with shelve.open("./database/starting_date_shelf.db") as starting_date:
+            leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
         for i in range(10):
             if i < len(page_slice):
                 placement = start + i + 1
@@ -249,10 +233,7 @@ async def check_emoji(message):
                 if temp_emoji[1] == emoji.name and temp_emoji[2] == str(emoji.id) and emoji.animated is False:
                     update_counts(emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
-        unicode_emojis = []
-        for character in message.content:
-            if is_emoji(character):
-                unicode_emojis.append(character)
+        unicode_emojis = unicode_emojis = [char for char in message.content if is_emoji(char)]
         emoji_names = list(Counter(unicode_emojis).keys())
         emoji_counts = list(Counter(unicode_emojis).values())
         for i in range(len(emoji_names)):
@@ -303,7 +284,12 @@ async def transfer_emote_score(transfer_from: str, transfer_to: str) -> str:
         from_key = dname_to_key(transfer_from)
 
         with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
-            if from_key in s_all_time and to_key in s_all_time and s_all_time[from_key].deleted and not s_all_time[to_key].deleted:
+            if (
+                from_key in s_all_time
+                and to_key in s_all_time
+                and s_all_time[from_key].deleted
+                and not s_all_time[to_key].deleted
+            ):
                 s_all_time[to_key].score += s_all_time[from_key].score
                 del s_all_time[from_key]
                 return f"Transfer from {transfer_from} to {s_all_time[to_key].display_name} successful!"
@@ -332,7 +318,9 @@ async def add_emote_score(emote: str, score: int) -> str:
         with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
             if emote_key in s_all_time:
                 s_all_time[emote_key].score += score
-                return f"Added {score} to {s_all_time[emote_key].display_name}. New value is {s_all_time[emote_key].score}"
+                return (
+                    f"Added {score} to {s_all_time[emote_key].display_name}. New value is {s_all_time[emote_key].score}"
+                )
             return f"Couldn't find {emote_key}"
     except Exception as e:
         return f"Error Adding Score to Emote: {e}"

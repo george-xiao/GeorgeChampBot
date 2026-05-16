@@ -16,6 +16,7 @@ import random
 from math import ceil
 
 _DISCONNECT_TASK = None
+_PENDING_TASKS: set[asyncio.Task] = set()
 
 
 def init():
@@ -34,6 +35,7 @@ def _schedule_next_song(loop, error):
     The audio error (if any) is forwarded to play_song, which logs it to
     botChannel before continuing on to the next track."""
     asyncio.run_coroutine_threadsafe(play_song(playback_error=error), loop)
+
 
 # Reference: https://github.com/yt-dlp/yt-dlp/blob/aa220d0aaac0f1562af658e34a28de72ec0ecb9f/yt_dlp/YoutubeDL.py#L199
 YDL_OPTIONS = {
@@ -187,9 +189,7 @@ async def process_song(sq):
         return True
 
     next_song = sq.queue[0]
-    info = await asyncio.to_thread(
-        YoutubeDL(YDL_OPTIONS).extract_info, next_song.yt_url, download=False
-    )
+    info = await asyncio.to_thread(YoutubeDL(YDL_OPTIONS).extract_info, next_song.yt_url, download=False)
     if not info:
         await ut.botChannel.send(f"Skipped {next_song.title} ({next_song.yt_url}). Song is unavailable")
         sq.queue.popleft()
@@ -228,9 +228,7 @@ async def process_input(user_input, requester):
         youtube = await aiog.discover("youtube", "v3")
 
         if not query:
-            response = await aiog.as_api_key(
-                youtube.search.list(part="id", maxResults=1, q=user_input)
-            )
+            response = await aiog.as_api_key(youtube.search.list(part="id", maxResults=1, q=user_input))
             if response["items"] and "videoId" in response["items"][0]["id"]:
                 video_ids.append(response["items"][0]["id"]["videoId"])
         elif "youtube.com/watch" in user_input:
@@ -257,7 +255,7 @@ async def process_input(user_input, requester):
 
         song_items = []
         for i in range(0, len(video_ids), 50):
-            chunk = video_ids[i:i + 50]
+            chunk = video_ids[i : i + 50]
             response = await aiog.as_api_key(
                 youtube.videos.list(
                     part="snippet,contentDetails",
@@ -294,7 +292,9 @@ async def play_song_request(user, voice_channel, query: str) -> list[str]:
         # is_playing guard returns early and the new track will start when
         # the current one's after= callback fires.
         if added_songs:
-            asyncio.create_task(play_song())
+            task = asyncio.create_task(play_song())
+            _PENDING_TASKS.add(task)
+            task.add_done_callback(_PENDING_TASKS.discard)
 
         messages = []
         if len(processed_songs) != len(added_songs):

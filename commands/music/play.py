@@ -12,7 +12,7 @@ def register_subcommand(group: discord.app_commands.Group):
             return
         await interaction.response.defer()
         messages = await musicPlayer.play_song_request(interaction.user, interaction.user.voice.channel, query)
-        for i, msg in enumerate(messages):
+        for msg in messages:
             await interaction.followup.send(msg)
 
     play.error(handle_slash_command_error)

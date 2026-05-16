@@ -1,4 +1,3 @@
-from typing import List
 import discord
 import common.utils as ut
 from common.orderedShelve import OrderedShelve
@@ -28,7 +27,7 @@ class MovieSuggestions:
 
         return has_space
 
-    def get_members(self) -> List[str]:
+    def get_members(self) -> list[str]:
         db = self.shelve.open()
         members = list(db.keys())
         self.shelve.close()
@@ -84,11 +83,13 @@ class MovieSuggestions:
         else:
             reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Removal Unsuccessful!"
-            reply.description = f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
+            reply.description = (
+                f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
+            )
 
         return reply
 
-    def get_suggestion_names(self, member: str) -> List[str]:
+    def get_suggestion_names(self, member: str) -> list[str]:
         db = self.shelve.open()
 
         suggested_movies_names = []
@@ -127,7 +128,9 @@ class MovieSuggestions:
         else:
             reply.colour = ut.embed_colour["ERROR"]
             reply.title = "Movie not found!"
-            reply.description = f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
+            reply.description = (
+                f"The movie `{movie_name}` was not found in {ut.get_member_str(member)}'s suggestion list."
+            )
 
         return reply
 
@@ -148,13 +151,12 @@ class MovieSuggestions:
     # Bumps previous_host to the end of the list
     # Returns embed only if unsuccessful
     def bump_prev_host(self, previous_host: discord.User) -> discord.Embed | None:
-        if previous_host:
-            if not self.bump_member(previous_host.name):
-                embed = discord.Embed(colour=ut.embed_colour["ERROR"])
-                embed.title = "Command Unsuccessful!"
-                embed.description = f"{ut.get_member_str(previous_host.name)} does not exist in suggestion list!"
-                embed.description += "\nPlease pick a valid member."
-                return embed
+        if previous_host and not self.bump_member(previous_host.name):
+            embed = discord.Embed(colour=ut.embed_colour["ERROR"])
+            embed.title = "Command Unsuccessful!"
+            embed.description = f"{ut.get_member_str(previous_host.name)} does not exist in suggestion list!"
+            embed.description += "\nPlease pick a valid member."
+            return embed
         return None
 
     # Embedded message has a generic title; change it after

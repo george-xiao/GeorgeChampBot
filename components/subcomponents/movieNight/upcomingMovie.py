@@ -23,11 +23,10 @@ async def set_host(member_name: str) -> discord.Embed:
         return failed_embed
 
     event: discord.ScheduledEvent | None = await ut.get_movie_event()
-    db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-    db["upcoming_host_name"] = member_name
-    if db.get("upcoming_movie"):
-        del db["upcoming_movie"]
-    db.close()
+    with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = member_name
+        if db.get("upcoming_movie"):
+            del db["upcoming_movie"]
 
     # Set reminder
     start_pick_reminder()
@@ -47,12 +46,11 @@ async def remove_host() -> discord.Embed:
     if failed_embed := await ut.movie_event_not_present(True):
         return failed_embed
 
-    db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-    if db.get("upcoming_host_name"):
-        del db["upcoming_host_name"]
-    if db.get("upcoming_movie"):
-        del db["upcoming_movie"]
-    db.close()
+    with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        if db.get("upcoming_host_name"):
+            del db["upcoming_host_name"]
+        if db.get("upcoming_movie"):
+            del db["upcoming_movie"]
 
     # Stop pick reminder for host
     PICK_REMINDER_TASK.stop()
@@ -74,9 +72,9 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Movi
     if failed_embed := await ut.movie_event_not_present(True):
         return failed_embed
 
-    db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-    upcoming_host_name: str | None = db.get("upcoming_host_name")
-    event: discord.ScheduledEvent | None = await ut.get_movie_event()
+    with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        upcoming_host_name: str | None = db.get("upcoming_host_name")
+        event: discord.ScheduledEvent | None = await ut.get_movie_event()
 
     embed = discord.Embed(colour=ut.embed_colour["ERROR"])
     if not upcoming_host_name:
@@ -97,7 +95,6 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Movi
         embed.description = f"Next movie set as {movie.name}"
         embed.description += f"\nThe movie will be watched on {ut.convert_to_est_time(event.start_time)}."
 
-    db.close()
     update_event_description(True)
     return embed
 
@@ -130,10 +127,9 @@ def update_event_description(is_command):
 #   3) ScheduledEvent takes place in the future
 async def __should_send_reminder() -> bool:
     event: discord.ScheduledEvent | None = await ut.get_movie_event()
-    db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-    upcoming_host_name: str | None = db.get("upcoming_host_name")
-    upcoming_movie: Movie | None = db.get("upcoming_movie")
-    db.close()
+    with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        upcoming_host_name: str | None = db.get("upcoming_host_name")
+        upcoming_movie: Movie | None = db.get("upcoming_movie")
 
     return upcoming_host_name and not upcoming_movie and event and datetime.now(timezone.utc) <= event.start_time
 
@@ -157,9 +153,8 @@ async def __remind_host_coroutine():
 
                 # Send reminder since movie has not been picked
                 event: discord.ScheduledEvent | None = await ut.get_movie_event()
-                db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-                upcoming_host_name: str | None = db.get("upcoming_host_name")
-                db.close()
+                with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+                    upcoming_host_name: str | None = db.get("upcoming_host_name")
 
                 embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
                 host_str = ut.get_member_str(upcoming_host_name)
@@ -185,10 +180,9 @@ async def __update_description_coroutine(is_command):
             return
 
         event: discord.ScheduledEvent | None = await ut.get_movie_event()
-        db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
-        upcoming_host_name: str | None = db.get("upcoming_host_name")
-        upcoming_movie: Movie | None = db.get("upcoming_movie")
-        db.close()
+        with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+            upcoming_host_name: str | None = db.get("upcoming_host_name")
+            upcoming_movie: Movie | None = db.get("upcoming_movie")
 
         name: str = "Movie Night"
         description: str

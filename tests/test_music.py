@@ -34,6 +34,7 @@ from tests._dispatch import invoke_slash, run_periodic_once
 
 # --- Fixtures ---
 
+
 @pytest.fixture(autouse=True)
 def fresh_music_state():
     musicPlayer.reset_state()
@@ -175,6 +176,7 @@ def make_song_item(title="Song A", duration=180):
 
 # --- /music pause ---
 
+
 async def test_music_pause_not_connected(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music pause", music_member, guild)
     [msg] = capture.messages
@@ -201,6 +203,7 @@ async def test_music_pause_when_paused(tree, guild, music_member, fake_vc, stubb
 
 # --- /music queue ---
 
+
 async def test_music_queue_empty(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music queue", music_member, guild)
     [msg] = capture.messages
@@ -208,9 +211,7 @@ async def test_music_queue_empty(tree, guild, music_member, stubbed_bot):
 
 
 async def test_music_queue_with_songs(tree, guild, music_member, stubbed_bot):
-    musicPlayer.sq.queue = deque([
-        make_song_item("Song A"), make_song_item("Song B"), make_song_item("Song C")
-    ])
+    musicPlayer.sq.queue = deque([make_song_item("Song A"), make_song_item("Song B"), make_song_item("Song C")])
     capture = await invoke_slash(tree, "music queue", music_member, guild)
     [msg] = capture.messages
     assert msg.embed is not None
@@ -223,7 +224,10 @@ async def test_music_queue_with_songs(tree, guild, music_member, stubbed_bot):
 async def test_music_queue_page_out_of_range(tree, guild, music_member, stubbed_bot):
     musicPlayer.sq.queue = deque([make_song_item("Song A")])
     capture = await invoke_slash(
-        tree, "music queue", music_member, guild,
+        tree,
+        "music queue",
+        music_member,
+        guild,
         options={"page": 99},
     )
     [msg] = capture.messages
@@ -231,6 +235,7 @@ async def test_music_queue_page_out_of_range(tree, guild, music_member, stubbed_
 
 
 # --- /music now-playing ---
+
 
 async def test_music_now_playing_none(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music now-playing", music_member, guild)
@@ -252,6 +257,7 @@ async def test_music_now_playing_active(tree, guild, music_member, stubbed_bot):
 
 # --- /music skip ---
 
+
 async def test_music_skip_no_current(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music skip", music_member, guild)
     [msg] = capture.messages
@@ -272,7 +278,10 @@ async def test_music_skip_queued(tree, guild, music_member, stubbed_bot):
     other = make_song_item("Other")
     musicPlayer.sq.queue = deque([make_song_item("Queued Song"), other])
     capture = await invoke_slash(
-        tree, "music skip", music_member, guild,
+        tree,
+        "music skip",
+        music_member,
+        guild,
         options={"song_num": 1},
     )
     [msg] = capture.messages
@@ -283,7 +292,10 @@ async def test_music_skip_queued(tree, guild, music_member, stubbed_bot):
 async def test_music_skip_out_of_range(tree, guild, music_member, stubbed_bot):
     musicPlayer.sq.queue = deque([make_song_item("Only Song")])
     capture = await invoke_slash(
-        tree, "music skip", music_member, guild,
+        tree,
+        "music skip",
+        music_member,
+        guild,
         options={"song_num": 5},
     )
     [msg] = capture.messages
@@ -291,6 +303,7 @@ async def test_music_skip_out_of_range(tree, guild, music_member, stubbed_bot):
 
 
 # --- /music clear ---
+
 
 async def test_music_clear_empty(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music clear", music_member, guild)
@@ -308,6 +321,7 @@ async def test_music_clear_with_songs(tree, guild, music_member, stubbed_bot):
 
 # --- /music disconnect ---
 
+
 async def test_music_disconnect_not_connected(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music disconnect", music_member, guild)
     [msg] = capture.messages
@@ -323,6 +337,7 @@ async def test_music_disconnect_connected(tree, guild, music_member, fake_vc, st
 
 
 # --- /music shuffle ---
+
 
 async def test_music_shuffle_empty(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music shuffle", music_member, guild)
@@ -343,9 +358,13 @@ async def test_music_shuffle_with_songs(tree, guild, music_member, stubbed_bot, 
 
 # --- /music move ---
 
+
 async def test_music_move_empty(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(
-        tree, "music move", music_member, guild,
+        tree,
+        "music move",
+        music_member,
+        guild,
         options={"move_from": 1, "move_to": 2},
     )
     [msg] = capture.messages
@@ -356,7 +375,10 @@ async def test_music_move_success(tree, guild, music_member, stubbed_bot):
     a, b, c = make_song_item("A"), make_song_item("B"), make_song_item("C")
     musicPlayer.sq.queue = deque([a, b, c])
     capture = await invoke_slash(
-        tree, "music move", music_member, guild,
+        tree,
+        "music move",
+        music_member,
+        guild,
         options={"move_from": 3, "move_to": 1},
     )
     [msg] = capture.messages
@@ -367,7 +389,10 @@ async def test_music_move_success(tree, guild, music_member, stubbed_bot):
 async def test_music_move_out_of_range(tree, guild, music_member, stubbed_bot):
     musicPlayer.sq.queue = deque([make_song_item("A"), make_song_item("B")])
     capture = await invoke_slash(
-        tree, "music move", music_member, guild,
+        tree,
+        "music move",
+        music_member,
+        guild,
         options={"move_from": 5, "move_to": 1},
     )
     [msg] = capture.messages
@@ -375,6 +400,7 @@ async def test_music_move_out_of_range(tree, guild, music_member, stubbed_bot):
 
 
 # --- /music loop ---
+
 
 async def test_music_loop_disabled_to_queue(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music loop", music_member, guild)
@@ -401,14 +427,16 @@ async def test_music_loop_song_to_disabled(tree, guild, music_member, stubbed_bo
 
 # --- /music play ---
 
-async def test_music_play_no_results(
-    tree, guild, music_member, fake_vc, stubbed_bot, bot_channel_stub, monkeypatch
-):
+
+async def test_music_play_no_results(tree, guild, music_member, fake_vc, stubbed_bot, bot_channel_stub, monkeypatch):
     # Search returns no video → process_input returns [].
     _patch_youtube(monkeypatch, search_video_id=None)
     monkeypatch.setattr(musicPlayer, "play_song", AsyncMock())  # don't actually play
     capture = await invoke_slash(
-        tree, "music play", music_member, guild,
+        tree,
+        "music play",
+        music_member,
+        guild,
         options={"query": "nothing"},
     )
     contents = [m.content for m in capture.messages]
@@ -421,7 +449,10 @@ async def test_music_play_single_song_adds_to_queue(
     _patch_youtube(monkeypatch, search_video_id="abc123")
     monkeypatch.setattr(musicPlayer, "play_song", AsyncMock())
     capture = await invoke_slash(
-        tree, "music play", music_member, guild,
+        tree,
+        "music play",
+        music_member,
+        guild,
         options={"query": "My Song"},
     )
     contents = [m.content for m in capture.messages]
@@ -431,6 +462,7 @@ async def test_music_play_single_song_adds_to_queue(
 
 
 # === on_voice_state_update ===
+
 
 async def test_on_voice_state_update_resets_when_bot_disconnects(monkeypatch, fake_vc, ut_client_ready):
     """When the bot's own voice state moves from connected → disconnected,
@@ -453,6 +485,7 @@ async def test_on_voice_state_update_resets_when_bot_disconnects(monkeypatch, fa
 
 
 # === Periodic: check_disconnect ===
+
 
 async def test_check_disconnect_no_vc_is_noop(patched_periodic_start, bot_channel_stub):
     musicPlayer.init()
@@ -478,9 +511,7 @@ async def test_check_disconnect_alone_in_channel_eventually_disconnects(
     fake_vc.disconnect.assert_awaited_once()
 
 
-async def test_check_disconnect_not_alone_clears_arm(
-    patched_periodic_start, bot_channel_stub, fake_vc
-):
+async def test_check_disconnect_not_alone_clears_arm(patched_periodic_start, bot_channel_stub, fake_vc):
     """If the queue is playing and others are in the channel, should_disconnect stays False."""
     fake_vc.channel.members = [MagicMock(), MagicMock()]
     musicPlayer.vc = fake_vc
@@ -498,6 +529,7 @@ async def test_check_disconnect_not_alone_clears_arm(
 # play_song is invoked by vc.play's after= callback when a track ends. We
 # invoke it directly here — that callback is the entry point, just as
 # tree._call is the entry point for slash commands.
+
 
 def _make_live_vc():
     vc = MagicMock(spec=discord.VoiceClient)
@@ -537,8 +569,10 @@ async def test_play_song_loopqueue_rotates_to_back(bot_channel_stub):
     musicPlayer.sq.curr_song = song_a
     musicPlayer.sq.queue = deque([song_b])
 
-    with patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)), \
-         patch("components.musicPlayer.FFmpegPCMAudio"):
+    with (
+        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
+        patch("components.musicPlayer.FFmpegPCMAudio"),
+    ):
         await musicPlayer.play_song()
 
     assert musicPlayer.sq.curr_song is song_b
@@ -555,8 +589,10 @@ async def test_play_song_loopsong_replays_current(bot_channel_stub):
     musicPlayer.sq.curr_song = song_a
     musicPlayer.sq.queue = deque([song_b])
 
-    with patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)), \
-         patch("components.musicPlayer.FFmpegPCMAudio"):
+    with (
+        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
+        patch("components.musicPlayer.FFmpegPCMAudio"),
+    ):
         await musicPlayer.play_song()
 
     assert musicPlayer.sq.curr_song is song_a
@@ -573,8 +609,10 @@ async def test_play_song_loopsong_replays_with_empty_queue(bot_channel_stub):
     song = make_song_item("Only Song")
     musicPlayer.sq.curr_song = song
 
-    with patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)), \
-         patch("components.musicPlayer.FFmpegPCMAudio"):
+    with (
+        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
+        patch("components.musicPlayer.FFmpegPCMAudio"),
+    ):
         await musicPlayer.play_song()
 
     assert musicPlayer.sq.curr_song is song

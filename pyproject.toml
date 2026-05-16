@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = ["database", "tests/snapshots"]
+
+# Defaults (E4, E7, E9, F) plus high-signal extras. See docs/TODO.md for
+# rule groups we deliberately left out for a future expansion pass.
+[tool.ruff.lint]
+extend-select = [
+    "B",     # flake8-bugbear: real bugs (mutable defaults, raise-from, etc.)
+    "UP",    # pyupgrade: modern Python syntax
+    "SIM",   # flake8-simplify: readability cleanups
+    "PERF",  # perflint: avoidable performance traps
+    "RUF",   # ruff-specific checks
+]

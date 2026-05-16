@@ -34,7 +34,11 @@ async def __should_send_remind() -> bool:
     except FileNotFoundError:
         is_event_sent = False
 
-    return not is_event_sent and event.status is discord.EventStatus.scheduled and datetime.now(timezone.utc) <= event.start_time
+    return (
+        not is_event_sent
+        and event.status is discord.EventStatus.scheduled
+        and datetime.now(timezone.utc) <= event.start_time
+    )
 
 
 # Coroutine to remind everyone with MOVIE_ROLE REMINDER_THRESHOLD before the event starts
@@ -61,7 +65,11 @@ async def __remind_event_coroutine():
             event_link = await ut.get_movie_event_link()
             movie_role = ut.get_role_str("MOVIE_ROLE")
             event_description = f"Movie night alert! [Get your popcorn ready!]({event_link}) 🍿"
-            await ut.send_message(ut.get_channel(ut.env["MOVIE_CHANNEL"]), f"{movie_role} {event_description}", delete_after=ut.EXTENDED_MESSAGE_DURATION)
+            await ut.send_message(
+                ut.get_channel(ut.env["MOVIE_CHANNEL"]),
+                f"{movie_role} {event_description}",
+                delete_after=ut.EXTENDED_MESSAGE_DURATION,
+            )
 
             with open(LAST_EVENT_PATH, "wb") as file:
                 pickle.dump(event.start_time, file)

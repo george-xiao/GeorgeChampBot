@@ -89,10 +89,7 @@ async def validate_twitch_OAuth_token(channel):
 
             response = await ut.async_get_request(url, headers=headers)
 
-            if not response or ("status" in response and response.get("status")) == 401:
-                return False
-
-            return True
+            return not response or ("status" in response and response.get("status")) == 401
         except Exception as e:
             await channel.send("Error Validating Twitch OAuth Token: " + str(e))
     return False
@@ -102,7 +99,11 @@ async def generate_twitch_OAuth_token(channel):
     global twitch_OAuth_token
 
     url = "https://id.twitch.tv/oauth2/token"
-    twitch_OAuth_generation_body = {"client_id": ut.env["TWITCH_CLIENT_ID"], "client_secret": ut.env["TWITCH_CLIENT_SECRET"], "grant_type": "client_credentials"}
+    twitch_OAuth_generation_body = {
+        "client_id": ut.env["TWITCH_CLIENT_ID"],
+        "client_secret": ut.env["TWITCH_CLIENT_SECRET"],
+        "grant_type": "client_credentials",
+    }
 
     try:
         response = await ut.async_post_request(url, twitch_OAuth_generation_body)
@@ -144,15 +145,12 @@ async def add_streamer_to_db(member: discord.Member, twitch_username: str) -> st
         if not await _validate_twitch_username(twitch_username):
             return twitch_username + " is not a valid argument."
 
-        db = shelve.open(STREAMER_DB_PATH)
-        try:
+        with shelve.open(STREAMER_DB_PATH) as db:
             if db.get(twitch_username) is None:
                 db[twitch_username] = member.name
                 return f"Successfully added {member.name}"
             else:
                 return "This entry already exists."
-        finally:
-            db.close()
     except Exception as e:
         return f"Error Adding Streamer: {e}"
 
@@ -161,17 +159,28 @@ async def add_streamer_to_db(member: discord.Member, twitch_username: str) -> st
 # unique DB key) so direct lookup works regardless of Discord renames.
 async def remove_streamer_from_db(twitch_username: str) -> str:
     try:
-        db = shelve.open(STREAMER_DB_PATH)
-        try:
+        with shelve.open(STREAMER_DB_PATH) as db:
             if twitch_username in db:
                 removed_name = db[twitch_username]
                 del db[twitch_username]
                 return f"Successfully removed {removed_name}"
             return f"{twitch_username} isn't being tracked"
-        finally:
-            db.close()
     except Exception as e:
         return f"Error Removing Streamer: {e}"
+
+
+# Returns the text listing currently tracked streamers.
+async def list_streamers_text() -> str:
+    try:
+        with shelve.open(STREAMER_DB_PATH) as db:
+            if len(db) == 0:
+                return "We are not tracking anyone currently."
+            msg = "Here's everyone we're tracking:\n"
+            for tw_user, member_name in db.items():
+                msg += f"{member_name}: {tw_user}\n"
+            return msg
+    except Exception as e:
+        return f"Error Retrieving Streamers: {e}"
 
 
 # Autocomplete for /admin twitch remove. Pulls from the DB so the picker
@@ -179,30 +188,10 @@ async def remove_streamer_from_db(twitch_username: str) -> str:
 # twitch_username (the unique DB key), so remove can do a direct lookup.
 async def tracked_twitch_streamer_autocomplete(interaction, current: str):
     matches = []
-    db = shelve.open(STREAMER_DB_PATH)
-    try:
+    with shelve.open(STREAMER_DB_PATH) as db:
         for twitch_username, member_name in db.items():
             label = f"{member_name} (twitch: {twitch_username})"
             if current.lower() in label.lower():
                 matches.append((label, twitch_username))
-    finally:
-        db.close()
     matches.sort()
     return [discord.app_commands.Choice(name=label, value=twitch_username) for label, twitch_username in matches[:25]]
-
-
-# Returns the text listing currently tracked streamers.
-async def list_streamers_text() -> str:
-    try:
-        db = shelve.open(STREAMER_DB_PATH)
-        try:
-            if len(db) == 0:
-                return "We are not tracking anyone currently."
-            msg = "Here's everyone we're tracking:\n"
-            for tw_user, member_name in db.items():
-                msg += f"{member_name}: {tw_user}\n"
-            return msg
-        finally:
-            db.close()
-    except Exception as e:
-        return f"Error Retrieving Streamers: {e}"

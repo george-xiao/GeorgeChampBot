@@ -57,6 +57,7 @@ def guild(members, monkeypatch):
     installed by tests/_env_setup.py."""
     g = make_guild(members)
     import common.utils as ut
+
     monkeypatch.setattr(ut, "guildObject", g)
     return g
 
@@ -74,6 +75,7 @@ def regular_member(members):
 @pytest.fixture
 def seeded_meme_db(db_dir):
     from tests._factories import seed_meme_leaderboard, seed_meme_review
+
     seed_meme_leaderboard(db_dir)
     seed_meme_review(db_dir)
     return db_dir
@@ -82,6 +84,7 @@ def seeded_meme_db(db_dir):
 @pytest.fixture
 def seeded_dota_db(db_dir):
     from tests._factories import seed_dota_player_list
+
     seed_dota_player_list(db_dir)
     return db_dir
 
@@ -89,6 +92,7 @@ def seeded_dota_db(db_dir):
 @pytest.fixture
 def seeded_twitch_db(db_dir):
     from tests._factories import seed_twitch_streamer_list
+
     seed_twitch_streamer_list(db_dir)
     return db_dir
 
@@ -96,6 +100,7 @@ def seeded_twitch_db(db_dir):
 @pytest.fixture
 def seeded_emote_db(db_dir):
     from tests._factories import seed_emote_leaderboard
+
     seed_emote_leaderboard(db_dir)
     return db_dir
 
@@ -103,6 +108,7 @@ def seeded_emote_db(db_dir):
 @pytest.fixture
 def seeded_movie_db(db_dir):
     from tests._factories import seed_movie_suggestions
+
     seed_movie_suggestions(db_dir)
     return db_dir
 
@@ -113,6 +119,7 @@ def patched_periodic_start(monkeypatch):
     without launching the background scheduler. Drive via run_periodic_once
     instead."""
     from common.periodicTask import PeriodicTask
+
     monkeypatch.setattr(PeriodicTask, "start", lambda self, *a, **k: None)
 
 
@@ -125,6 +132,7 @@ async def ut_client_ready():
     `ut.client.dispatch(...)` works."""
     import common.utils as ut
     import GeorgeChampBot  # noqa: F401 — triggers @ut.client.event registration
+
     await ut.client._async_setup_hook()
     return ut.client
 
@@ -133,6 +141,7 @@ async def ut_client_ready():
 async def dpytest_client(ut_client_ready):
     """ut.client wired into dpytest's runner. Clean queue between tests."""
     import discord.ext.test as dpytest
+
     dpytest.configure(ut_client_ready)
     try:
         yield ut_client_ready

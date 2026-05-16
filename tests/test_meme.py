@@ -37,7 +37,10 @@ async def test_meme_leaderboard_default_page(seeded_meme_db, tree, guild, regula
 
 async def test_meme_leaderboard_empty_page(seeded_meme_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "meme leaderboard", regular_member, guild,
+        tree,
+        "meme leaderboard",
+        regular_member,
+        guild,
         options={"page": 2},
     )
     [msg] = capture.messages
@@ -45,6 +48,7 @@ async def test_meme_leaderboard_empty_page(seeded_meme_db, tree, guild, regular_
 
 
 # --- on_message → check_meme ---
+
 
 @pytest.fixture
 def meme_event_bot(seeded_meme_db, dpytest_client, monkeypatch):
@@ -60,11 +64,13 @@ def meme_event_bot(seeded_meme_db, dpytest_client, monkeypatch):
     meme_capture = CapturedMessages()
 
     async def _send(content="", embed=None, delete_after=None, **kwargs):
-        meme_capture.messages.append(SentMessage(
-            content=content or "",
-            embed=embed.to_dict() if isinstance(embed, discord.Embed) else None,
-            delete_after=delete_after,
-        ))
+        meme_capture.messages.append(
+            SentMessage(
+                content=content or "",
+                embed=embed.to_dict() if isinstance(embed, discord.Embed) else None,
+                delete_after=delete_after,
+            )
+        )
         msg = MagicMock()
         msg.id = len(meme_capture.messages)
         msg.add_reaction = AsyncMock()
@@ -106,6 +112,7 @@ async def test_on_message_without_attachment_ignored(meme_event_bot):
 
 
 # --- on_raw_reaction_add → add_meme_reactions ---
+
 
 async def test_on_raw_reaction_add_good_meme_increments_score(meme_event_bot, monkeypatch):
     """A 'good meme' reaction ('two') on a tracked meme bumps that meme's
@@ -164,9 +171,8 @@ async def test_on_raw_reaction_add_good_meme_increments_score(meme_event_bot, mo
 
 # --- Periodic: weekly best-meme announcement + daily reset ---
 
-async def test_weekly_best_meme_announces_to_main_channel(
-    seeded_meme_db, patched_periodic_start, monkeypatch
-):
+
+async def test_weekly_best_meme_announces_to_main_channel(seeded_meme_db, patched_periodic_start, monkeypatch):
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
     monkeypatch.setattr(ut, "mainChannel", channel)
@@ -178,9 +184,7 @@ async def test_weekly_best_meme_announces_to_main_channel(
     assert "Memer of the Week" in msg.content
 
 
-async def test_weekly_best_meme_handles_no_memes(
-    db_dir, patched_periodic_start, monkeypatch
-):
+async def test_weekly_best_meme_handles_no_memes(db_dir, patched_periodic_start, monkeypatch):
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
     monkeypatch.setattr(ut, "mainChannel", channel)
@@ -192,9 +196,7 @@ async def test_weekly_best_meme_handles_no_memes(
     assert "No memes" in msg.content
 
 
-async def test_daily_reset_clears_daily_meme_counts(
-    seeded_meme_db, patched_periodic_start
-):
+async def test_daily_reset_clears_daily_meme_counts(seeded_meme_db, patched_periodic_start):
     with shelve.open("./database/meme_leaderboard.db", writeback=True) as db:
         db["101"] = [50, 3]
     memeReview.init()

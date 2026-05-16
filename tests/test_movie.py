@@ -57,6 +57,7 @@ def _patch_event_missing(monkeypatch):
 
 # --- /movie list-suggestions ---
 
+
 async def test_movie_list_suggestions_populated(seeded_movie_db, tree, guild, regular_member):
     capture = await invoke_slash(tree, "movie list-suggestions", regular_member, guild)
     [msg] = capture.messages
@@ -76,10 +77,14 @@ async def test_movie_list_suggestions_empty(db_dir, tree, guild, regular_member)
 
 # --- /movie view-suggestion ---
 
+
 async def test_movie_view_suggestion_found(seeded_movie_db, tree, guild, regular_member):
     alice = make_member(101, "alice", nick="Alice the Great")
     capture = await invoke_slash(
-        tree, "movie view-suggestion", regular_member, guild,
+        tree,
+        "movie view-suggestion",
+        regular_member,
+        guild,
         options={"user": alice, "movie_name": "Interstellar"},
     )
     [msg] = capture.messages
@@ -90,7 +95,10 @@ async def test_movie_view_suggestion_found(seeded_movie_db, tree, guild, regular
 async def test_movie_view_suggestion_not_found(seeded_movie_db, tree, guild, regular_member):
     alice = make_member(101, "alice", nick="Alice the Great")
     capture = await invoke_slash(
-        tree, "movie view-suggestion", regular_member, guild,
+        tree,
+        "movie view-suggestion",
+        regular_member,
+        guild,
         options={"user": alice, "movie_name": "Ghost Movie"},
     )
     [msg] = capture.messages
@@ -99,11 +107,15 @@ async def test_movie_view_suggestion_not_found(seeded_movie_db, tree, guild, reg
 
 # --- /movie remove-suggestion ---
 
+
 async def test_movie_remove_suggestion_success(seeded_movie_db, tree, guild, regular_member):
     # regular_member is alice; she removes Inception from her own list.
     assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is not None
     capture = await invoke_slash(
-        tree, "movie remove-suggestion", regular_member, guild,
+        tree,
+        "movie remove-suggestion",
+        regular_member,
+        guild,
         options={"movie_name": "Inception"},
     )
     [msg] = capture.messages
@@ -113,7 +125,10 @@ async def test_movie_remove_suggestion_success(seeded_movie_db, tree, guild, reg
 
 async def test_movie_remove_suggestion_not_found(seeded_movie_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "movie remove-suggestion", regular_member, guild,
+        tree,
+        "movie remove-suggestion",
+        regular_member,
+        guild,
         options={"movie_name": "Ghost Movie"},
     )
     [msg] = capture.messages
@@ -121,6 +136,7 @@ async def test_movie_remove_suggestion_not_found(seeded_movie_db, tree, guild, r
 
 
 # --- /movie view-upcoming ---
+
 
 async def test_movie_view_upcoming_no_event(db_dir, tree, guild, regular_member, monkeypatch):
     _patch_event_missing(monkeypatch)
@@ -141,10 +157,14 @@ async def test_movie_view_upcoming_with_event(db_dir, tree, guild, regular_membe
 
 # --- /movie pick-movie ---
 
+
 async def test_movie_pick_movie_no_event(db_dir, tree, guild, regular_member, monkeypatch):
     _patch_event_missing(monkeypatch)
     capture = await invoke_slash(
-        tree, "movie pick-movie", regular_member, guild,
+        tree,
+        "movie pick-movie",
+        regular_member,
+        guild,
         options={"movie_name": "Interstellar"},
     )
     [msg] = capture.messages
@@ -154,7 +174,10 @@ async def test_movie_pick_movie_no_event(db_dir, tree, guild, regular_member, mo
 async def test_movie_pick_movie_no_host_set(seeded_movie_db, tree, guild, regular_member, monkeypatch):
     _patch_event_present(monkeypatch)
     capture = await invoke_slash(
-        tree, "movie pick-movie", regular_member, guild,
+        tree,
+        "movie pick-movie",
+        regular_member,
+        guild,
         options={"movie_name": "Interstellar"},
     )
     [msg] = capture.messages
@@ -168,7 +191,10 @@ async def test_movie_pick_movie_not_the_host(seeded_movie_db, tree, guild, regul
     _patch_event_present(monkeypatch)
     # regular_member is alice; bob is the host → alice gets rejected.
     capture = await invoke_slash(
-        tree, "movie pick-movie", regular_member, guild,
+        tree,
+        "movie pick-movie",
+        regular_member,
+        guild,
         options={"movie_name": "Interstellar"},
     )
     [msg] = capture.messages
@@ -180,7 +206,10 @@ async def test_movie_pick_movie_not_in_list(seeded_movie_db, tree, guild, regula
         db["upcoming_host_name"] = "alice"
     _patch_event_present(monkeypatch)
     capture = await invoke_slash(
-        tree, "movie pick-movie", regular_member, guild,
+        tree,
+        "movie pick-movie",
+        regular_member,
+        guild,
         options={"movie_name": "Ghost Film"},
     )
     [msg] = capture.messages
@@ -193,7 +222,10 @@ async def test_movie_pick_movie_success(seeded_movie_db, tree, guild, regular_me
         db["upcoming_host_name"] = "alice"
     _patch_event_present(monkeypatch)
     capture = await invoke_slash(
-        tree, "movie pick-movie", regular_member, guild,
+        tree,
+        "movie pick-movie",
+        regular_member,
+        guild,
         options={"movie_name": "Interstellar"},
     )
     [msg] = capture.messages
@@ -205,11 +237,15 @@ async def test_movie_pick_movie_success(seeded_movie_db, tree, guild, regular_me
 
 # --- /admin movie pick-host ---
 
+
 async def test_movie_pick_host_no_event(db_dir, tree, guild, admin_member, monkeypatch):
     _patch_event_missing(monkeypatch)
     alice = make_member(101, "alice", nick="Alice the Great")
     capture = await invoke_slash(
-        tree, "admin movie pick-host", admin_member, guild,
+        tree,
+        "admin movie pick-host",
+        admin_member,
+        guild,
         options={"user": alice},
     )
     [msg] = capture.messages
@@ -221,7 +257,10 @@ async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkey
     monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
     alice = make_member(101, "alice", nick="Alice the Great")
     capture = await invoke_slash(
-        tree, "admin movie pick-host", admin_member, guild,
+        tree,
+        "admin movie pick-host",
+        admin_member,
+        guild,
         options={"user": alice},
     )
     [msg] = capture.messages
@@ -231,6 +270,7 @@ async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkey
 
 
 # --- Modal: /movie add-suggestion → SuggestionModal.on_submit ---
+
 
 async def test_movie_add_suggestion_modal_submit_adds_to_db(db_dir, guild, regular_member):
     modal = SuggestionModal()
@@ -250,6 +290,7 @@ async def test_movie_add_suggestion_modal_submit_adds_to_db(db_dir, guild, regul
 async def test_movie_add_suggestion_modal_at_capacity(db_dir, guild, regular_member):
     # Fill alice's list to MAX_SUGGESTIONS (10).
     from components.subcomponents.movieNight.movie import Movie
+
     for i in range(10):
         SUGGESTION_DATABASE.add_suggestion("alice", Movie(f"Movie {i}", "Genre", f"Reason {i}"))
 
@@ -268,6 +309,7 @@ async def test_movie_add_suggestion_modal_at_capacity(db_dir, guild, regular_mem
 
 
 # --- Scheduled-event handlers ---
+
 
 @pytest.fixture
 def scheduled_event_bot(monkeypatch):

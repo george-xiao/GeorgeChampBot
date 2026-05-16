@@ -1,4 +1,5 @@
-import os, importlib
+import os
+import importlib
 from discord import app_commands
 
 twitch_group = app_commands.Group(name="twitch", description="Admin Twitch streamer tracking commands", parent=None)

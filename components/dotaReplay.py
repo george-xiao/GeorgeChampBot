@@ -1,7 +1,4 @@
 import discord
-import json
-import math
-import os
 import shelve
 from datetime import datetime
 import sys
@@ -36,7 +33,9 @@ class DotaHeroGameStats:
         self.hero_id = match_json["hero_id"]
         self.radiant_win = match_json["radiant_win"]
         # OpenDota API specifications: https://docs.opendota.com/#tag/players%2Fpaths%2F~1players~1%7Baccount_id%7D~1recentMatches%2Fget
-        self.this_player_won = (match_json["radiant_win"] and match_json["player_slot"] < 128) or (not match_json["radiant_win"] and match_json["player_slot"] >= 128)
+        self.this_player_won = (match_json["radiant_win"] and match_json["player_slot"] < 128) or (
+            not match_json["radiant_win"] and match_json["player_slot"] >= 128
+        )
         self.player_name = player_name
 
 
@@ -55,24 +54,40 @@ class DotaMatchMessage:
         hero_list = ut.create_json("../common/dota/hero_constants.json", __file__)
         self.embedMsg.type = "rich"
 
-        title_arr = []
-
         # this assumes we are all on the same team
         side_win = "Radiant" if self.dota_hero_game_stats[0].radiant_win else "Dire"
         self.embedMsg.colour = 0x008000 if self.dota_hero_game_stats[0].this_player_won else 0xFF0000
-        duration_mins = math.floor(self.dota_hero_game_stats[0].duration / 60)
-        duration_secs = self.dota_hero_game_stats[0].duration % 60
 
-        for index in range(len(self.dota_hero_game_stats)):
-            title_arr.append(self.dota_hero_game_stats[index].player_name + " played " + hero_list[self.dota_hero_game_stats[index].hero_id - 1]["localized_name"])
+        title_arr = [
+            f"{stat.player_name} played {hero_list[stat.hero_id - 1]['localized_name']}"
+            for stat in self.dota_hero_game_stats
+        ]
 
         title_msg = " | ".join(title_arr)
         self.embedMsg.title = title_msg
-        self.embedMsg.description = self.dota_hero_game_stats[0].game_mode + " | " + side_win + " Win | " + ut.seconds_to_time(self.dota_hero_game_stats[0].duration)
+        self.embedMsg.description = (
+            self.dota_hero_game_stats[0].game_mode
+            + " | "
+            + side_win
+            + " Win | "
+            + ut.seconds_to_time(self.dota_hero_game_stats[0].duration)
+        )
 
-        for index in range(len(self.dota_hero_game_stats)):
-            hero_name = hero_list[self.dota_hero_game_stats[index].hero_id - 1]["localized_name"]
-            field_desc = "K/D/A: " + str(self.dota_hero_game_stats[index].kills) + "/" + str(self.dota_hero_game_stats[index].deaths) + "/" + str(self.dota_hero_game_stats[index].assists) + " " + "XPM/GPM: " + str(self.dota_hero_game_stats[index].xpm) + "/" + str(self.dota_hero_game_stats[index].gpm)
+        for stat in self.dota_hero_game_stats:
+            hero_name = hero_list[stat.hero_id - 1]["localized_name"]
+            field_desc = (
+                "K/D/A: "
+                + str(stat.kills)
+                + "/"
+                + str(stat.deaths)
+                + "/"
+                + str(stat.assists)
+                + " "
+                + "XPM/GPM: "
+                + str(stat.xpm)
+                + "/"
+                + str(stat.gpm)
+            )
             self.embedMsg.add_field(name=hero_name, value=field_desc, inline=True)
 
         self.embedMsg.set_thumbnail(url=hero_list[self.dota_hero_game_stats[0].hero_id - 1]["img"])
@@ -127,21 +142,22 @@ async def check_recent_matches(channel):
 
         game_mode_json = ut.create_json("../common/dota/game_mode_constants.json", __file__)
 
-        player_list_shelf = shelve.open("./database/dota_player_list.db")
-        for player_id, member_name in player_list_shelf.items():
-            recent_matches = await ut.async_get_request(open_dota_players_url + player_id + "/recentMatches")
-            if recent_matches is not None:
-                for match in recent_matches:
-                    # if game in last 3610s (1h + 10s)
-                    if curr_epoch_time - (int(match["start_time"]) + int(match["duration"])) < 3610:
-                        match_id_str = str(match["match_id"])
-                        hero_stats = DotaHeroGameStats(match, game_mode_json[str(match["game_mode"])]["name"], member_name)
-                        if match_id_str not in match_ids:
-                            match_ids[match_id_str] = [hero_stats]
-                        else:
-                            match_ids[match_id_str].append(hero_stats)
+        with shelve.open("./database/dota_player_list.db") as player_list_shelf:
+            for player_id, member_name in player_list_shelf.items():
+                recent_matches = await ut.async_get_request(open_dota_players_url + player_id + "/recentMatches")
+                if recent_matches is not None:
+                    for match in recent_matches:
+                        # if game in last 3610s (1h + 10s)
+                        if curr_epoch_time - (int(match["start_time"]) + int(match["duration"])) < 3610:
+                            match_id_str = str(match["match_id"])
+                            hero_stats = DotaHeroGameStats(
+                                match, game_mode_json[str(match["game_mode"])]["name"], member_name
+                            )
+                            if match_id_str not in match_ids:
+                                match_ids[match_id_str] = [hero_stats]
+                            else:
+                                match_ids[match_id_str].append(hero_stats)
 
-        player_list_shelf.close()
         if match_ids:
             await ut.send_message(channel, "Looks like DotA 2 is still alive! Here are the games from the last hour")
             for match_id, hero_stats_list in match_ids.items():

@@ -1,4 +1,3 @@
-from typing import List
 from datetime import datetime
 import json
 import os
@@ -47,7 +46,9 @@ EXTENDED_MESSAGE_DURATION = 24 * 60 * 60
 
 class DiscordEmbedBuilder:
     def __init__(self, thumbnail_url="", colour_=0, title_="", description_="", title_url=""):
-        self.embed_msg = discord.Embed(title=title_, colour=colour_, description=description_, url=title_url, type="rich")
+        self.embed_msg = discord.Embed(
+            title=title_, colour=colour_, description=description_, url=title_url, type="rich"
+        )
         self.embed_msg.set_thumbnail(url=thumbnail_url)
 
     # Set the url for the embed, only accepts http, https or local storage
@@ -115,7 +116,7 @@ def get_role(role_name):
 # role_name is key for env as all role_names should be stored within the .env file
 def get_role_str(role_name: str) -> str | None:
     if role_id := get_role(env[role_name]).id:
-        return f"<@&{str(role_id)}>"
+        return f"<@&{role_id!s}>"
     else:
         print(f"Error! role_name &{env[role_name]} is missing!")
     return None
@@ -132,7 +133,7 @@ def get_member(member_name):
 # member_name can be string or an id
 def get_member_str(member_name) -> str | None:
     if member_object := get_member(member_name):
-        return f"<@{str(member_object.id)}>"
+        return f"<@{member_object.id!s}>"
     return None
 
 
@@ -149,10 +150,12 @@ async def get_movie_event() -> discord.ScheduledEvent | None:
 
 
 # Iterate through movie events and return MOVIE_EVENT_NAME if it exists
-def __iterate_movie_events(scheduled_events: List[discord.ScheduledEvent]) -> discord.ScheduledEvent | None:
+def __iterate_movie_events(scheduled_events: list[discord.ScheduledEvent]) -> discord.ScheduledEvent | None:
     if scheduled_events:
         for event in guildObject.scheduled_events:
-            if event.name.startswith(MOVIE_EVENT_NAME) and (event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active):
+            if event.name.startswith(MOVIE_EVENT_NAME) and (
+                event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active
+            ):
                 return event
     return None
 
@@ -199,7 +202,7 @@ def convert_to_est_time(original_time: datetime) -> datetime:
 
 
 # Send a message using channel object
-async def send_message(channel, msg: str = "", embed: discord.Embed = None, delete_after: float = None):
+async def send_message(channel, msg: str = "", embed: discord.Embed | None = None, delete_after: float | None = None):
     await channel.send(msg, embed=embed, delete_after=delete_after)
 
 
@@ -208,9 +211,8 @@ async def send_message(channel, msg: str = "", embed: discord.Embed = None, dele
 def create_json(relative_file_path: str, file_being_called_from: str):
     dirname = os.path.dirname(file_being_called_from)
     filename = os.path.join(dirname, relative_file_path)
-    file = open(filename)
-    json_contents = json.load(file)
-    file.close()
+    with open(filename) as file:
+        json_contents = json.load(file)
     return json_contents
 
 
@@ -229,22 +231,20 @@ async def send_react_msg(msg_content: str, emoji_name: str):
 # Discord bot cannot be blocked in execution
 # As such get request is turned async with this function
 async def async_get_request(url: str, headers=None):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            if response.status == 200:
-                response_json = await response.json()
-                return response_json
+    async with aiohttp.ClientSession() as session, session.get(url, headers=headers) as response:
+        if response.status == 200:
+            response_json = await response.json()
+            return response_json
 
 
 # Send non-blocking post request; Returns json
 # Discord bot cannot be blocked in execution
 # As such post request is turned async with this function
 async def async_post_request(url: str, body):
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, data=body) as response:
-            if response.status == 200:
-                response_json = await response.json()
-                return response_json
+    async with aiohttp.ClientSession() as session, session.post(url, data=body) as response:
+        if response.status == 200:
+            response_json = await response.json()
+            return response_json
 
 
 # Exception handling for admin-only slash commands
@@ -254,8 +254,12 @@ async def async_post_request(url: str, body):
 async def handle_member_not_admin_error(interaction: discord.Interaction):
     embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
-    embed.description = f"Admin access is required for this command. Please contact {get_role_str('ADMIN_ROLE')} for more information."
-    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION)
+    embed.description = (
+        f"Admin access is required for this command. Please contact {get_role_str('ADMIN_ROLE')} for more information."
+    )
+    await interaction.response.send_message(
+        get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION
+    )
 
 
 # Exception handling for slash commands
@@ -263,8 +267,11 @@ async def handle_member_not_admin_error(interaction: discord.Interaction):
 async def handle_slash_command_error(interaction: discord, error):
     embed = discord.Embed(colour=embed_colour["ERROR"])
     embed.title = "Request Denied!"
-    embed.description = f"{str(error)}. Please contact {get_role_str('ADMIN_ROLE')} for more information."
-    await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION)
+    embed.description = f"{error!s}. Please contact {get_role_str('ADMIN_ROLE')} for more information."
+    await interaction.response.send_message(
+        get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION
+    )
+
 
 # General error handler for slash commands (use with @command.error)
 async def handle_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):

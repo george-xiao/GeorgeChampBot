@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 AS base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -10,7 +10,25 @@ RUN apt-get update && apt-get install -y \
 COPY ./requirements.txt ./
 RUN pip3 install -r requirements.txt
 
+# Copy test source files
+FROM base AS test
+
+COPY ./requirements-test.txt ./
+RUN pip3 install -r requirements-test.txt
+
+COPY ./pytest.ini ./
+COPY ./tests ./tests
+COPY ./commands ./commands
+COPY ./common ./common
+COPY ./components ./components
+
+# Fallback default; run-tests.sh overrides this to forward "$@" to pytest.
+CMD ["python3", "-m", "pytest", "-v"]
+
+
 # Copy source files
+FROM base AS prod
+
 COPY ./.env ./
 COPY ./GeorgeChampBot.py ./
 COPY ./commands ./commands

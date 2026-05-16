@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime
 import os
-import inspect
 import discord
 from common import utils as ut
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
@@ -99,72 +98,12 @@ async def on_member_remove(member):
 
 @ut.client.event
 async def on_message(message):
-    """
-    DEPRECATED!
-    Please use slash commands instead as it is more powerful and provides seamless integration with Discord.
-    Documentation: https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands
-    TODO: Refactor existing commands to use slash commands instead.
-    """
     try:
         if message.author == ut.client.user:
             return None
 
-        command_name = " ".join(message.content.lower().split()[:1])
-        message_content = " ".join(message.content.split()[1:])
-
-        if command_name in ["!plshelp"]:
-            await print_help(message, message_content)
-        # Music Player commands
-        elif command_name in ["!p", "!play"]:
-            await musicPlayer.play(message, message_content)
-        elif command_name in ["!pause", "!resume", "!stop"]:
-            await musicPlayer.pause(message)
-        elif command_name in ["!queue"]:
-            await musicPlayer.queue(message, message_content)
-        elif command_name in ["!nowplaying", "!np"]:
-            await musicPlayer.now_playing(message)
-        elif command_name in ["!skip", "!next"]:
-            await musicPlayer.skip(message, message_content)
-        elif command_name in ["!clear"]:
-            await musicPlayer.clear(message)
-        elif command_name in ["!disconnect"]:
-            await musicPlayer.disconnect(message)
-        elif command_name in ["!shuffle"]:
-            await musicPlayer.shuffle(message)
-        elif command_name in ["!move"]:
-            await musicPlayer.move(message, message_content)
-        elif command_name in ["!loop"]:
-            await musicPlayer.loop(message)
-        # Emote Leaderboard commands
-        elif command_name in ["!plscount"]:
-            await emoteLeaderboard.print_count(message, message_content)
-        elif command_name in ["!leaderboard"]:
-            await emoteLeaderboard.print_leaderboard(message, message_content)
-        elif command_name in ["!plstransfer"]:
-            await emoteLeaderboard.pls_transfer(message, message_content, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plsdelete"]:
-            await emoteLeaderboard.pls_delete(message, message_content, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plsaddscore_h"]:
-            await emoteLeaderboard.plsaddscore_h(message, message_content, ut.env["ADMIN_ROLE"])
-        # Meme Review commands
-        elif command_name in ["!memerboard"]:
-            await memeReview.print_memerboard(message)
-        # Dota Replay commands
-        elif command_name in ["!plsadd-dota"]:
-            await dotaReplay.add_player(message, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plsremove-dota"]:
-            await dotaReplay.remove_player(message, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plslist-dota"]:
-            await dotaReplay.list_players(message.channel)
-        elif command_name in ["!plsadd-twitch"]:
-            await twitchAnnouncement.add_streamer(message, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plsremove-twitch"]:
-            await twitchAnnouncement.remove_streamer(message, ut.env["ADMIN_ROLE"])
-        elif command_name in ["!plslist-twitch"]:
-            await twitchAnnouncement.list_streamers(message.channel)
-        else:
-            await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, ut.get_channel(ut.env["MEME_CHANNEL"]))
-            await emoteLeaderboard.check_emoji(message)
+        await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, ut.get_channel(ut.env["MEME_CHANNEL"]))
+        await emoteLeaderboard.check_emoji(message)
     except Exception as e:
         await ut.mainChannel.send("Error With On Message Event: " + str(e))
 
@@ -203,87 +142,6 @@ async def on_voice_state_update(member, before, after):
             musicPlayer.reset_state()
     except Exception as e:
         await ut.mainChannel.send("Error With On Voice State Update Event: " + str(e))
-
-
-async def print_help(message, message_content):
-    """
-    DEPRECATED!
-    Please use slash commands instead as it is more powerful and provides seamless integration with Discord.
-    Documentation: https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands
-    TODO: Refactor existing commands to use slash commands instead.
-    """
-    message_content = message_content.lower()
-    embed = ut.DiscordEmbedBuilder()
-    if message_content == "hidden":
-        description = inspect.cleandoc(
-            """
-            !plsaddscore_h <emote> <score> - Manually adds <score> to <emote>
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0xFFDE34, title_="Emote Leaderboard Commands", description_=description, thumbnail_url="https://cdn.discordapp.com/emojis/815268205010485318.webp?size=96&quality=lossless")
-    elif message_content == "emote":
-        description = inspect.cleandoc(
-            """
-            !plscount <emote> - All time score of <emote>
-            !leaderboard <page# OR 'last'> - All time emoji scores. -u shows deleted emotes.
-            !plstransfer <emoteFrom> <emoteTo> - Transfers emoteFrom to emoteTo (Admin Only)
-            !plsdelete <emote> - Deletes emote from database (Admin Only)
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0xFFDE34, title_="Emote Leaderboard Commands", description_=description, thumbnail_url="https://cdn.discordapp.com/emojis/815268205010485318.webp?size=96&quality=lossless")
-    elif message_content == "music":
-        description = inspect.cleandoc(
-            """
-            !p <song> - Plays songs or playlists
-            !pause - Cycles through: Pause -> Resume
-            !skip <song#> - Skips song at song#. Defaults to current song
-            !np - Currently playing song
-            !queue <page#> - Prints queue. Default page# - 1
-            !clear - Clears the queue
-            !disconnect - Disconnects bot from voice chat
-            !shuffle - Shuffles the queue
-            !move <moveFrom> <moveTo> - Moves song from moveFrom to moveTo. Default moveTo = 1
-            !loop - Cycles through: Loop Queue -> Loop Song -> Disable Loop 
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0xFF0000, title_="Music Player Commands", description_=description, thumbnail_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTf4296-YNIH5GmtQznpe_qgBsLxCtQZBgUtg&usqp=CAU")
-    elif message_content == "meme":
-        description = inspect.cleandoc(
-            """
-            memerboard <page# OR 'last'> - Display Meme Review leaderboard
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0x000000, title_="Meme Commands", description_=description, thumbnail_url="https://cdn.discordapp.com/emojis/667584569444270080.webp?size=96&quality=lossless")
-    elif message_content == "dota":
-        description = inspect.cleandoc(
-            """
-            !plsadd-dota <Name> <Player ID> - Add player to tracking list (Admin Only)
-            !plsremove-dota <Name or Player ID> - Remove player from tracking list (Admin Only)
-            !plslist-dota - List currently tracked players
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0x0047AB, title_="Dota Commands", description_=description, thumbnail_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp8emc_vN_kjb7616lE0JMIp9Igeko58cd1g&usqp=CAU")
-    elif message_content == "twitch":
-        description = inspect.cleandoc(
-            """
-            !plsadd-twitch <Name> <Twitch Username> - Add streamer to tracking list (Admin Only)
-            !plsremove-twitch <Name or Twitch Username> - Remove streamer from tracking list (Admin Only)
-            !plslist-twitch - List currently tracked twitch streamers
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0x0047AB, title_="Twitch Commands", description_=description, thumbnail_url="https://brand.twitch.tv/assets/images/black.png")
-    else:
-        description = inspect.cleandoc(
-            """
-            !plshelp emote - Emote Leaderboard Commands
-            !plshelp music - Music Leaderboard Commands
-            !plshelp meme - Meme Review Commands
-            !plshelp dota - Dota Commands
-            !plshelp twitch - Twitch Commands
-            """
-        )
-        embed = ut.DiscordEmbedBuilder(colour_=0x4F7942, title_="What do you need help with?", description_=description, thumbnail_url="https://ih1.redbubble.net/image.3510672545.8841/st,small,507x507-pad,600x600,f8f8f8.jpg")
-    await ut.send_message(message.channel, embed=embed.embed_msg)
 
 
 ut.client.run(ut.env["TOKEN"])

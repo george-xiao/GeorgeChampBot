@@ -1,0 +1,15 @@
+[
+  {
+    "content": "",
+    "embed": {
+      "color": 6323595,
+      "description": "1) Song A\n2) Song B\n3) Song C\n",
+      "flags": 0,
+      "footer": {
+        "text": "Page 1/1"
+      },
+      "title": "Queue",
+      "type": "rich"
+    }
+  }
+]

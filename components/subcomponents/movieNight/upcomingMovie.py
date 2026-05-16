@@ -85,7 +85,7 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Movi
         embed.description += "\nPlease contact a dictator so that they can select a host."
     elif member_name != upcoming_host_name:
         embed.title = "You are not the upcoming movie night host!"
-        embed.description = "{upcoming_host_name} is the upcoming movie night host."
+        embed.description = f"{upcoming_host_name} is the upcoming movie night host."
         embed.description += "\nPlease contact a dictator if you think there has been a mixup."
     elif not (movie := suggestion_database.get_movie(member_name, movie_name)):
         embed.title = f"{movie_name} does not exist in your suggestion list!"

@@ -3,15 +3,15 @@ import shelve
 import re
 from collections import Counter
 from datetime import date
+import discord
 import common.utils as ut
-
 
 WEEKLY_EMOTE_LIMIT = 250
 
 
 class Emoji:
 
-    def __init__(self, key, display_name, score = 0):
+    def __init__(self, key, display_name, score=0):
         self.key = key
         self.display_name = display_name
         self.score = score
@@ -25,6 +25,7 @@ class Emoji:
     def award(self, score):
         self.score += score
         self.w_score += score
+
 
 # Converts either formats: <EmoteName:123> or EmoteName
 def dname_to_key(display_name):
@@ -49,7 +50,7 @@ def score_algorithm(emoji_count):
 
 
 async def add_emote(display_name):
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
+    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
 
     key = dname_to_key(display_name)
     if key not in s_all_time:
@@ -61,7 +62,7 @@ async def add_emote(display_name):
 
 
 async def remove_emote(display_name):
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
+    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
 
     key = dname_to_key(display_name)
     s_all_time[key].deleted = True
@@ -74,20 +75,22 @@ async def remove_emote(display_name):
 
 # Helper function that allows us to grab values from shelve without opening+closing
 def get_emote(key):
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db")
     emote = s_all_time[key] if key in s_all_time else None
     s_all_time.close()
     return emote
 
+
 # Helper function that allows us to grab values from shelve without opening+closing
 def get_all_emotes():
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db')
+    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db")
     shelf_as_dict = dict(s_all_time)
     s_all_time.close()
     return shelf_as_dict
 
+
 async def init_emote_leaderboard():
-    starting_date = shelve.open('./database/starting_date_shelf.db')
+    starting_date = shelve.open("./database/starting_date_shelf.db")
     if "date" not in starting_date:
         today = date.today()
         starting_date["date"] = today.strftime("%d/%m/%Y")
@@ -111,29 +114,30 @@ async def init_emote_leaderboard():
 
 
 def update_counts(display_name, increment=1):
-    s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
+    s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
 
     key = dname_to_key(display_name)
-    
+
     if s_all_time[key].w_score + increment <= WEEKLY_EMOTE_LIMIT:
         s_all_time[key].award(increment)
     else:
         s_all_time[key].award(WEEKLY_EMOTE_LIMIT - s_all_time[key].w_score)
-    
+
     s_all_time.close()
+
 
 async def announcement_task():
     channel = ut.mainChannel
     try:
         shelf_as_dict = get_all_emotes().items()
         most_used_emotes = sorted(shelf_as_dict, key=lambda item: item[1].w_score, reverse=True)[:7]
-        
+
         temp = []
         for emote in most_used_emotes:
             if emote[1].w_score != 0:
                 temp.append((emote[1].display_name, emote[1].w_score))
         most_used_emotes = temp
-        
+
         if len(most_used_emotes) == 0:
             leaderboard_msg = "No emotes were used this week. :("
         else:
@@ -144,119 +148,90 @@ async def announcement_task():
 
         await channel.send(leaderboard_msg)
 
-        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
+        s_all_time = shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True)
         for key in s_all_time:
             s_all_time[key].w_score = 0
         s_all_time.close()
 
     except Exception as e:
-        await channel.send('Error Printing Weekly Leaderboard: ' + str(e))
+        await channel.send("Error Printing Weekly Leaderboard: " + str(e))
 
 
-async def print_count(message, display_name):
+async def get_emote_count_text(display_name: str) -> str:
     try:
         key = dname_to_key(display_name)
-        all_keys = get_all_emotes()
-        if key in all_keys:
-            emote = all_keys[key]
-            await message.channel.send(emote.display_name + " has been used " + str(emote.score) + " times.")
-        else:
-            await message.channel.send("I couldn't find the emote you were looking for")
+        all_emotes = get_all_emotes()
+        if key in all_emotes:
+            emote = all_emotes[key]
+            return f"{emote.display_name} has been used {emote.score} times."
+        return "I couldn't find the emote you were looking for"
 
     except Exception as e:
-        await message.channel.send('Error Printing Count: ' + str(e))
+        return f"Error Printing Count: {e}"
 
 
-async def print_leaderboard(message, message_content):
+async def get_leaderboard_text(page: int = 1, show_last: bool = False, show_deleted: bool = False) -> str:
     try:
-        shelf_as_dict = get_all_emotes().items()
-        most_used_emotes = sorted(shelf_as_dict, key=lambda item: item[1].score, reverse=True)
-        total_custom_emotes = 0
-        emote_limit = 0
+        shelf_as_dict = get_all_emotes()
+        most_used_emotes = sorted(shelf_as_dict.items(), key=lambda item: item[1].score, reverse=True)
 
-        show_deleted = False
-        message_content_list = message_content.split()
-        if "-u" in message_content_list:
-            show_deleted = True
-            message_content_list.remove("-u")
-        page_num = " ".join(message_content_list).strip()
-
-        # Only list out non-deleted/deleted emotes, based on flag
-        temp = []
+        # Filter: only emotes with score != 0, then deleted-or-not based on flag
+        filtered = []
         for emote in most_used_emotes:
             if emote[1].score != 0:
                 if not emote[1].deleted and not show_deleted:
-                    temp.append((emote[1].display_name, emote[1].score))
+                    filtered.append((emote[1].display_name, emote[1].score))
                 elif emote[1].deleted and show_deleted:
-                    temp.append((emote[1].key, emote[1].score))
-        most_used_emotes = temp
+                    filtered.append((emote[1].key, emote[1].score))
 
-        for key in most_used_emotes:
-            if not is_emoji(key[0]):
-                total_custom_emotes += 1
-        counter = 0
-        for key in most_used_emotes:
-            if total_custom_emotes < 10:
-                emote_limit = 99999999
-                break            
-            if counter == total_custom_emotes-9:
-                emote_limit = key[1]+1
-                break
-            if not is_emoji(key[0]):
-                counter += 1
-        start = 0
-        end = 10
-        if page_num != "" and page_num != "last":
-            increment = int(page_num)
-            # page size = 10
-            start += (increment - 1) * 10
-            end += (increment - 1) * 10
-        curr_page_num = (start / 10) + 1
+        # FUTURE: when is_emoji() is fixed (see TODO at top of file), the
+        # original design pushed low-score Unicode emojis off the front pages
+        # so custom server emotes stayed prominent on page 1. Concretely:
+        # compute the score of the (total_custom_emotes - 9)th custom emote
+        # and filter Unicode emojis below that threshold out of `filtered`.
+        # The previous implementation was broken (subscripted a dict-items
+        # view) and never fired because is_emoji() is currently a no-op.
+        # Reintroduce with a correct implementation when standard-emoji
+        # tracking is restored.
 
-        total_page_num = 0
-        for key in shelf_as_dict:
-            if not (is_emoji(key) and shelf_as_dict[key] < emote_limit):
-                total_page_num += 1
-        if page_num != "" and page_num != "last":
-            end = total_page_num
-            start = total_page_num - 10
-            curr_page_num = math.ceil(total_page_num/10)
-        total_page_num = math.ceil(total_page_num/10)
+        total_items = len(filtered)
+        total_page_num = max(1, math.ceil(total_items / 10))
 
-        temp = []
-        for key in most_used_emotes:
-            if not (is_emoji(key[0]) and shelf_as_dict[key[0]] < emote_limit):
-                temp.append(key)
-        most_used_emotes = temp[start:end]
+        if show_last:
+            page = total_page_num
+        page = max(1, page)
 
-        if len(most_used_emotes) == 0:
-            await message.channel.send("Doesn't look like there are emojis here :( Try another page.")
-        else:
-            starting_date = shelve.open('./database/starting_date_shelf.db')
-            leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
-            starting_date.close()
-            for i in range(10):
-                # Standard emojis are not printed on the last page
-                if (i < len(most_used_emotes) and not (is_emoji(most_used_emotes[i][0]) and most_used_emotes[i][1] < emote_limit)):
-                    placement = start + i + 1
-                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + most_used_emotes[i][0] + " - " + str(most_used_emotes[i][1]) + "\n"
-            leaderboard_msg += "Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num))
-            await message.channel.send(leaderboard_msg)
+        start = (page - 1) * 10
+        end = start + 10
+        page_slice = filtered[start:end]
+
+        if len(page_slice) == 0:
+            return "Doesn't look like there are emojis here :( Try another page."
+
+        starting_date = shelve.open("./database/starting_date_shelf.db")
+        leaderboard_msg = "Leaderboard (" + starting_date["date"] + ")\nEmote - Score \n"
+        starting_date.close()
+        for i in range(10):
+            if i < len(page_slice):
+                placement = start + i + 1
+                leaderboard_msg += str(placement) + ". " + page_slice[i][0] + " - " + str(page_slice[i][1]) + "\n"
+        leaderboard_msg += "Page " + str(page) + "/" + str(total_page_num)
+        return leaderboard_msg
 
     except Exception as e:
-        await message.channel.send('Error Printing Leaderboard: ' + str(e))
+        return f"Error Printing Leaderboard: {e}"
 
 
 async def check_emoji(message):
     try:
-        custom_emojis = re.findall(r'<:\w*:\d*>', message.content)
+        custom_emojis = re.findall(r"<:\w*:\d*>", message.content)
 
         emoji_names = list(Counter(custom_emojis).keys())
         emoji_counts = list(Counter(custom_emojis).values())
 
         for i in range(len(emoji_names)):
             for emoji in ut.guildObject.emojis:
-                temp_emoji = emoji_names[i][1:][:-1].split(':', 2)
+                temp_emoji = emoji_names[i][1:][:-1].split(":", 2)
                 if temp_emoji[1] == emoji.name and temp_emoji[2] == str(emoji.id) and emoji.animated is False:
                     update_counts(emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
@@ -270,7 +245,7 @@ async def check_emoji(message):
             update_counts(emoji_names[i], round(score_algorithm(emoji_counts[i])))
 
     except Exception as e:
-        await message.channel.send('Error Checking Emote: ' + str(e))
+        await message.channel.send("Error Checking Emote: " + str(e))
 
 
 async def check_reaction(payload):
@@ -283,11 +258,11 @@ async def check_reaction(payload):
                     update_counts(reaction_emoji_key)
         elif is_emoji(payload.emoji.name):
             update_counts(payload.emoji.name)
-            
-    except Exception as e:
-        await channel.send('Error Checking Reaction: ' + str(e))
 
-    
+    except Exception as e:
+        await channel.send("Error Checking Reaction: " + str(e))
+
+
 async def rename_emote(before, after):
     channel = ut.mainChannel
     try:
@@ -305,66 +280,69 @@ async def rename_emote(before, after):
             await add_emote(added_name)
 
     except Exception as e:
-        await channel.send('Error Renaming Emotes: ' + str(e))
+        await channel.send("Error Renaming Emotes: " + str(e))
 
 
-async def pls_transfer(message, message_content, admin_role):
+async def transfer_emote_score(transfer_from: str, transfer_to: str) -> str:
     try:
-        if not ut.author_is_admin(message.author, admin_role):
-            await message.channel.send('Admin Access Required. Ask a ' + admin_role)
-            return
-            
-        transfer_from, transfer_to = message_content.split(" ")
         to_key = dname_to_key(transfer_to)
         from_key = dname_to_key(transfer_from)
 
-        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
-        if from_key in s_all_time and to_key in s_all_time and s_all_time[from_key].deleted and not s_all_time[to_key].deleted:
-            s_all_time[to_key].score += s_all_time[from_key].score
-            del s_all_time[from_key]
-            await message.channel.send('Transfer Successful!')
-        else:
-            await message.channel.send("Couldn't Transfer Emotes!")
-        s_all_time.close()
-
+        with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+            if from_key in s_all_time and to_key in s_all_time and s_all_time[from_key].deleted and not s_all_time[to_key].deleted:
+                s_all_time[to_key].score += s_all_time[from_key].score
+                del s_all_time[from_key]
+                return f"Transfer from {transfer_from} to {s_all_time[to_key].display_name} successful!"
+            return "Couldn't Transfer Emotes!"
     except Exception as e:
-        await message.channel.send('Error Transferring: ' + str(e))
+        return f"Error Transferring: {e}"
 
-async def pls_delete(message, deleted_emote, admin_role):
+
+async def delete_emote_entry(deleted_emote: str) -> str:
     try:
-        if not ut.author_is_admin(message.author, admin_role):
-            await message.channel.send('Admin Access Required. Ask a ' + admin_role)
-            return
-
         deleted_key = dname_to_key(deleted_emote)
 
-        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
-        if deleted_key in s_all_time and s_all_time[deleted_key].deleted:
-            del s_all_time[deleted_key]
-            await message.channel.send('Deleted ' + deleted_emote)
-        else:
-            await message.channel.send("Couldn't find " + deleted_emote)
-        s_all_time.close()
-        
+        with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+            if deleted_key in s_all_time and s_all_time[deleted_key].deleted:
+                del s_all_time[deleted_key]
+                return "Deleted " + deleted_emote
+            return "Couldn't find " + deleted_emote
     except Exception as e:
-        await message.channel.send('Error Deleting Emote: ' + str(e))
+        return f"Error Deleting Emote: {e}"
 
-async def plsaddscore_h(message, message_content, admin_role):
+
+async def add_emote_score(emote: str, score: int) -> str:
     try:
-        if not ut.author_is_admin(message.author, admin_role):
-            await message.channel.send('Admin Access Required. Ask a ' + admin_role)
-            return
-
-        emote, score = message_content.split()
         emote_key = dname_to_key(emote)
 
-        s_all_time = shelve.open('./database/all_time_georgechamp_shelf.db', writeback=True)
-        if emote_key in s_all_time:
-            s_all_time[emote_key].score += int(score)
-            await message.channel.send(f"Added {score} to {emote_key}. New value is {s_all_time[emote_key].score}")
-        else:
-            await message.channel.send("Couldn't find " + emote_key)
-        s_all_time.close()
-        
+        with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s_all_time:
+            if emote_key in s_all_time:
+                s_all_time[emote_key].score += score
+                return f"Added {score} to {s_all_time[emote_key].display_name}. New value is {s_all_time[emote_key].score}"
+            return f"Couldn't find {emote_key}"
     except Exception as e:
-        await message.channel.send('Error Adding Score to Emote: ' + str(e))
+        return f"Error Adding Score to Emote: {e}"
+
+
+async def active_emote_autocomplete(interaction, current: str):
+    matches = []
+    for key, emote in get_all_emotes().items():
+        if emote.deleted:
+            continue
+        if current.lower() in key.lower() or current.lower() in emote.display_name.lower():
+            matches.append(emote)
+
+    matches.sort(key=lambda e: e.score, reverse=True)
+    return [discord.app_commands.Choice(name=emote.key, value=emote.display_name) for emote in matches[:25]]
+
+
+async def deleted_emote_autocomplete(interaction, current: str):
+    matches = []
+    for key, emote in get_all_emotes().items():
+        if not emote.deleted:
+            continue
+        if current.lower() in key.lower():
+            matches.append(emote)
+
+    matches.sort(key=lambda e: e.score, reverse=True)
+    return [discord.app_commands.Choice(name=f"{emote.key} (deleted)", value=emote.key) for emote in matches[:25]]

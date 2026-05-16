@@ -203,36 +203,6 @@ async def send_message(channel, msg: str = "", embed: discord.Embed = None, dele
     await channel.send(msg, embed=embed, delete_after=delete_after)
 
 
-# Get list of arguments after the command. If strict is true, arg_list will return empty if the number of arguments
-# is not exactly correct. If false, it will return all arguments.
-def get_arg_list(message, expected_num_args: int, strict: bool):
-    arg_list = message.content.split()
-    # ignore command
-    if strict:
-        arg_list = arg_list[1 : expected_num_args + 1]
-        if len(arg_list) != expected_num_args:
-            return []
-    else:
-        arg_list = arg_list[1:]
-        if len(arg_list) < expected_num_args:
-            return []
-
-    return arg_list
-
-
-# Given author object and admin role string, check if author is an admin
-def author_is_admin(author, admin_role: str):
-    is_admin = False
-
-    admin = get_role(admin_role)
-
-    for author_role in author.roles:
-        if author_role == admin:
-            is_admin = True
-
-    return is_admin
-
-
 # Given a relative path to a json file (from the place which it is called)
 # and the file path from which it is called (__file__), return the contents
 def create_json(relative_file_path: str, file_being_called_from: str):

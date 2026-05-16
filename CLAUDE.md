@@ -51,7 +51,7 @@ database/              # Shelve-based persistent storage (runtime created)
 
 **New features should use:**
 1. **AsyncTask** instead of the global while loop in `on_ready()` (the global loop is deprecated and causes race conditions)
-2. **Slash commands** instead of prefix commands (`!` prefix is legacy)
+2. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
 3. **Components directory** for new feature modules
 4. **utils.py** for Discord objects - never create duplicate client instances
 
@@ -68,6 +68,20 @@ task.stop()   # Cancels running task
 
 **Error handling:** Catch exceptions in event handlers - errors are logged to mainChannel.
 
+## Testing
+
+Tests run inside Docker (no local Python pollution). The `test` stage of the multi-stage `Dockerfile` shares the `base` layer with the bot, then adds `requirements-test.txt` (pinned via `pip-compile --constraint=requirements.txt`).
+
+`run-tests.sh` is primarily invoked by the `slash-command-tester` skill, but is also safe to run manually:
+
+```bash
+./run-tests.sh                          # all tests
+./run-tests.sh tests/test_meme.py -v    # single feature
+SNAPSHOT_UPDATE=1 ./run-tests.sh        # (re)write snapshots
+```
+
+Snapshot tests live in `tests/test_<feature>.py` and lock the output of each slash command into `tests/snapshots/<feature>/<command>.json`. See `.claude/skills/slash-command-tester.md` for the full workflow (when to fire, how to handle drift, how to write a test from scratch).
+
 ## Configuration
 
 Copy `.env.template` to `.env`. Key variables:
@@ -77,7 +91,6 @@ Copy `.env.template` to `.env`. Key variables:
 
 ## Known Technical Debt
 
-- Prefix commands marked for migration to slash commands
 - Global while loop in `on_ready()` should use AsyncTask pattern
 - Standard emojis not working (noted TODO in code)
 - OrderedShelve is a workaround for insertion-order shelve

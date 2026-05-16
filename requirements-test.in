@@ -1,0 +1,5 @@
+# Test-only direct dependencies - run `pip-compile requirements-test.in` to generate requirements-test.txt
+
+pytest>=8.0
+pytest-asyncio>=0.23
+dpytest>=0.7

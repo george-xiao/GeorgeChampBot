@@ -322,47 +322,39 @@ async def best_announcement_task(channel, deleteAfter=None):
         await channel.send('Error Printing Best Meme of the Week: ' + str(e))
       
         
-async def print_memerboard(message):
+async def get_memerboard_text(page: int, guild) -> str:
     try:
-        memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
-        shelf_as_dict = dict(memeLeaderboard)
-        sorted_memers = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
-        memeReview = shelve.open('./database/meme_review.db')
-        
-        start = 0
-        end = 5
-        if len(message.content) != len('!memerboard'):
-                increment = int(message.content[len('!memerboard') + 1:])
-                # page size = 5
-                start += (increment - 1) * 5
-                end += (increment - 1) * 5
-        curr_page_num = (start / 5) + 1
+        with shelve.open('./database/meme_leaderboard.db') as memeLeaderboard:
+            shelf_as_dict = dict(memeLeaderboard)
+            sorted_memers = sorted(shelf_as_dict.items(), key=operator.itemgetter(1), reverse=True)
 
-        sorted_memers = sorted_memers[start:end]
-        total_page_num = math.ceil(len(memeLeaderboard)/5)
+            page = max(1, page)
+            start = (page - 1) * 5
+            end = start + 5
 
-        if len(sorted_memers) == 0:
-            await message.channel.send("Doesn't look like there are memers here :( Try another page.")
-        else:
+            page_slice = sorted_memers[start:end]
+            total_page_num = math.ceil(len(memeLeaderboard) / 5) if len(memeLeaderboard) else 1
+
+            if len(page_slice) == 0:
+                return "Doesn't look like there are memers here :( Try another page."
+
             leaderboard_msg = "Meme Leaderboard\nMemer - Points \n"
             for i in range(5):
-                if (i < len(sorted_memers)):
+                if i < len(page_slice):
                     placement = start + i + 1
-                    displayedMember = await message.guild.fetch_member(int(sorted_memers[i][0]))
+                    displayedMember = await guild.fetch_member(int(page_slice[i][0]))
                     if displayedMember.nick is not None:
                         displayedName = displayedMember.nick
                     else:
                         displayedName = displayedMember.display_name
-                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + displayedName + " - " + str(sorted_memers[i][1][0]) + "\n"
-            leaderboard_msg += "Page " + str(int(curr_page_num)) + "/" + str(int(total_page_num))
-            await message.channel.send(leaderboard_msg)
-
-        memeLeaderboard.close()
-
+                    leaderboard_msg = leaderboard_msg + str(placement) + ". " + displayedName + " - " + str(page_slice[i][1][0]) + "\n"
+            leaderboard_msg += "Page " + str(page) + "/" + str(int(total_page_num))
+            return leaderboard_msg
     except Exception as e:
-        await message.channel.send('Error Printing Leaderboard: ' + str(e))
+        return f"Error Printing Leaderboard: {e}"
 
-async def resetLimit():    
+
+async def resetLimit():
     memeLeaderboard = shelve.open('./database/meme_leaderboard.db')
     for memer in memeLeaderboard:
         memeLeaderboard[memer] = [memeLeaderboard[memer][0], 0]

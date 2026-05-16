@@ -44,6 +44,9 @@
 
 ## Music Bot:
 
+**Features:**
+- [ ] Add cron job to run.sh to update ytdl dependency daily during off-times
+
 **Bugs:**
 - [ ] Performance issues when queueing multiple songs
 
@@ -76,3 +79,8 @@
 - [ ] Remove remove-host command if it is not being used for a sufficient amount of time (Currently, the command is commented out).
 - [ ] Have a consistent spelling of movie-night (vs movie night?)
  
+## Development:
+
+**Testing:**
+- [ ] Allow testing framework to assert on dynamic variables. Currently, the tests only allow snapshots to be tested. Allowing raw JSON assets will accommodate more complex flows.
+- [ ] Add linting + testing when PR gets created (GitHub Actions)

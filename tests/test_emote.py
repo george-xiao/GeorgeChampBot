@@ -23,9 +23,13 @@ from tests._dispatch import invoke_slash, run_periodic_once
 
 # --- /emote count ---
 
+
 async def test_emote_count_existing(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote count", regular_member, guild,
+        tree,
+        "emote count",
+        regular_member,
+        guild,
         options={"emote": "kekw"},
     )
     [msg] = capture.messages
@@ -35,7 +39,10 @@ async def test_emote_count_existing(seeded_emote_db, tree, guild, regular_member
 
 async def test_emote_count_missing(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote count", regular_member, guild,
+        tree,
+        "emote count",
+        regular_member,
+        guild,
         options={"emote": "nonexistent"},
     )
     [msg] = capture.messages
@@ -44,9 +51,13 @@ async def test_emote_count_missing(seeded_emote_db, tree, guild, regular_member)
 
 # --- /emote leaderboard ---
 
+
 async def test_emote_leaderboard_page_1(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote leaderboard", regular_member, guild,
+        tree,
+        "emote leaderboard",
+        regular_member,
+        guild,
         options={"page": 1},
     )
     [msg] = capture.messages
@@ -58,7 +69,10 @@ async def test_emote_leaderboard_page_1(seeded_emote_db, tree, guild, regular_me
 
 async def test_emote_leaderboard_page_2(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote leaderboard", regular_member, guild,
+        tree,
+        "emote leaderboard",
+        regular_member,
+        guild,
         options={"page": 2},
     )
     [msg] = capture.messages
@@ -68,7 +82,10 @@ async def test_emote_leaderboard_page_2(seeded_emote_db, tree, guild, regular_me
 
 async def test_emote_leaderboard_last(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote leaderboard", regular_member, guild,
+        tree,
+        "emote leaderboard",
+        regular_member,
+        guild,
         options={"show_last": True},
     )
     [msg] = capture.messages
@@ -77,7 +94,10 @@ async def test_emote_leaderboard_last(seeded_emote_db, tree, guild, regular_memb
 
 async def test_emote_leaderboard_deleted(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote leaderboard", regular_member, guild,
+        tree,
+        "emote leaderboard",
+        regular_member,
+        guild,
         options={"show_deleted": True},
     )
     [msg] = capture.messages
@@ -87,7 +107,10 @@ async def test_emote_leaderboard_deleted(seeded_emote_db, tree, guild, regular_m
 
 async def test_emote_leaderboard_empty_page(seeded_emote_db, tree, guild, regular_member):
     capture = await invoke_slash(
-        tree, "emote leaderboard", regular_member, guild,
+        tree,
+        "emote leaderboard",
+        regular_member,
+        guild,
         options={"page": 99},
     )
     [msg] = capture.messages
@@ -96,9 +119,13 @@ async def test_emote_leaderboard_empty_page(seeded_emote_db, tree, guild, regula
 
 # --- /admin emote transfer ---
 
+
 async def test_emote_transfer_success(seeded_emote_db, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin emote transfer", admin_member, guild,
+        tree,
+        "admin emote transfer",
+        admin_member,
+        guild,
         options={"emote_from": "oldmeme", "emote_to": "kekw"},
     )
     [msg] = capture.messages
@@ -110,7 +137,10 @@ async def test_emote_transfer_success(seeded_emote_db, tree, guild, admin_member
 async def test_emote_transfer_failed(seeded_emote_db, tree, guild, admin_member):
     # kekw is active, not deleted → transferring FROM it must fail
     capture = await invoke_slash(
-        tree, "admin emote transfer", admin_member, guild,
+        tree,
+        "admin emote transfer",
+        admin_member,
+        guild,
         options={"emote_from": "kekw", "emote_to": "pog"},
     )
     [msg] = capture.messages
@@ -121,9 +151,13 @@ async def test_emote_transfer_failed(seeded_emote_db, tree, guild, admin_member)
 
 # --- /admin emote delete ---
 
+
 async def test_emote_delete_success(seeded_emote_db, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin emote delete", admin_member, guild,
+        tree,
+        "admin emote delete",
+        admin_member,
+        guild,
         options={"emote": "oldmeme"},
     )
     [msg] = capture.messages
@@ -134,7 +168,10 @@ async def test_emote_delete_success(seeded_emote_db, tree, guild, admin_member):
 async def test_emote_delete_active(seeded_emote_db, tree, guild, admin_member):
     # kekw is active (not soft-deleted) → hard delete should refuse
     capture = await invoke_slash(
-        tree, "admin emote delete", admin_member, guild,
+        tree,
+        "admin emote delete",
+        admin_member,
+        guild,
         options={"emote": "kekw"},
     )
     [msg] = capture.messages
@@ -144,9 +181,13 @@ async def test_emote_delete_active(seeded_emote_db, tree, guild, admin_member):
 
 # --- /admin emote add-score ---
 
+
 async def test_emote_add_score_existing(seeded_emote_db, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin emote add-score", admin_member, guild,
+        tree,
+        "admin emote add-score",
+        admin_member,
+        guild,
         options={"emote": "kekw", "score": 100},
     )
     [msg] = capture.messages
@@ -156,7 +197,10 @@ async def test_emote_add_score_existing(seeded_emote_db, tree, guild, admin_memb
 
 async def test_emote_add_score_missing(seeded_emote_db, tree, guild, admin_member):
     capture = await invoke_slash(
-        tree, "admin emote add-score", admin_member, guild,
+        tree,
+        "admin emote add-score",
+        admin_member,
+        guild,
         options={"emote": "ghostemote", "score": 50},
     )
     [msg] = capture.messages
@@ -165,6 +209,7 @@ async def test_emote_add_score_missing(seeded_emote_db, tree, guild, admin_membe
 
 
 # --- Gateway events: on_message → check_emoji ---
+
 
 def _emoji_mock(name: str, emoji_id: int) -> MagicMock:
     e = MagicMock()
@@ -181,7 +226,8 @@ async def emote_event_bot(seeded_emote_db, dpytest_client, monkeypatch):
     when the test sends `<:kekw:101>`. dpytest_client (in conftest) does
     the client/dispatcher wiring."""
     monkeypatch.setattr(
-        ut.guildObject, "emojis",
+        ut.guildObject,
+        "emojis",
         [_emoji_mock("kekw", 101), _emoji_mock("pog", 102)],
     )
     return dpytest_client
@@ -226,9 +272,8 @@ async def test_on_raw_reaction_add_increments_score(emote_event_bot, monkeypatch
 
 # --- Periodic task: weekly emote announcement ---
 
-async def test_weekly_announcement_reports_used_emotes(
-    seeded_emote_db, patched_periodic_start, monkeypatch
-):
+
+async def test_weekly_announcement_reports_used_emotes(seeded_emote_db, patched_periodic_start, monkeypatch):
     # Drive some w_scores up via the production API.
     emoteLeaderboard.update_counts("<:kekw:101>", 5)
     emoteLeaderboard.update_counts("<:pog:102>", 3)

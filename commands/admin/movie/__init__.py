@@ -1,4 +1,5 @@
-import os, importlib
+import os
+import importlib
 from discord import app_commands
 
 movie_group = app_commands.Group(name="movie", description="Admin movie night commands", parent=None)

@@ -7,6 +7,23 @@ See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#
 ### Adding new features
 See the [discord.py app-commands docs](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and [commands README](../commands/README.md) for the slash-command authoring workflow.
 
+## Pre-Push Lint Hook
+
+This project uses [Ruff](https://docs.astral.sh/ruff/) for Python linting and runs it via [pre-commit](https://pre-commit.com/) on every `git push`. One-time setup per clone:
+
+```
+pip install pre-commit
+pre-commit install --hook-type pre-push
+```
+
+To run the linter manually across the whole repo:
+
+```
+pre-commit run --all-files
+```
+
+To bump Ruff to the latest version: `pre-commit autoupdate`.
+
 ### Async / non-blocking
 The bot runs on a single asyncio event loop (discord.py). Any synchronous blocking call inside an `async def` — `requests`, `time.sleep`, sync database drivers, sync HTTP/library APIs — freezes every gateway heartbeat, voice tick, and concurrent slash command until it returns. New code must stay non-blocking:
 

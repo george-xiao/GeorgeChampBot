@@ -1,8 +1,11 @@
-import os, importlib
+import os
+import importlib
 from discord import app_commands
 import common.utils as ut
 
-admin_group = app_commands.Group(name="admin", description="Admin commands", default_permissions=ut.get_role(ut.env["ADMIN_ROLE"]).permissions)
+admin_group = app_commands.Group(
+    name="admin", description="Admin commands", default_permissions=ut.get_role(ut.env["ADMIN_ROLE"]).permissions
+)
 
 
 def register_group(tree: app_commands.CommandTree):

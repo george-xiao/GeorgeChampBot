@@ -1,4 +1,5 @@
-import os, importlib
+import os
+import importlib
 from discord import app_commands
 
 dota_group = app_commands.Group(name="dota", description="Admin Dota tracking commands", parent=None)

@@ -1,5 +1,6 @@
 import shelve
 
+
 class OrderedShelve:
     """
     Workaround to achieve ordered shelve; a dict is stored under db["dict"]
@@ -11,18 +12,19 @@ class OrderedShelve:
         Since dict maintains insertion order in Python3.7+, we can use it to bypass having to maintain order ourselves
     TODO: Find a non-hacky solution
     """
+
     def __init__(self, database_path: str):
         self.shelve_db = None
         self.database_path = database_path
 
     def open(self) -> dict:
-        self.shelve_db = shelve.open(self.database_path)
+        self.shelve_db = shelve.open(self.database_path)  # noqa: SIM115
         db_dict = self.shelve_db.get("dict")
         if not db_dict:
             return {}
         return db_dict
 
-    def close(self, modified_dict: dict = None):
+    def close(self, modified_dict: dict | None = None):
         if modified_dict:
             self.__modify(modified_dict)
         self.shelve_db.close()

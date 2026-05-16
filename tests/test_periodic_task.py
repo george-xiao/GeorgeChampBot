@@ -15,6 +15,7 @@ from common.periodicTask import PeriodicTask
 
 # --- PeriodicTask.every (clock-aligned interval) ---
 
+
 def test_every_on_boundary_returns_full_interval():
     """When the current time is exactly on a boundary, the next boundary is
     one full interval away — we don't fire on the current moment."""
@@ -64,6 +65,7 @@ def test_every_one_second_just_after_boundary():
 
 # --- minutely / hourly are thin shortcuts over every() ---
 
+
 def test_minutely_matches_every_60():
     task = PeriodicTask.minutely(_noop)
     halfway = datetime(2024, 1, 1, 12, 0, 30)
@@ -81,6 +83,7 @@ def test_hourly_matches_every_3600():
 
 
 # --- PeriodicTask.daily ---
+
 
 def test_daily_later_today():
     """Target time is later today → fire today."""
@@ -104,6 +107,7 @@ def test_daily_already_passed_today():
 # --- PeriodicTask.weekly ---
 
 # datetime(2024, 1, 1) is a Monday; (2024, 1, 3) is a Wednesday.
+
 
 def test_weekly_same_day_future_time():
     """Target weekday is today, target time is later today → fire today."""
@@ -158,6 +162,7 @@ def test_weekly_same_target_today_already_fired():
 
 
 # --- helpers ---
+
 
 async def _noop():
     pass

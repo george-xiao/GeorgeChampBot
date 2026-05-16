@@ -1,0 +1,12 @@
+# Run on every push: `pre-commit install --hook-type pre-push`
+# Run manually:      `pre-commit run --all-files`
+
+default_stages: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

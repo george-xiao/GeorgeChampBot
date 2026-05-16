@@ -76,7 +76,9 @@ async def on_message(message):
 @ut.client.event
 async def on_raw_reaction_add(payload):
     try:
-        is_meme = await memeReview.add_meme_reactions(payload, ut.get_channel(ut.env["MEME_CHANNEL"]), ut.guildObject, ut.get_role(ut.env["ADMIN_ROLE"]))
+        is_meme = await memeReview.add_meme_reactions(
+            payload, ut.get_channel(ut.env["MEME_CHANNEL"]), ut.guildObject, ut.get_role(ut.env["ADMIN_ROLE"])
+        )
         if not is_meme:
             await emoteLeaderboard.check_reaction(payload)
     except Exception as e:

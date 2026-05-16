@@ -16,7 +16,9 @@ def init():
 
 # Movie-name autocomplete
 # If user field is empty, autocomplete assumes that names should come from requester
-async def movie_names_autocomplete(interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice[str]]:
+async def movie_names_autocomplete(
+    interaction: discord.Interaction, current: str
+) -> list[discord.app_commands.Choice[str]]:
     user = interaction.namespace.user
     if user:
         user_id = user.id
@@ -24,7 +26,11 @@ async def movie_names_autocomplete(interaction: discord.Interaction, current: st
     else:
         user_name = interaction.user.name
 
-    return [discord.app_commands.Choice(name=movie_name, value=movie_name) for movie_name in SUGGESTION_DATABASE.get_suggestion_names(user_name) if current.lower() in movie_name.lower()]
+    return [
+        discord.app_commands.Choice(name=movie_name, value=movie_name)
+        for movie_name in SUGGESTION_DATABASE.get_suggestion_names(user_name)
+        if current.lower() in movie_name.lower()
+    ]
 
 
 # Event handlers that handles reminder based on how ScheduledEvent is updated

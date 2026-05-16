@@ -10,9 +10,7 @@ captured channel messages), not output snapshots.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock
 
-import pytest
 
 import common.utils as ut
 from components import dotaReplay
@@ -91,6 +89,7 @@ async def test_dota_remove_not_tracked(db_dir, tree, guild, admin_member):
 
 # --- Periodic task: hourly OpenDota poll ---
 
+
 def _recent_match(match_id: int, hero_id: int = 1, won: bool = True) -> dict:
     """Build a minimal OpenDota recentMatches entry timestamped 'now-ish'."""
     now = int(datetime.now().timestamp())
@@ -110,9 +109,7 @@ def _recent_match(match_id: int, hero_id: int = 1, won: bool = True) -> dict:
     }
 
 
-async def test_dota_recent_matches_reports_recent_game(
-    seeded_dota_db, patched_periodic_start, monkeypatch
-):
+async def test_dota_recent_matches_reports_recent_game(seeded_dota_db, patched_periodic_start, monkeypatch):
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
     monkeypatch.setattr(ut, "get_channel", lambda _: channel)
@@ -134,9 +131,7 @@ async def test_dota_recent_matches_reports_recent_game(
     assert "999001" in embeds[0].embed["url"]
 
 
-async def test_dota_recent_matches_silent_when_no_recent_games(
-    seeded_dota_db, patched_periodic_start, monkeypatch
-):
+async def test_dota_recent_matches_silent_when_no_recent_games(seeded_dota_db, patched_periodic_start, monkeypatch):
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
     monkeypatch.setattr(ut, "get_channel", lambda _: channel)
@@ -152,9 +147,7 @@ async def test_dota_recent_matches_silent_when_no_recent_games(
     assert capture.messages == []
 
 
-async def test_dota_recent_matches_handles_api_returning_none(
-    seeded_dota_db, patched_periodic_start, monkeypatch
-):
+async def test_dota_recent_matches_handles_api_returning_none(seeded_dota_db, patched_periodic_start, monkeypatch):
     capture = CapturedMessages()
     channel = make_capturing_channel(capture)
     monkeypatch.setattr(ut, "get_channel", lambda _: channel)

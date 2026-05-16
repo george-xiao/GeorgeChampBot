@@ -105,6 +105,12 @@ ENV/
 # .idea/
 .idea/
 
+# Editor settings (personal, not shared)
+.vscode/
+
+# Ruff cache
+.ruff_cache/
+
 # database
 /database
 

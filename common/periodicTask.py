@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Callable, Coroutine
+from collections.abc import Callable, Coroutine
 import asyncio
 
 from common.asyncTask import AsyncTask
@@ -57,10 +57,12 @@ class PeriodicTask(AsyncTask):
         Alignment is against UTC epoch seconds, so `every(86400, ...)` fires
         at UTC midnight (use `daily(0, 0, ...)` for local midnight).
         """
+
         def _compute() -> float:
             now = datetime.now().timestamp()
             next_boundary = (now // seconds + 1) * seconds
             return next_boundary - now
+
         return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)
 
     @classmethod
@@ -76,12 +78,14 @@ class PeriodicTask(AsyncTask):
     @classmethod
     def daily(cls, hour: int, minute: int, coroutine_factory: Callable[[], Coroutine]) -> "PeriodicTask":
         """Fire at the next occurrence of the given hour:minute (local time)."""
+
         def _compute() -> float:
             now = datetime.now()
             target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
             if target <= now:
                 target += timedelta(days=1)
             return (target - now).total_seconds()
+
         return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)
 
     @classmethod
@@ -96,6 +100,7 @@ class PeriodicTask(AsyncTask):
 
         `weekday`: 0 = Monday ... 6 = Sunday (matches `datetime.weekday()`).
         """
+
         def _compute() -> float:
             now = datetime.now()
             target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
@@ -104,4 +109,5 @@ class PeriodicTask(AsyncTask):
             if target <= now:
                 target += timedelta(days=7)
             return (target - now).total_seconds()
+
         return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)

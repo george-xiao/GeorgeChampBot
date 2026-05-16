@@ -51,10 +51,11 @@ database/              # Shelve-based persistent storage (runtime created)
 ## Important Patterns
 
 **New features should use:**
-1. **AsyncTask** for one-shot background work; **PeriodicTask** for recurring schedules (see usage block below). Components own their task(s) and expose an `init()` that `on_ready` calls. Template: `.claude/skills/templates/periodic_task.py`.
-2. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
-3. **Components directory** for new feature modules
-4. **utils.py** for Discord objects - never create duplicate client instances
+1. **Event-driven async, never block the loop.** The bot runs a single asyncio event loop — any blocking call inside `async def` (e.g. `requests`, `time.sleep`, sync HTTP, sync library APIs) freezes Discord heartbeats and every other slash command until it returns. For HTTP, use `ut.async_get_request` / `ut.async_post_request` (aiohttp-backed, in `common/utils.py`). For unavoidable sync libraries (yt-dlp, etc.) wrap with `asyncio.to_thread(...)`. See `docs/DEVELOPMENT.md#async--non-blocking` for the rationale.
+2. **AsyncTask** for one-shot background work; **PeriodicTask** for recurring schedules (see usage block below). Components own their task(s) and expose an `init()` that `on_ready` calls. Template: `.claude/skills/templates/periodic_task.py`.
+3. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
+4. **Components directory** for new feature modules
+5. **utils.py** for Discord objects - never create duplicate client instances
 
 **AsyncTask / PeriodicTask usage:**
 ```python

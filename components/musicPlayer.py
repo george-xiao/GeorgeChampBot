@@ -1,6 +1,6 @@
 import asyncio
+from aiogoogle import Aiogoogle
 from discord import FFmpegPCMAudio
-import googleapiclient.discovery
 from yt_dlp import YoutubeDL
 from collections import deque
 from datetime import datetime
@@ -187,7 +187,9 @@ async def process_song(sq):
         return True
 
     next_song = sq.queue[0]
-    info = YoutubeDL(YDL_OPTIONS).extract_info(next_song.yt_url, download=False)
+    info = await asyncio.to_thread(
+        YoutubeDL(YDL_OPTIONS).extract_info, next_song.yt_url, download=False
+    )
     if not info:
         await ut.botChannel.send(f"Skipped {next_song.title} ({next_song.yt_url}). Song is unavailable")
         sq.queue.popleft()
@@ -221,41 +223,50 @@ async def process_input(user_input, requester):
 
     video_ids = []
     query = parse_qs(urlparse(user_input).query, keep_blank_values=True)
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=ut.env["YOUTUBE_API_KEY"])
-    if not query:
-        request = youtube.search().list(part="id", maxResults=1, q=user_input)
-        response = request.execute()
-        if response["items"] and "videoId" in response["items"][0]["id"]:
-            video_ids.append(response["items"][0]["id"]["videoId"])
-    elif "youtube.com/watch" in user_input:
-        video_ids.append(query["v"][0])
-    if "youtube.com/playlist" in user_input:
-        playlist_id = query["list"][0]
-        request = youtube.playlistItems().list(part="contentDetails", playlistId=playlist_id, maxResults=50)
-        response = request.execute()
-        while request is not None:
-            response = request.execute()
-            for item in response["items"]:
-                video_ids.append(item["contentDetails"]["videoId"])
-            request = youtube.playlistItems().list_next(request, response)
-            if len(video_ids) > MAX_SONGS + 1:
-                break
 
-    if not video_ids:
-        return []
+    async with Aiogoogle(api_key=ut.env["YOUTUBE_API_KEY"]) as aiog:
+        youtube = await aiog.discover("youtube", "v3")
 
-    song_items = []
-    for i in range(len(video_ids) // 50 + 1):
-        start = i * 50
-        end = min((i + 1) * 50, len(video_ids))
-        request = youtube.videos().list(part="snippet,contentDetails", id=",".join(video_ids[start:end]), maxResults=50)
+        if not query:
+            response = await aiog.as_api_key(
+                youtube.search.list(part="id", maxResults=1, q=user_input)
+            )
+            if response["items"] and "videoId" in response["items"][0]["id"]:
+                video_ids.append(response["items"][0]["id"]["videoId"])
+        elif "youtube.com/watch" in user_input:
+            video_ids.append(query["v"][0])
 
-        while request is not None:
-            response = request.execute()
+        if "youtube.com/playlist" in user_input:
+            page_token = None
+            while True:
+                response = await aiog.as_api_key(
+                    youtube.playlistItems.list(
+                        part="contentDetails",
+                        playlistId=query["list"][0],
+                        maxResults=50,
+                        pageToken=page_token,
+                    )
+                )
+                video_ids.extend(item["contentDetails"]["videoId"] for item in response["items"])
+                page_token = response.get("nextPageToken")
+                if not page_token or len(video_ids) > MAX_SONGS + 1:
+                    break
 
-            for item in response["items"]:
-                song_items.append(SongItem(item, requester))
-            request = youtube.playlistItems().list_next(request, response)
+        if not video_ids:
+            return []
+
+        song_items = []
+        for i in range(0, len(video_ids), 50):
+            chunk = video_ids[i:i + 50]
+            response = await aiog.as_api_key(
+                youtube.videos.list(
+                    part="snippet,contentDetails",
+                    id=",".join(chunk),
+                    maxResults=50,
+                )
+            )
+            song_items.extend(SongItem(item, requester) for item in response["items"])
+
     return song_items
 
 

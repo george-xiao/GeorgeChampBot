@@ -2,7 +2,6 @@ import discord
 import json
 import math
 import os
-import requests
 import shelve
 from datetime import datetime
 import sys
@@ -130,9 +129,8 @@ async def check_recent_matches(channel):
 
         player_list_shelf = shelve.open("./database/dota_player_list.db")
         for player_id, member_name in player_list_shelf.items():
-            res = requests.get(open_dota_players_url + player_id + "/recentMatches")
-            if res.status_code == 200:
-                recent_matches = res.json()
+            recent_matches = await ut.async_get_request(open_dota_players_url + player_id + "/recentMatches")
+            if recent_matches is not None:
                 for match in recent_matches:
                     # if game in last 3610s (1h + 10s)
                     if curr_epoch_time - (int(match["start_time"]) + int(match["duration"])) < 3610:

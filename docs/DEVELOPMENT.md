@@ -7,6 +7,14 @@ See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#
 ### Adding new features
 See the [discord.py app-commands docs](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and [commands README](../commands/README.md) for the slash-command authoring workflow.
 
+### Async / non-blocking
+The bot runs on a single asyncio event loop (discord.py). Any synchronous blocking call inside an `async def` — `requests`, `time.sleep`, sync database drivers, sync HTTP/library APIs — freezes every gateway heartbeat, voice tick, and concurrent slash command until it returns. New code must stay non-blocking:
+
+- HTTP → `common.utils.async_get_request` / `async_post_request` (aiohttp).
+- Google APIs → `aiogoogle` (already a dependency).
+- Unavoidable sync libraries (e.g. `yt-dlp`'s `extract_info`) → wrap with `asyncio.to_thread(fn, *args)`.
+- Recurring/scheduled work → `PeriodicTask` (see `common/periodicTask.py`); never `while True: time.sleep(...)`.
+
 ## Testing
 
 Tests run in Docker via the `test` stage of the `Dockerfile`, which extends the `base` layer with `requirements-test.txt`.

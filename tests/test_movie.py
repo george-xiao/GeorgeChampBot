@@ -1,125 +1,66 @@
-from tests import _env_setup  # noqa: F401
-
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
 
-from tests._capture import CapturedMessages, make_capturing_interaction, assert_snapshot
+import common.utils as ut
+from components.movieNight import SUGGESTION_DATABASE
+from components.subcomponents.movieNight import upcomingMovie
+from components.subcomponents.movieNight.movie import Movie
 
 
 # ---- MovieSuggestions: add ----
 
 @pytest.mark.asyncio
-async def test_movie_add_suggestion_success(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight.movie import Movie
-
-    movie = Movie("Dune", "Sci-Fi", "Sandworms")
-    embed = SUGGESTION_DATABASE.add_suggestion("alice", movie)
-
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/add-suggestion-success", snapshots_dir)
+async def test_movie_add_suggestion_success(db_dir, ut_globals, snap_send):
+    embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Dune", "Sci-Fi", "Sandworms"))
+    await snap_send(embed, "movie/add-suggestion-success")
 
 
 @pytest.mark.asyncio
-async def test_movie_add_suggestion_at_capacity(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight.movie import Movie
-
+async def test_movie_add_suggestion_at_capacity(db_dir, ut_globals, snap_send):
     # Pre-fill alice's list to capacity (MAX_SUGGESTIONS = 10)
     for i in range(10):
         SUGGESTION_DATABASE.add_suggestion("alice", Movie(f"Movie {i}", "Genre", f"Reason {i}"))
-
     embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Overflow", "Drama", "Should fail"))
-
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/add-suggestion-at-capacity", snapshots_dir)
+    await snap_send(embed, "movie/add-suggestion-at-capacity")
 
 
 # ---- MovieSuggestions: list ----
 
 @pytest.mark.asyncio
-async def test_movie_list_suggestions_populated(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.get_list_embed()
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/list-suggestions-populated", snapshots_dir)
+async def test_movie_list_suggestions_populated(seeded_movie_db, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.get_list_embed(), "movie/list-suggestions-populated")
 
 
 @pytest.mark.asyncio
-async def test_movie_list_suggestions_empty(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.get_list_embed()
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/list-suggestions-empty", snapshots_dir)
+async def test_movie_list_suggestions_empty(db_dir, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.get_list_embed(), "movie/list-suggestions-empty")
 
 
 # ---- MovieSuggestions: view ----
 
 @pytest.mark.asyncio
-async def test_movie_view_suggestion_found(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.get_suggestion_embed("alice", "Interstellar")
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/view-suggestion-found", snapshots_dir)
+async def test_movie_view_suggestion_found(seeded_movie_db, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.get_suggestion_embed("alice", "Interstellar"), "movie/view-suggestion-found")
 
 
 @pytest.mark.asyncio
-async def test_movie_view_suggestion_not_found(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.get_suggestion_embed("alice", "Ghost Movie")
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/view-suggestion-not-found", snapshots_dir)
+async def test_movie_view_suggestion_not_found(seeded_movie_db, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.get_suggestion_embed("alice", "Ghost Movie"), "movie/view-suggestion-not-found")
 
 
 # ---- MovieSuggestions: remove ----
 
 @pytest.mark.asyncio
-async def test_movie_remove_suggestion_success(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.remove_suggestion("alice", "Inception")
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/remove-suggestion-success", snapshots_dir)
+async def test_movie_remove_suggestion_success(seeded_movie_db, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.remove_suggestion("alice", "Inception"), "movie/remove-suggestion-success")
 
 
 @pytest.mark.asyncio
-async def test_movie_remove_suggestion_not_found(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-
-    embed = SUGGESTION_DATABASE.remove_suggestion("alice", "Ghost Movie")
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/remove-suggestion-not-found", snapshots_dir)
+async def test_movie_remove_suggestion_not_found(seeded_movie_db, ut_globals, snap_send):
+    await snap_send(SUGGESTION_DATABASE.remove_suggestion("alice", "Ghost Movie"), "movie/remove-suggestion-not-found")
 
 
 # ---- upcomingMovie helpers ----
@@ -137,10 +78,7 @@ def _make_scheduled_event(start_time=None):
 # ---- view-upcoming ----
 
 @pytest.mark.asyncio
-async def test_movie_view_upcoming_no_event(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.subcomponents.movieNight import upcomingMovie
-    import common.utils as ut
-
+async def test_movie_view_upcoming_no_event(db_dir, ut_globals, snap_send):
     error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
     error_embed.title = '"Movie Night" event does not exist!'
     error_embed.description = "Test error description"
@@ -148,41 +86,22 @@ async def test_movie_view_upcoming_no_event(db_dir, ut_globals, guild, regular_m
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
         result = await upcomingMovie.get_upcoming()
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    if isinstance(result, discord.Embed):
-        await interaction.response.send_message(embed=result)
-    else:
-        await interaction.response.send_message(result)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/view-upcoming-no-event", snapshots_dir)
+    await snap_send(result, "movie/view-upcoming-no-event")
 
 
 @pytest.mark.asyncio
-async def test_movie_view_upcoming_with_event(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.subcomponents.movieNight import upcomingMovie
-
+async def test_movie_view_upcoming_with_event(db_dir, ut_globals, snap_send):
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
          patch("common.utils.get_movie_event_link", new=AsyncMock(return_value="https://discord.com/events/1000/99999")):
         result = await upcomingMovie.get_upcoming()
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    if isinstance(result, discord.Embed):
-        await interaction.response.send_message(embed=result)
-    else:
-        await interaction.response.send_message(result)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/view-upcoming-with-event", snapshots_dir)
+    await snap_send(result, "movie/view-upcoming-with-event")
 
 
 # ---- pick-host ----
 
 @pytest.mark.asyncio
-async def test_movie_pick_host_no_event(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.subcomponents.movieNight import upcomingMovie
-    import common.utils as ut
-
+async def test_movie_pick_host_no_event(db_dir, ut_globals, snap_send):
     error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
     error_embed.title = '"Movie Night" event does not exist!'
     error_embed.description = "Event must exist"
@@ -190,17 +109,11 @@ async def test_movie_pick_host_no_event(db_dir, ut_globals, guild, regular_membe
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
         embed = await upcomingMovie.set_host("alice")
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-host-no-event", snapshots_dir)
+    await snap_send(embed, "movie/pick-host-no-event")
 
 
 @pytest.mark.asyncio
-async def test_movie_pick_host_success(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.subcomponents.movieNight import upcomingMovie
-
+async def test_movie_pick_host_success(db_dir, ut_globals, snap_send):
     event = _make_scheduled_event()
 
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
@@ -210,21 +123,13 @@ async def test_movie_pick_host_success(db_dir, ut_globals, guild, regular_member
          patch.object(upcomingMovie, "update_event_description"):
         embed = await upcomingMovie.set_host("alice")
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-host-success", snapshots_dir)
+    await snap_send(embed, "movie/pick-host-success")
 
 
 # ---- pick-movie ----
 
 @pytest.mark.asyncio
-async def test_movie_pick_movie_no_event(db_dir, ut_globals, guild, regular_member, snapshots_dir):
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight import upcomingMovie
-    import common.utils as ut
-
+async def test_movie_pick_movie_no_event(db_dir, ut_globals, snap_send):
     error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
     error_embed.title = '"Movie Night" event does not exist!'
     error_embed.description = "Event must exist"
@@ -232,19 +137,12 @@ async def test_movie_pick_movie_no_event(db_dir, ut_globals, guild, regular_memb
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
         embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-movie-no-event", snapshots_dir)
+    await snap_send(embed, "movie/pick-movie-no-event")
 
 
 @pytest.mark.asyncio
-async def test_movie_pick_movie_no_host_set(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
+async def test_movie_pick_movie_no_host_set(seeded_movie_db, ut_globals, snap_send):
     """Event exists but no upcoming_host has been set yet."""
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight import upcomingMovie
-
     event = _make_scheduled_event()
 
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
@@ -252,21 +150,14 @@ async def test_movie_pick_movie_no_host_set(seeded_movie_db, ut_globals, guild, 
          patch.object(upcomingMovie, "update_event_description"):
         embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-movie-no-host-set", snapshots_dir)
+    await snap_send(embed, "movie/pick-movie-no-host-set")
 
 
 @pytest.mark.asyncio
-async def test_movie_pick_movie_not_the_host(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
+async def test_movie_pick_movie_not_the_host(seeded_movie_db, ut_globals, snap_send):
     """Event exists, upcoming_host=bob, alice tries to pick. Should reject."""
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight import upcomingMovie
     import shelve
 
-    # Manually seed upcoming_host as bob
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         db["upcoming_host_name"] = "bob"
 
@@ -277,18 +168,12 @@ async def test_movie_pick_movie_not_the_host(seeded_movie_db, ut_globals, guild,
          patch.object(upcomingMovie, "update_event_description"):
         embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-movie-not-the-host", snapshots_dir)
+    await snap_send(embed, "movie/pick-movie-not-the-host")
 
 
 @pytest.mark.asyncio
-async def test_movie_pick_movie_movie_not_in_list(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
+async def test_movie_pick_movie_movie_not_in_list(seeded_movie_db, ut_globals, snap_send):
     """Alice is host but picks a movie not in her suggestion list."""
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight import upcomingMovie
     import shelve
 
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
@@ -301,18 +186,12 @@ async def test_movie_pick_movie_movie_not_in_list(seeded_movie_db, ut_globals, g
          patch.object(upcomingMovie, "update_event_description"):
         embed = await upcomingMovie.set_movie("alice", "Ghost Film", SUGGESTION_DATABASE)
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-movie-not-in-list", snapshots_dir)
+    await snap_send(embed, "movie/pick-movie-not-in-list")
 
 
 @pytest.mark.asyncio
-async def test_movie_pick_movie_success(seeded_movie_db, ut_globals, guild, regular_member, snapshots_dir):
+async def test_movie_pick_movie_success(seeded_movie_db, ut_globals, snap_send):
     """Alice is host, picks a movie from her list, should succeed."""
-    from components.movieNight import SUGGESTION_DATABASE
-    from components.subcomponents.movieNight import upcomingMovie
     import shelve
 
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
@@ -326,27 +205,16 @@ async def test_movie_pick_movie_success(seeded_movie_db, ut_globals, guild, regu
          patch.object(upcomingMovie, "update_event_description"):
         embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
 
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/pick-movie-success", snapshots_dir)
+    await snap_send(embed, "movie/pick-movie-success")
 
 
 # ---- bump_prev_host (used by pick-host slash command) ----
 
 @pytest.mark.asyncio
-async def test_movie_bump_prev_host_nonexistent(db_dir, ut_globals, guild, regular_member, snapshots_dir):
+async def test_movie_bump_prev_host_nonexistent(db_dir, ut_globals, snap_send):
     """When the previous host doesn't have any suggestions, bump should fail with an error embed."""
-    from components.movieNight import SUGGESTION_DATABASE
-
     prev_host = MagicMock()
     prev_host.name = "ghost"
 
     embed = SUGGESTION_DATABASE.bump_prev_host(prev_host)
-
-    capture = CapturedMessages()
-    interaction = make_capturing_interaction(regular_member, guild, capture)
-    await interaction.response.send_message(embed=embed)
-
-    assert_snapshot(capture.to_normalized_list(), "movie/bump-prev-host-nonexistent", snapshots_dir)
+    await snap_send(embed, "movie/bump-prev-host-nonexistent")

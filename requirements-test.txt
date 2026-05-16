@@ -26,7 +26,7 @@ attrs==25.4.0
     #   aiohttp
 backports-asyncio-runner==1.2.0
     # via pytest-asyncio
-discord-py==2.6.4
+discord-py==2.7.1
     # via
     #   -c requirements.txt
     #   dpytest

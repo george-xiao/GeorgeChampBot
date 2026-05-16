@@ -50,18 +50,27 @@ database/              # Shelve-based persistent storage (runtime created)
 ## Important Patterns
 
 **New features should use:**
-1. **AsyncTask** instead of the global while loop in `on_ready()` (the global loop is deprecated and causes race conditions)
+1. **AsyncTask** for background work. For recurring/periodic tasks (e.g., "every 15 minutes" or "every Friday at noon"), use `make_periodic_task` + a scheduling helper (`aligned_interval` or `weekly_at`) from `common/asyncTask.py`. Template: `.claude/skills/templates/periodic_task.py`. Each component owns its own task(s) and exposes an `init()` that `on_ready` calls.
 2. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
 3. **Components directory** for new feature modules
 4. **utils.py** for Discord objects - never create duplicate client instances
 
 **AsyncTask usage:**
 ```python
-from common.asyncTask import AsyncTask
+from common.asyncTask import AsyncTask, make_periodic_task, aligned_interval, weekly_at
 
+# One-shot background coroutine
 task = AsyncTask(my_coroutine_factory)
 task.start()  # Cancels previous run and starts new
 task.stop()   # Cancels running task
+
+# Recurring (every 15 min aligned to clock boundaries)
+periodic = make_periodic_task(aligned_interval(900), my_async_fn)
+periodic.start()
+
+# Recurring (weekly at a specific local time)
+weekly = make_periodic_task(weekly_at(weekday=4, hour=18, minute=0), my_async_fn)
+weekly.start()
 ```
 
 **Database:** Uses Python's shelve for persistence. Always properly open/close shelve files.
@@ -91,6 +100,5 @@ Copy `.env.template` to `.env`. Key variables:
 
 ## Known Technical Debt
 
-- Global while loop in `on_ready()` should use AsyncTask pattern
 - Standard emojis not working (noted TODO in code)
 - OrderedShelve is a workaround for insertion-order shelve

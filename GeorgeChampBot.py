@@ -1,5 +1,3 @@
-import asyncio
-from datetime import datetime
 import os
 import discord
 from common import utils as ut
@@ -19,7 +17,14 @@ async def on_ready():
             os.mkdir("database")
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
+
+        # Start periodic tasks
         movieNight.init()
+        emoteLeaderboard.init()
+        memeReview.init()
+        dotaReplay.init()
+        twitchAnnouncement.init()
+        musicPlayer.init()
 
         # Initialize slash commands
         if not ut.commandTree:
@@ -34,46 +39,6 @@ async def on_ready():
         else:
             instanceRunning = True
             await ut.send_react_msg("GeorgeChampBot reporting for duty!", "georgechamp")
-            while 1:
-                """
-                DEPRECATED!
-                Utilizing a global while loop to handle asynchronous commands introduces various race conditions and timeout issues.
-                Please use the AsyncTask class under common/asyncTask.py instead.
-                TODO: Refactor existing statements within this while loop to use AsyncTask instead.
-                """
-                curr_date = datetime.now()
-
-                announceDay = ut.env["ANNOUNCEMENT_DAY"]
-                announceHour = ut.env["ANNOUNCEMENT_HOUR"]
-                announceMinute = ut.env["ANNOUNCEMENT_MIN"]
-
-                # Announcements
-                if curr_date.weekday() == announceDay and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-                    await emoteLeaderboard.announcement_task()
-                if curr_date.weekday() == ((announceDay - 1) % 7) and curr_date.hour == announceHour and curr_date.minute == announceMinute and curr_date.second == 0:
-                    await memeReview.best_announcement_task(ut.mainChannel)
-
-                # every 24 hours
-                if (curr_date.hour % 24 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-                    await memeReview.resetLimit()
-
-                # every 1 hour
-                if (curr_date.hour % 1 == 0) and curr_date.minute == 0 and curr_date.second == 0:
-                    await dotaReplay.check_recent_matches(ut.get_channel(ut.env["DOTA_CHANNEL"]))
-
-                # every 15 minute
-                if (curr_date.minute % 15) == 0 and curr_date.second == 0:
-                    await twitchAnnouncement.check_twitch_live(ut.mainChannel)
-
-                # every 3 minutes
-                if (curr_date.minute % 3) == 0 and curr_date.second == 0:
-                    await musicPlayer.check_disconnect()
-
-                # every 1 second
-                if (curr_date.second % 1) == 0:
-                    await musicPlayer.play_song()
-
-                await asyncio.sleep(1)
     except Exception as e:
         await ut.mainChannel.send("Error With On Ready Event: " + str(e))
 

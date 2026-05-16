@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Callable, Coroutine, Tuple
 import asyncio
 
@@ -51,3 +52,53 @@ class AsyncTask:
         if self.async_task:
             self.async_task.cancel()
             self.async_task = None
+
+
+def make_periodic_task(
+    seconds_until_next: Callable[[], float],
+    coroutine_factory: Callable[[], Coroutine],
+) -> AsyncTask:
+    """Build an AsyncTask that fires `coroutine_factory()` repeatedly on a schedule.
+
+    `seconds_until_next` is called before each iteration and returns the delay
+    until the next desired fire time. This lets callers express both clock-aligned
+    intervals (use `aligned_interval`) and time-of-week schedules (use `weekly_at`).
+    """
+    async def _loop():
+        while True:
+            delay = seconds_until_next()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            await coroutine_factory()
+    return AsyncTask(lambda: _loop())
+
+
+def aligned_interval(seconds: int) -> Callable[[], float]:
+    """Build a `seconds_until_next` callable that fires at clock boundaries
+    aligned to `seconds`.
+
+    Example: `aligned_interval(900)` fires at :00, :15, :30, :45 of each hour.
+    Matches the old while-loop behavior of `if minute % 15 == 0 and second == 0`.
+    """
+    def _compute() -> float:
+        now = datetime.now().timestamp()
+        next_boundary = (now // seconds + 1) * seconds
+        return next_boundary - now
+    return _compute
+
+
+def weekly_at(weekday: int, hour: int, minute: int) -> Callable[[], float]:
+    """Build a `seconds_until_next` callable that fires at the next occurrence
+    of the given weekday@hour:minute (local time).
+
+    `weekday`: 0 = Monday ... 6 = Sunday (matches `datetime.weekday()`).
+    """
+    def _compute() -> float:
+        now = datetime.now()
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        days_ahead = (weekday - now.weekday()) % 7
+        target += timedelta(days=days_ahead)
+        if target <= now:
+            target += timedelta(days=7)
+        return (target - now).total_seconds()
+    return _compute

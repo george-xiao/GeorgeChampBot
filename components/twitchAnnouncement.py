@@ -4,11 +4,23 @@ import sys
 sys.path.insert(1, "../common")
 import discord
 import common.utils as ut
+from common.asyncTask import make_periodic_task, aligned_interval
 
 twitch_OAuth_token = None
 # Key: User_Name; Value: discord.Message
 twitch_curr_livestreams = {}
 STREAMER_DB_PATH = "./database/twitch_streamer_list.db"
+_LIVE_CHECK_TASK = None
+
+
+def init():
+    """Start the periodic Twitch live-streamers check (every 15 minutes aligned)."""
+    global _LIVE_CHECK_TASK
+    _LIVE_CHECK_TASK = make_periodic_task(
+        aligned_interval(900),
+        lambda: check_twitch_live(ut.mainChannel),
+    )
+    _LIVE_CHECK_TASK.start()
 
 
 async def check_twitch_live(channel):

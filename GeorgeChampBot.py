@@ -5,6 +5,7 @@ import inspect
 import discord
 from common import utils as ut
 from components import emoteLeaderboard, dotaReplay, musicPlayer, twitchAnnouncement, memeReview, movieNight
+from commands import load_commands
 
 # Ensures that only one for loop is running per application
 # Bypasses bug where on_ready() is called every time bot comes up after after connection lost
@@ -20,7 +21,13 @@ async def on_ready():
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
         movieNight.init()
-        ut.commandTree.add_command(movieNight.MOVIE_NIGHT_GROUP, guild=ut.guildObject)
+
+        # Initialize slash commands
+        if not ut.commandTree:
+            ut.commandTree = discord.app_commands.CommandTree(ut.client)
+            load_commands(ut.commandTree)
+        ut.commandTree.copy_global_to(guild=ut.guildObject)
+        await ut.commandTree.sync(guild=ut.guildObject)
 
         global instanceRunning
         if instanceRunning:
@@ -155,14 +162,6 @@ async def on_message(message):
             await twitchAnnouncement.remove_streamer(message, ut.env["ADMIN_ROLE"])
         elif command_name in ["!plslist-twitch"]:
             await twitchAnnouncement.list_streamers(message.channel)
-        elif command_name in ["!plssync"]:
-            channel = message.channel
-            if not ut.author_is_admin(message.author, ut.env["ADMIN_ROLE"]):
-                await ut.send_message(channel, "Sorry, you need to be a dictator to use this command.")
-                return
-            ut.commandTree.copy_global_to(guild=ut.guildObject)
-            result = await ut.commandTree.sync(guild=ut.guildObject)
-            await ut.send_message(channel, "Commands Synced: " + " ".join(command.name for command in result))
         else:
             await memeReview.check_meme(message, ut.guildObject, ut.mainChannel, ut.get_channel(ut.env["MEME_CHANNEL"]))
             await emoteLeaderboard.check_emoji(message)

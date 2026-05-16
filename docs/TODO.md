@@ -2,7 +2,7 @@
 
 **New Features:**
 - [ ] Standardize messages. Colors, images, etc. Use embedded messages. At the minimum, Message sending class should have a template for errors.
-- [ ] Add a pre-commit hook for linters/formatters. This will force devs to mainitain code quality before merging code. .vscode/settings.json references some linters we can use
+- [ ] Add a pre-commit hook for linters/formatters. This will force devs to maintain code quality before merging code. .vscode/settings.json references some linters we can use
 - [ ] Create class for logging. Georgechamp bot should write application logs for debugging in a local file. Stretch goal is to print in a #log channel. Log should have timestamp, filename, line number, component name, and log message.Logging debug information.
 - [ ] Shell script for dependency installs.
 - [ ] Role assigning feature

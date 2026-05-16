@@ -12,7 +12,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 client = discord.Client(intents=intents)
-commandTree = discord.app_commands.CommandTree(client)
+commandTree = None
 load_dotenv()
 env = {
     "TOKEN": os.getenv("DISCORD_TOKEN"),
@@ -151,9 +151,7 @@ async def get_movie_event() -> discord.ScheduledEvent | None:
 # Iterate through movie events and return MOVIE_EVENT_NAME if it exists
 def __iterate_movie_events(scheduled_events: List[discord.ScheduledEvent]) -> discord.ScheduledEvent | None:
     if scheduled_events:
-        print(scheduled_events)
         for event in guildObject.scheduled_events:
-            print(event)
             if event.name.startswith(MOVIE_EVENT_NAME) and (event.status is discord.EventStatus.scheduled or event.status is discord.EventStatus.active):
                 return event
     return None

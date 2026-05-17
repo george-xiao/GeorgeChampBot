@@ -8,9 +8,6 @@
 - [ ] Role assigning feature
 - [ ] Movie vote workflow
 
-**Bugs:**
-- [ ] Refactor existing commands to use slash commands instead
-
 **Nits:**
 - [ ] Announcement lines can be modularized
 - [ ] Make OrderedShelves use pickle module instead of shelves module
@@ -38,9 +35,6 @@
 
 **Features:**
 - [ ] Enable emote count for standard emotes
-
-**Bugs:**
-- [ ] Multiple page in leaderboard doesn't work
 
 ## Music Bot:
 
@@ -82,5 +76,5 @@
 ## Development:
 
 **Testing:**
-- [ ] Allow testing framework to assert on dynamic variables. Currently, the tests only allow snapshots to be tested. Allowing raw JSON assets will accommodate more complex flows.
 - [ ] Add linting + testing when PR gets created (GitHub Actions)
+- [ ] Convert simple integration tests into multi-flow ones

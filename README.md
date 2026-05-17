@@ -70,7 +70,7 @@ python3 GeorgeChampBot.py
 
 **1. Music Player is no Longer Working** 
 
-`yt-dlp` is known to break as Google changes things. It's a cat and mouse situation. You will need to [update dependencies](docs/DEVELOPMENT.md#updat-dependencies) so that the mouse can outmaneuver the cat. 
+`yt-dlp` is known to break as Google changes things. It's a cat and mouse situation. You will need to [update dependencies](docs/DEVELOPMENT.md#update-dependencies) so that the mouse can outmaneuver the cat. 
 
 Use the following command to figure out the latest `yt-dlp` package version.
 

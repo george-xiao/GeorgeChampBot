@@ -1,56 +1,183 @@
-from unittest.mock import AsyncMock, patch
+"""Integration tests for twitch.
+
+- Slash commands dispatch through `tree._call`.
+- Periodic 15-min live-streamer poll dispatches through
+  `run_periodic_once` on the task `twitchAnnouncement.init()` wires up.
+- Twitch OAuth + Helix endpoints are stubbed at `ut.async_get_request`
+  and `ut.async_post_request` so the real validate/generate flow runs
+  end-to-end (replaces the old direct `_validate_twitch_username` patch).
+"""
 
 import pytest
 
+import common.utils as ut
 from components import twitchAnnouncement
-from tests._fixtures import make_member
+from tests._capture import CapturedMessages, make_capturing_channel
+from tests._dispatch import invoke_slash, run_periodic_once
+from tests._factories import make_member
 
 
-@pytest.mark.asyncio
-async def test_twitch_list_populated(seeded_twitch_db, snap_send):
-    await snap_send(await twitchAnnouncement.list_streamers_text(), "twitch/list-populated")
+# --- Twitch HTTP stub helpers ---
+
+def _stub_twitch(monkeypatch, *, valid_users=(), live_streams=(), validate_ok=True):
+    """Stub ut.async_get_request and ut.async_post_request to mimic Twitch.
+
+    valid_users: usernames the Helix /users endpoint should report as existing.
+    live_streams: list of dicts {"user_name": str, "viewer_count": int} the
+        Helix /streams endpoint should report as live.
+    validate_ok: whether /oauth2/validate should report a healthy token.
+    """
+
+    async def fake_get(url, headers=None):
+        if "id.twitch.tv/oauth2/validate" in url:
+            return {"status": 200} if validate_ok else {"status": 401}
+        if "api.twitch.tv/helix/users" in url:
+            name = url.rsplit("login=", 1)[-1]
+            if name in valid_users:
+                return {"data": [{"login": name, "id": "12345"}]}
+            return {"data": []}
+        if "api.twitch.tv/helix/streams" in url:
+            return {"data": list(live_streams)}
+        return None
+
+    async def fake_post(url, body):
+        if "id.twitch.tv/oauth2/token" in url:
+            return {"access_token": "test-token", "expires_in": 3600}
+        return None
+
+    monkeypatch.setattr(ut, "async_get_request", fake_get)
+    monkeypatch.setattr(ut, "async_post_request", fake_post)
 
 
-@pytest.mark.asyncio
-async def test_twitch_list_empty(db_dir, snap_send):
-    await snap_send(await twitchAnnouncement.list_streamers_text(), "twitch/list-empty")
+@pytest.fixture(autouse=True)
+def reset_twitch_module_state():
+    """Twitch module caches OAuth + livestreams at module scope; clear between tests."""
+    twitchAnnouncement.twitch_OAuth_token = None
+    twitchAnnouncement.twitch_curr_livestreams = {}
+    yield
+    twitchAnnouncement.twitch_OAuth_token = None
+    twitchAnnouncement.twitch_curr_livestreams = {}
 
 
-@pytest.mark.asyncio
-async def test_twitch_add_success(db_dir, snap_send):
+# --- Slash commands ---
+
+async def test_twitch_list_populated(seeded_twitch_db, tree, guild, regular_member):
+    capture = await invoke_slash(tree, "twitch list", regular_member, guild)
+    [msg] = capture.messages
+    assert "alice" in msg.content
+    assert "alicestream" in msg.content
+    assert "bobstream" in msg.content
+
+
+async def test_twitch_list_empty(db_dir, tree, guild, regular_member):
+    capture = await invoke_slash(tree, "twitch list", regular_member, guild)
+    [msg] = capture.messages
+    assert "not tracking" in msg.content.lower()
+
+
+async def test_twitch_add_success(db_dir, tree, guild, admin_member, monkeypatch):
+    _stub_twitch(monkeypatch, valid_users=("alicestream",))
     alice = make_member(101, "alice")
-    with patch("components.twitchAnnouncement._validate_twitch_username", new=AsyncMock(return_value=True)):
-        text = await twitchAnnouncement.add_streamer_to_db(alice, "alicestream")
-    await snap_send(text, "twitch/add-success")
+    capture = await invoke_slash(
+        tree, "admin twitch add", admin_member, guild,
+        options={"user": alice, "twitch_username": "alicestream"},
+    )
+    [msg] = capture.messages
+    assert "alice" in msg.content
     assert "alicestream" in await twitchAnnouncement.list_streamers_text()
 
 
-@pytest.mark.asyncio
-async def test_twitch_add_invalid_twitch(db_dir, snap_send):
+async def test_twitch_add_invalid_twitch(db_dir, tree, guild, admin_member, monkeypatch):
+    _stub_twitch(monkeypatch, valid_users=())
     alice = make_member(101, "alice")
-    with patch("components.twitchAnnouncement._validate_twitch_username", new=AsyncMock(return_value=False)):
-        text = await twitchAnnouncement.add_streamer_to_db(alice, "definitelynotvalid")
-    await snap_send(text, "twitch/add-invalid-twitch")
+    capture = await invoke_slash(
+        tree, "admin twitch add", admin_member, guild,
+        options={"user": alice, "twitch_username": "definitelynotvalid"},
+    )
+    [msg] = capture.messages
+    assert "not a valid" in msg.content.lower()
     assert "definitelynotvalid" not in await twitchAnnouncement.list_streamers_text()
 
 
-@pytest.mark.asyncio
-async def test_twitch_add_duplicate(seeded_twitch_db, snap_send):
+async def test_twitch_add_duplicate(seeded_twitch_db, tree, guild, admin_member, monkeypatch):
+    _stub_twitch(monkeypatch, valid_users=("alicestream",))
     alice = make_member(101, "alice")
-    # Seed already has alicestream -> alice; re-add hits "already exists"
     listing_before = await twitchAnnouncement.list_streamers_text()
-    with patch("components.twitchAnnouncement._validate_twitch_username", new=AsyncMock(return_value=True)):
-        text = await twitchAnnouncement.add_streamer_to_db(alice, "alicestream")
-    await snap_send(text, "twitch/add-duplicate")
+    capture = await invoke_slash(
+        tree, "admin twitch add", admin_member, guild,
+        options={"user": alice, "twitch_username": "alicestream"},
+    )
+    [msg] = capture.messages
+    assert "already exists" in msg.content.lower()
     assert await twitchAnnouncement.list_streamers_text() == listing_before
 
 
-@pytest.mark.asyncio
-async def test_twitch_remove_tracked(seeded_twitch_db, snap_send):
-    await snap_send(await twitchAnnouncement.remove_streamer_from_db("alicestream"), "twitch/remove-tracked")
+async def test_twitch_remove_tracked(seeded_twitch_db, tree, guild, admin_member):
+    capture = await invoke_slash(
+        tree, "admin twitch remove", admin_member, guild,
+        options={"streamer": "alicestream"},
+    )
+    [msg] = capture.messages
+    assert "alice" in msg.content
     assert "alicestream" not in await twitchAnnouncement.list_streamers_text()
 
 
-@pytest.mark.asyncio
-async def test_twitch_remove_not_tracked(db_dir, snap_send):
-    await snap_send(await twitchAnnouncement.remove_streamer_from_db("ghoststream"), "twitch/remove-not-tracked")
+async def test_twitch_remove_not_tracked(db_dir, tree, guild, admin_member):
+    capture = await invoke_slash(
+        tree, "admin twitch remove", admin_member, guild,
+        options={"streamer": "ghoststream"},
+    )
+    [msg] = capture.messages
+    assert "isn't being tracked" in msg.content
+
+
+# --- Periodic: 15-min live-streamers poll ---
+
+async def test_periodic_announces_new_live_streamer(
+    seeded_twitch_db, patched_periodic_start, monkeypatch
+):
+    _stub_twitch(
+        monkeypatch,
+        live_streams=[
+            {"user_name": "alicestream", "viewer_count": 42},
+        ],
+    )
+    capture = CapturedMessages()
+    channel = make_capturing_channel(capture)
+    monkeypatch.setattr(ut, "mainChannel", channel)
+
+    twitchAnnouncement.init()
+    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
+
+    [msg] = capture.messages
+    assert "alicestream is live" in msg.content
+    assert "42 viewers" in msg.content
+    assert "twitch.tv/alicestream" in msg.content
+
+
+async def test_periodic_silent_when_no_one_live(
+    seeded_twitch_db, patched_periodic_start, monkeypatch
+):
+    _stub_twitch(monkeypatch, live_streams=[])
+    capture = CapturedMessages()
+    channel = make_capturing_channel(capture)
+    monkeypatch.setattr(ut, "mainChannel", channel)
+
+    twitchAnnouncement.init()
+    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
+
+    assert capture.messages == []
+
+
+async def test_periodic_skips_when_no_tracked_streamers(
+    db_dir, patched_periodic_start, monkeypatch
+):
+    _stub_twitch(monkeypatch)
+    capture = CapturedMessages()
+    channel = make_capturing_channel(capture)
+    monkeypatch.setattr(ut, "mainChannel", channel)
+
+    twitchAnnouncement.init()
+    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
+
+    assert capture.messages == []

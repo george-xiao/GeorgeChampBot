@@ -1,19 +1,24 @@
 """Shared test data factories.
 
-Used by both `tests/snapshot_capture.py` (drives the OLD prefix handlers
-to record reference outputs) and per-feature test files (drives the NEW
-slash command handlers). Both runs MUST construct identical data so the
-outputs are directly comparable.
+`make_member` / `make_guild` build the MagicMock entities the integration
+tests pass to `invoke_slash`. The `seed_*` functions populate shelve DBs
+with deterministic content so each feature's tests have predictable state.
 """
 
 from __future__ import annotations
 
 import shelve
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
+import discord
+
 
 def make_member(member_id: int, name: str, nick: str | None = None, is_admin: bool = False) -> MagicMock:
-    member = MagicMock()
+    # spec=discord.Member so `isinstance(member, discord.Member)` checks
+    # in production code (e.g., commands/music/_helpers.py:require_voice)
+    # accept the mock. Attribute assignment still works post-spec.
+    member = MagicMock(spec=discord.Member)
     member.id = member_id
     member.name = name
     member.display_name = name

@@ -1,230 +1,327 @@
+"""Integration tests for movie.
+
+- Slash commands dispatch through `tree._call`.
+- The `/movie add-suggestion` modal-submit path dispatches through the
+  `SuggestionModal.on_submit` callback (Discord modals don't go through
+  the command tree; this is their dispatch boundary).
+- Scheduled-event gateway handlers (registered on `ut.client` at import
+  time in `components/movieNight.py`) dispatch via `ut.client.dispatch`.
+"""
+
+import asyncio
+import shelve
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pytest
 
 import common.utils as ut
+from commands.movie.add_suggestion import SuggestionModal
+from components import movieNight  # noqa: F401 — import triggers on_scheduled_event_* registration
 from components.movieNight import SUGGESTION_DATABASE
-from components.subcomponents.movieNight import upcomingMovie
-from components.subcomponents.movieNight.movie import Movie
+from components.subcomponents.movieNight import upcomingMovie, eventReminder
+from tests._capture import CapturedMessages, make_capturing_interaction
+from tests._dispatch import invoke_slash
+from tests._factories import make_member
 
-
-# ---- MovieSuggestions: add ----
-
-@pytest.mark.asyncio
-async def test_movie_add_suggestion_success(db_dir, ut_globals, snap_send):
-    embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Dune", "Sci-Fi", "Sandworms"))
-    await snap_send(embed, "movie/add-suggestion-success")
-    assert SUGGESTION_DATABASE.get_movie("alice", "Dune") is not None
-
-
-@pytest.mark.asyncio
-async def test_movie_add_suggestion_at_capacity(db_dir, ut_globals, snap_send):
-    # Pre-fill alice's list to capacity (MAX_SUGGESTIONS = 10)
-    for i in range(10):
-        SUGGESTION_DATABASE.add_suggestion("alice", Movie(f"Movie {i}", "Genre", f"Reason {i}"))
-    embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Overflow", "Drama", "Should fail"))
-    await snap_send(embed, "movie/add-suggestion-at-capacity")
-    assert SUGGESTION_DATABASE.get_movie("alice", "Overflow") is None
-
-
-# ---- MovieSuggestions: list ----
-
-@pytest.mark.asyncio
-async def test_movie_list_suggestions_populated(seeded_movie_db, ut_globals, snap_send):
-    await snap_send(SUGGESTION_DATABASE.get_list_embed(), "movie/list-suggestions-populated")
-
-
-@pytest.mark.asyncio
-async def test_movie_list_suggestions_empty(db_dir, ut_globals, snap_send):
-    await snap_send(SUGGESTION_DATABASE.get_list_embed(), "movie/list-suggestions-empty")
-
-
-# ---- MovieSuggestions: view ----
-
-@pytest.mark.asyncio
-async def test_movie_view_suggestion_found(seeded_movie_db, ut_globals, snap_send):
-    await snap_send(SUGGESTION_DATABASE.get_suggestion_embed("alice", "Interstellar"), "movie/view-suggestion-found")
-
-
-@pytest.mark.asyncio
-async def test_movie_view_suggestion_not_found(seeded_movie_db, ut_globals, snap_send):
-    await snap_send(SUGGESTION_DATABASE.get_suggestion_embed("alice", "Ghost Movie"), "movie/view-suggestion-not-found")
-
-
-# ---- MovieSuggestions: remove ----
-
-@pytest.mark.asyncio
-async def test_movie_remove_suggestion_success(seeded_movie_db, ut_globals, snap_send):
-    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is not None  # sanity pre-check
-    await snap_send(SUGGESTION_DATABASE.remove_suggestion("alice", "Inception"), "movie/remove-suggestion-success")
-    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is None
-
-
-@pytest.mark.asyncio
-async def test_movie_remove_suggestion_not_found(seeded_movie_db, ut_globals, snap_send):
-    await snap_send(SUGGESTION_DATABASE.remove_suggestion("alice", "Ghost Movie"), "movie/remove-suggestion-not-found")
-
-
-# ---- upcomingMovie helpers ----
 
 def _make_scheduled_event(start_time=None):
-    """Mock discord.ScheduledEvent."""
     event = MagicMock()
     event.start_time = start_time or datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
     event.guild_id = 1000
     event.id = 99999
     event.status = discord.EventStatus.scheduled
+    event.name = "Movie Night"
+    event.description = ""
+    event.edit = AsyncMock()
     return event
 
 
-# ---- view-upcoming ----
-
-@pytest.mark.asyncio
-async def test_movie_view_upcoming_no_event(db_dir, ut_globals, snap_send):
-    error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
-    error_embed.title = '"Movie Night" event does not exist!'
-    error_embed.description = "Test error description"
-
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
-        result = await upcomingMovie.get_upcoming()
-
-    await snap_send(result, "movie/view-upcoming-no-event")
+def _patch_event_present(monkeypatch, event=None):
+    """Set up the 'a Movie Night event exists' state on ut.* helpers."""
+    monkeypatch.setattr(ut, "movie_event_not_present", AsyncMock(return_value=None))
+    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event or _make_scheduled_event()))
+    monkeypatch.setattr(ut, "convert_to_est_time", lambda _t: "Jun 15, 04:00 PM EDT")
+    # Side-effect helpers triggered by set_host/set_movie — silence them.
+    monkeypatch.setattr(upcomingMovie, "update_event_description", lambda *a, **k: None)
+    monkeypatch.setattr(upcomingMovie, "start_pick_reminder", lambda *a, **k: None)
 
 
-@pytest.mark.asyncio
-async def test_movie_view_upcoming_with_event(db_dir, ut_globals, snap_send):
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event_link", new=AsyncMock(return_value="https://discord.com/events/1000/99999")):
-        result = await upcomingMovie.get_upcoming()
-
-    await snap_send(result, "movie/view-upcoming-with-event")
-
-
-# ---- pick-host ----
-
-@pytest.mark.asyncio
-async def test_movie_pick_host_no_event(db_dir, ut_globals, snap_send):
+def _patch_event_missing(monkeypatch):
     error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
     error_embed.title = '"Movie Night" event does not exist!'
     error_embed.description = "Event must exist"
-
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
-        embed = await upcomingMovie.set_host("alice")
-
-    await snap_send(embed, "movie/pick-host-no-event")
+    monkeypatch.setattr(ut, "movie_event_not_present", AsyncMock(return_value=error_embed))
 
 
-@pytest.mark.asyncio
-async def test_movie_pick_host_success(db_dir, ut_globals, snap_send):
-    import shelve
-    event = _make_scheduled_event()
+# --- /movie list-suggestions ---
 
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event", new=AsyncMock(return_value=event)), \
-         patch("common.utils.convert_to_est_time", return_value="Jun 15, 04:00 PM EDT"), \
-         patch.object(upcomingMovie, "start_pick_reminder"), \
-         patch.object(upcomingMovie, "update_event_description"):
-        embed = await upcomingMovie.set_host("alice")
+async def test_movie_list_suggestions_populated(seeded_movie_db, tree, guild, regular_member):
+    capture = await invoke_slash(tree, "movie list-suggestions", regular_member, guild)
+    [msg] = capture.messages
+    assert msg.embed is not None
+    desc = msg.embed["description"]
+    assert "Interstellar" in desc
+    assert "Inception" in desc
+    assert "Top Gun" in desc
 
-    await snap_send(embed, "movie/pick-host-success")
+
+async def test_movie_list_suggestions_empty(db_dir, tree, guild, regular_member):
+    capture = await invoke_slash(tree, "movie list-suggestions", regular_member, guild)
+    [msg] = capture.messages
+    assert msg.embed is not None
+    assert "empty" in msg.embed["description"].lower()
+
+
+# --- /movie view-suggestion ---
+
+async def test_movie_view_suggestion_found(seeded_movie_db, tree, guild, regular_member):
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree, "movie view-suggestion", regular_member, guild,
+        options={"user": alice, "movie_name": "Interstellar"},
+    )
+    [msg] = capture.messages
+    assert "Interstellar" in msg.embed["description"]
+    assert "Sci-Fi" in msg.embed["description"]
+
+
+async def test_movie_view_suggestion_not_found(seeded_movie_db, tree, guild, regular_member):
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree, "movie view-suggestion", regular_member, guild,
+        options={"user": alice, "movie_name": "Ghost Movie"},
+    )
+    [msg] = capture.messages
+    assert "not found" in msg.embed["description"].lower()
+
+
+# --- /movie remove-suggestion ---
+
+async def test_movie_remove_suggestion_success(seeded_movie_db, tree, guild, regular_member):
+    # regular_member is alice; she removes Inception from her own list.
+    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is not None
+    capture = await invoke_slash(
+        tree, "movie remove-suggestion", regular_member, guild,
+        options={"movie_name": "Inception"},
+    )
+    [msg] = capture.messages
+    assert "Inception" in msg.embed["description"]
+    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is None
+
+
+async def test_movie_remove_suggestion_not_found(seeded_movie_db, tree, guild, regular_member):
+    capture = await invoke_slash(
+        tree, "movie remove-suggestion", regular_member, guild,
+        options={"movie_name": "Ghost Movie"},
+    )
+    [msg] = capture.messages
+    assert "not found" in msg.embed["description"].lower()
+
+
+# --- /movie view-upcoming ---
+
+async def test_movie_view_upcoming_no_event(db_dir, tree, guild, regular_member, monkeypatch):
+    _patch_event_missing(monkeypatch)
+    capture = await invoke_slash(tree, "movie view-upcoming", regular_member, guild)
+    [msg] = capture.messages
+    assert msg.embed is not None
+    assert "does not exist" in msg.embed["title"].lower()
+
+
+async def test_movie_view_upcoming_with_event(db_dir, tree, guild, regular_member, monkeypatch):
+    _patch_event_present(monkeypatch)
+    monkeypatch.setattr(ut, "get_movie_event_link", AsyncMock(return_value="https://discord.com/events/1000/99999"))
+    capture = await invoke_slash(tree, "movie view-upcoming", regular_member, guild)
+    [msg] = capture.messages
+    assert "Click here" in msg.content
+    assert "discord.com/events/1000/99999" in msg.content
+
+
+# --- /movie pick-movie ---
+
+async def test_movie_pick_movie_no_event(db_dir, tree, guild, regular_member, monkeypatch):
+    _patch_event_missing(monkeypatch)
+    capture = await invoke_slash(
+        tree, "movie pick-movie", regular_member, guild,
+        options={"movie_name": "Interstellar"},
+    )
+    [msg] = capture.messages
+    assert "does not exist" in msg.embed["title"].lower()
+
+
+async def test_movie_pick_movie_no_host_set(seeded_movie_db, tree, guild, regular_member, monkeypatch):
+    _patch_event_present(monkeypatch)
+    capture = await invoke_slash(
+        tree, "movie pick-movie", regular_member, guild,
+        options={"movie_name": "Interstellar"},
+    )
+    [msg] = capture.messages
+    assert "host" in msg.embed["title"].lower()
+    assert "not been selected" in msg.embed["description"].lower()
+
+
+async def test_movie_pick_movie_not_the_host(seeded_movie_db, tree, guild, regular_member, monkeypatch):
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = "bob"
+    _patch_event_present(monkeypatch)
+    # regular_member is alice; bob is the host → alice gets rejected.
+    capture = await invoke_slash(
+        tree, "movie pick-movie", regular_member, guild,
+        options={"movie_name": "Interstellar"},
+    )
+    [msg] = capture.messages
+    assert "bob" in msg.embed["description"]
+
+
+async def test_movie_pick_movie_not_in_list(seeded_movie_db, tree, guild, regular_member, monkeypatch):
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = "alice"
+    _patch_event_present(monkeypatch)
+    capture = await invoke_slash(
+        tree, "movie pick-movie", regular_member, guild,
+        options={"movie_name": "Ghost Film"},
+    )
+    [msg] = capture.messages
+    assert "Ghost Film" in msg.embed["title"]
+    assert "does not exist" in msg.embed["title"].lower()
+
+
+async def test_movie_pick_movie_success(seeded_movie_db, tree, guild, regular_member, monkeypatch):
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = "alice"
+    _patch_event_present(monkeypatch)
+    capture = await invoke_slash(
+        tree, "movie pick-movie", regular_member, guild,
+        options={"movie_name": "Interstellar"},
+    )
+    [msg] = capture.messages
+    assert "Interstellar" in msg.embed["description"]
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        picked = db.get("upcoming_movie")
+    assert picked is not None and picked.name == "Interstellar"
+
+
+# --- /admin movie pick-host ---
+
+async def test_movie_pick_host_no_event(db_dir, tree, guild, admin_member, monkeypatch):
+    _patch_event_missing(monkeypatch)
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree, "admin movie pick-host", admin_member, guild,
+        options={"user": alice},
+    )
+    [msg] = capture.messages
+    assert "does not exist" in msg.embed["title"].lower()
+
+
+async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkeypatch):
+    _patch_event_present(monkeypatch)
+    monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree, "admin movie pick-host", admin_member, guild,
+        options={"user": alice},
+    )
+    [msg] = capture.messages
+    assert "host selected" in msg.embed["title"].lower()
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         assert db.get("upcoming_host_name") == "alice"
 
 
-# ---- pick-movie ----
+# --- Modal: /movie add-suggestion → SuggestionModal.on_submit ---
 
-@pytest.mark.asyncio
-async def test_movie_pick_movie_no_event(db_dir, ut_globals, snap_send):
-    error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
-    error_embed.title = '"Movie Night" event does not exist!'
-    error_embed.description = "Event must exist"
+async def test_movie_add_suggestion_modal_submit_adds_to_db(db_dir, guild, regular_member):
+    modal = SuggestionModal()
+    modal.movie_name._value = "Dune"
+    modal.movie_genre._value = "Sci-Fi"
+    modal.movie_reason._value = "Sandworms"
 
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=error_embed)):
-        embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
+    capture = CapturedMessages()
+    interaction = make_capturing_interaction(regular_member, guild, capture)
+    await modal.on_submit(interaction)
 
-    await snap_send(embed, "movie/pick-movie-no-event")
-
-
-@pytest.mark.asyncio
-async def test_movie_pick_movie_no_host_set(seeded_movie_db, ut_globals, snap_send):
-    """Event exists but no upcoming_host has been set yet."""
-    event = _make_scheduled_event()
-
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event", new=AsyncMock(return_value=event)), \
-         patch.object(upcomingMovie, "update_event_description"):
-        embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
-
-    await snap_send(embed, "movie/pick-movie-no-host-set")
+    [msg] = capture.messages
+    assert msg.embed is not None
+    assert SUGGESTION_DATABASE.get_movie("alice", "Dune") is not None
 
 
-@pytest.mark.asyncio
-async def test_movie_pick_movie_not_the_host(seeded_movie_db, ut_globals, snap_send):
-    """Event exists, upcoming_host=bob, alice tries to pick. Should reject."""
-    import shelve
+async def test_movie_add_suggestion_modal_at_capacity(db_dir, guild, regular_member):
+    # Fill alice's list to MAX_SUGGESTIONS (10).
+    from components.subcomponents.movieNight.movie import Movie
+    for i in range(10):
+        SUGGESTION_DATABASE.add_suggestion("alice", Movie(f"Movie {i}", "Genre", f"Reason {i}"))
 
-    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
-        db["upcoming_host_name"] = "bob"
+    modal = SuggestionModal()
+    modal.movie_name._value = "Overflow"
+    modal.movie_genre._value = "Drama"
+    modal.movie_reason._value = "Should fail"
 
-    event = _make_scheduled_event()
+    capture = CapturedMessages()
+    interaction = make_capturing_interaction(regular_member, guild, capture)
+    await modal.on_submit(interaction)
 
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event", new=AsyncMock(return_value=event)), \
-         patch.object(upcomingMovie, "update_event_description"):
-        embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
-
-    await snap_send(embed, "movie/pick-movie-not-the-host")
-
-
-@pytest.mark.asyncio
-async def test_movie_pick_movie_movie_not_in_list(seeded_movie_db, ut_globals, snap_send):
-    """Alice is host but picks a movie not in her suggestion list."""
-    import shelve
-
-    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
-        db["upcoming_host_name"] = "alice"
-
-    event = _make_scheduled_event()
-
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event", new=AsyncMock(return_value=event)), \
-         patch.object(upcomingMovie, "update_event_description"):
-        embed = await upcomingMovie.set_movie("alice", "Ghost Film", SUGGESTION_DATABASE)
-
-    await snap_send(embed, "movie/pick-movie-not-in-list")
+    [msg] = capture.messages
+    assert msg.embed is not None
+    assert SUGGESTION_DATABASE.get_movie("alice", "Overflow") is None
 
 
-@pytest.mark.asyncio
-async def test_movie_pick_movie_success(seeded_movie_db, ut_globals, snap_send):
-    """Alice is host, picks a movie from her list, should succeed."""
-    import shelve
+# --- Scheduled-event handlers ---
 
-    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
-        db["upcoming_host_name"] = "alice"
-
-    event = _make_scheduled_event()
-
-    with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
-         patch("common.utils.get_movie_event", new=AsyncMock(return_value=event)), \
-         patch("common.utils.convert_to_est_time", return_value="Jun 15, 04:00 PM EDT"), \
-         patch.object(upcomingMovie, "update_event_description"):
-        embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
-
-    await snap_send(embed, "movie/pick-movie-success")
-    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
-        picked = db.get("upcoming_movie")
-        assert picked is not None and picked.name == "Interstellar"
+@pytest.fixture
+def scheduled_event_bot(monkeypatch):
+    """Patch the side-effect helpers the on_scheduled_event_* handlers call,
+    so we can assert they're invoked without running the real bodies (which
+    spawn AsyncTasks against ut.client's loop, edit ScheduledEvents, etc.)."""
+    update_calls = []
+    reminder_calls = []
+    monkeypatch.setattr(upcomingMovie, "update_event_description", lambda is_command: update_calls.append(is_command))
+    monkeypatch.setattr(eventReminder, "start_event_reminder", lambda: reminder_calls.append(True))
+    return update_calls, reminder_calls
 
 
-# ---- bump_prev_host (used by pick-host slash command) ----
+async def test_on_scheduled_event_create_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
+    update_calls, reminder_calls = scheduled_event_bot
 
-@pytest.mark.asyncio
-async def test_movie_bump_prev_host_nonexistent(db_dir, ut_globals, snap_send):
-    """When the previous host doesn't have any suggestions, bump should fail with an error embed."""
-    prev_host = MagicMock()
-    prev_host.name = "ghost"
+    ut_client_ready.dispatch("scheduled_event_create", _make_scheduled_event())
+    await asyncio.sleep(0)
 
-    embed = SUGGESTION_DATABASE.bump_prev_host(prev_host)
-    await snap_send(embed, "movie/bump-prev-host-nonexistent")
+    assert update_calls == [False]
+    assert reminder_calls == [True]
+
+
+async def test_on_scheduled_event_update_skips_reminder_when_start_unchanged(scheduled_event_bot, ut_client_ready):
+    update_calls, reminder_calls = scheduled_event_bot
+
+    same = datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
+    old = _make_scheduled_event(start_time=same)
+    new = _make_scheduled_event(start_time=same)
+    ut_client_ready.dispatch("scheduled_event_update", old, new)
+    await asyncio.sleep(0)
+
+    assert update_calls == [False]
+    # Same start_time → reminder isn't restarted.
+    assert reminder_calls == []
+
+
+async def test_on_scheduled_event_update_restarts_reminder_when_start_changes(scheduled_event_bot, ut_client_ready):
+    update_calls, reminder_calls = scheduled_event_bot
+
+    old = _make_scheduled_event(start_time=datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc))
+    new = _make_scheduled_event(start_time=datetime(2024, 6, 16, 20, 0, 0, tzinfo=timezone.utc))
+    ut_client_ready.dispatch("scheduled_event_update", old, new)
+    await asyncio.sleep(0)
+
+    assert update_calls == [False]
+    assert reminder_calls == [True]
+
+
+async def test_on_scheduled_event_delete_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
+    update_calls, reminder_calls = scheduled_event_bot
+
+    ut_client_ready.dispatch("scheduled_event_delete", _make_scheduled_event())
+    await asyncio.sleep(0)
+
+    assert update_calls == [False]
+    assert reminder_calls == [True]

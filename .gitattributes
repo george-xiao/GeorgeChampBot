@@ -1,0 +1,12 @@
+# Force LF line endings so the same checkout works on Windows, Mac, and Linux.
+
+# Shell scripts: must be LF — Bash on Linux/Mac refuses to run a script
+# with CRLF shebangs ("bad interpreter: /bin/bash^M").
+*.sh text eol=lf
+
+# Dockerfile and dot-env: consumed by Linux containers.
+Dockerfile text eol=lf
+.env.template text eol=lf
+
+# Python source: LF everywhere for consistency.
+*.py text eol=lf

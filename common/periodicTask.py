@@ -4,6 +4,11 @@ import asyncio
 
 from common.asyncTask import AsyncTask
 
+# Module-private sentinel: factories pass this to authorize construction,
+# preventing direct `PeriodicTask(...)` calls that would skip the schedule
+# wiring the factories provide.
+_FACTORY_KEY = object()
+
 
 class PeriodicTask(AsyncTask):
     """
@@ -21,17 +26,28 @@ class PeriodicTask(AsyncTask):
         self,
         next_delay: Callable[[], float],
         coroutine_factory: Callable[[], Coroutine],
+        *,
+        _factory_key=None,
     ):
+        if _factory_key is not _FACTORY_KEY:
+            raise TypeError(
+                "PeriodicTask cannot be constructed directly. "
+                "Use one of: PeriodicTask.every/.minutely/.hourly/.daily/.weekly"
+            )
+        # `_coroutine_factory` is the user's actual task body, exposed so
+        # tests can invoke it via run_periodic_once without going through
+        # the scheduler loop. AsyncTask.coroutine_factory (set by the
+        # super().__init__ below) wraps it in `self._loop`.
         self._next_delay = next_delay
+        self._coroutine_factory = coroutine_factory
+        super().__init__(self._loop)
 
-        async def _loop():
-            while True:
-                delay = next_delay()
-                if delay > 0:
-                    await asyncio.sleep(delay)
-                await coroutine_factory()
-
-        super().__init__(lambda: _loop())
+    async def _loop(self):
+        while True:
+            delay = self._next_delay()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            await self._coroutine_factory()
 
     @classmethod
     def every(cls, seconds: int, coroutine_factory: Callable[[], Coroutine]) -> "PeriodicTask":
@@ -45,7 +61,7 @@ class PeriodicTask(AsyncTask):
             now = datetime.now().timestamp()
             next_boundary = (now // seconds + 1) * seconds
             return next_boundary - now
-        return cls(_compute, coroutine_factory)
+        return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)
 
     @classmethod
     def minutely(cls, coroutine_factory: Callable[[], Coroutine]) -> "PeriodicTask":
@@ -66,7 +82,7 @@ class PeriodicTask(AsyncTask):
             if target <= now:
                 target += timedelta(days=1)
             return (target - now).total_seconds()
-        return cls(_compute, coroutine_factory)
+        return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)
 
     @classmethod
     def weekly(
@@ -88,4 +104,4 @@ class PeriodicTask(AsyncTask):
             if target <= now:
                 target += timedelta(days=7)
             return (target - now).total_seconds()
-        return cls(_compute, coroutine_factory)
+        return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)

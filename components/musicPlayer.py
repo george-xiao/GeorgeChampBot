@@ -282,13 +282,6 @@ async def play_song_request(user, voice_channel, query: str) -> list[str]:
     """
     global vc, sq
     try:
-        print("Guild:", voice_channel.guild.id)
-        print("Channel:", voice_channel.id)
-        print("Bot voice state:", voice_channel.guild.me.voice)
-
-        perms = voice_channel.permissions_for(voice_channel.guild.me)
-        print("Connect:", perms.connect, "Speak:", perms.speak)
-
         if vc is None:
             vc = await voice_channel.connect()
 

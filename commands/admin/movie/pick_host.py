@@ -1,6 +1,6 @@
 import discord
 import common.utils as ut
-from components.movieNight import SUGGESTION_DATABASE, handle_command_error
+from components.movieNight import SUGGESTION_DATABASE
 from components.subcomponents.movieNight import upcomingMovie
 
 
@@ -18,4 +18,4 @@ def register_subcommand(group: discord.app_commands.Group):
             embed.description += f"\n{ut.get_member_str(prev_host.name)} was successfully bumped to the end of the list!"
         await interaction.response.send_message(embed=embed)
 
-    pick_host.error(handle_command_error)
+    pick_host.error(ut.handle_command_error)

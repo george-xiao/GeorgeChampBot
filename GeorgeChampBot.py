@@ -30,8 +30,8 @@ async def on_ready():
         if not ut.commandTree:
             ut.commandTree = discord.app_commands.CommandTree(ut.client)
             load_commands(ut.commandTree)
-        ut.commandTree.copy_global_to(guild=ut.guildObject)
-        await ut.commandTree.sync(guild=ut.guildObject)
+            ut.commandTree.copy_global_to(guild=ut.guildObject)
+            await ut.commandTree.sync(guild=ut.guildObject)
 
         global instanceRunning
         if instanceRunning:

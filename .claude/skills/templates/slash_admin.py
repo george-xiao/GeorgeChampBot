@@ -9,7 +9,7 @@ Copy to commands/admin/<feature>/<name>.py and replace the placeholders:
   <arg_description>  — help text
 
 Admin role check is enforced by @has_role; non-admins are routed to
-ut.handle_member_not_admin_error via the .error handler.
+ut.handle_command_error via the .error handler.
 """
 
 import discord
@@ -25,4 +25,4 @@ def register_subcommand(group: discord.app_commands.Group):
         result = await <module>.<pure_function>(<arg>)
         await interaction.response.send_message(result)  # or embed=result
 
-    <name>.error(ut.handle_member_not_admin_error)
+    <name>.error(ut.handle_command_error)

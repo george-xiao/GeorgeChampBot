@@ -11,4 +11,4 @@ def register_subcommand(group: discord.app_commands.Group):
         text = await dotaReplay.add_player(user, player_id)
         await interaction.response.send_message(text)
 
-    add.error(ut.handle_member_not_admin_error)
+    add.error(ut.handle_command_error)

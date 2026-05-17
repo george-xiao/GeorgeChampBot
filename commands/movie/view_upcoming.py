@@ -1,6 +1,5 @@
 import discord
 import common.utils as ut
-from components.movieNight import handle_command_error
 from components.subcomponents.movieNight import upcomingMovie
 
 
@@ -13,4 +12,4 @@ def register_subcommand(group: discord.app_commands.Group):
         else:
             await interaction.response.send_message(embed=result)
 
-    view_upcoming.error(handle_command_error)
+    view_upcoming.error(ut.handle_command_error)

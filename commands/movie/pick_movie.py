@@ -1,5 +1,6 @@
 import discord
-from components.movieNight import SUGGESTION_DATABASE, movie_names_autocomplete, handle_command_error
+import common.utils as ut
+from components.movieNight import SUGGESTION_DATABASE, movie_names_autocomplete
 from components.subcomponents.movieNight import upcomingMovie
 
 
@@ -11,4 +12,4 @@ def register_subcommand(group: discord.app_commands.Group):
         await interaction.response.send_message(embed=embed)
 
     pick_movie.autocomplete("movie_name")(movie_names_autocomplete)
-    pick_movie.error(handle_command_error)
+    pick_movie.error(ut.handle_command_error)

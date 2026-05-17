@@ -109,4 +109,5 @@ async def on_voice_state_update(member, before, after):
         await ut.mainChannel.send("Error With On Voice State Update Event: " + str(e))
 
 
-ut.client.run(ut.env["TOKEN"])
+if __name__ == "__main__":
+    ut.client.run(ut.env["TOKEN"])

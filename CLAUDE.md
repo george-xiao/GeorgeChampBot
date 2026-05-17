@@ -24,20 +24,23 @@ python3 GeorgeChampBot.py
 ## Architecture
 
 ```
-GeorgeChampBot.py      # Entry point, event handlers, scheduled tasks
+GeorgeChampBot.py      # Entry point, @ut.client.event handlers, main()
 common/
   utils.py             # Shared Discord client, guild, channels, config
   asyncTask.py         # AsyncTask base class (one-shot async work)
   periodicTask.py      # PeriodicTask: AsyncTask + cron-style schedule factories
-  memberDatabase.py    # Base class for persistent member tracking
   orderedShelve.py     # Ordered shelve wrapper
+  dota/                # Dota constants (game modes, heroes)
+commands/              # Slash command tree (see commands/README.md)
 components/            # Feature modules
   emoteLeaderboard.py  # Emoji reaction tracking
   musicPlayer.py       # Music queue/playback with yt-dlp
   memeReview.py        # Meme submission and voting
-  movieNight.py        # Movie night slash commands
+  movieNight.py        # Movie night scheduled-event handlers + SUGGESTION_DATABASE
   dotaReplay.py        # Dota 2 match tracking (OpenDota API)
   twitchAnnouncement.py # Twitch live notifications
+  subcomponents/movieNight/  # upcomingMovie, eventReminder, suggestionDatabase, Movie
+tests/                 # Integration tests; see docs/DEVELOPMENT.md#testing
 database/              # Shelve-based persistent storage (runtime created)
 ```
 
@@ -52,8 +55,8 @@ database/              # Shelve-based persistent storage (runtime created)
 
 **New features should use:**
 1. **Event-driven async, never block the loop.** The bot runs a single asyncio event loop — any blocking call inside `async def` (e.g. `requests`, `time.sleep`, sync HTTP, sync library APIs) freezes Discord heartbeats and every other slash command until it returns. For HTTP, use `ut.async_get_request` / `ut.async_post_request` (aiohttp-backed, in `common/utils.py`). For unavoidable sync libraries (yt-dlp, etc.) wrap with `asyncio.to_thread(...)`. See `docs/DEVELOPMENT.md#async--non-blocking` for the rationale.
-2. **AsyncTask** for one-shot background work; **PeriodicTask** for recurring schedules (see usage block below). Components own their task(s) and expose an `init()` that `on_ready` calls. Template: `.claude/skills/templates/periodic_task.py`.
-3. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the snapshot tests and prompts on drift (update snapshot or fix code).
+2. **AsyncTask** for one-shot background work; **PeriodicTask** for recurring schedules (see usage block below). Components own their task(s) and expose an `init()` that `on_ready` calls. Reference: `components/dotaReplay.py:init`.
+3. **Slash commands** for all user-facing commands. Any code change that could affect slash command output triggers `.claude/skills/slash-command-tester.md` — it runs the relevant integration test (or walks through writing one) and prompts on drift (update behavior assertions or fix code). Integration tests dispatch through `tree._call` via `invoke_slash`; see `docs/DEVELOPMENT.md#testing`.
 4. **Components directory** for new feature modules
 5. **utils.py** for Discord objects - never create duplicate client instances
 
@@ -87,7 +90,7 @@ PeriodicTask.weekly(weekday=4, hour=18, minute=0, coroutine_factory=my_async_fn)
 
 ## Testing
 
-See [Testing in DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for how to run the suite, the Docker `test` stage, and the snapshot-test workflow.
+Every test drives production code through a real dispatch entry point (`tree._call` for slash, `client.dispatch` or dpytest for gateway events, `run_periodic_once` for periodic tasks). Assertions are on observable behavior — substrings in responses, post-condition DB state, captured channel messages — not output snapshots. See [Testing in DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for the three dispatch patterns and how to add a new test.
 
 ## Configuration
 

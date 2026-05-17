@@ -7,12 +7,27 @@ crashes at import time on ANNOUNCEMENT_DAY/HOUR/MIN int casts.
 
 from tests import _env_setup  # noqa: F401  (must come before any common.* import)
 
-import os
 from pathlib import Path
 
 import pytest
 
-from tests._fixtures import DEFAULT_MEMBERS, make_guild
+from tests._factories import DEFAULT_MEMBERS, make_guild
+
+
+@pytest.fixture(scope="session")
+def tree():
+    """The production CommandTree, built once per test session via
+    `commands.load_commands`. Tests dispatch on this exact tree —
+    matching how `GeorgeChampBot.on_ready` wires production.
+    """
+    import discord
+    from discord import app_commands
+    from commands import load_commands
+
+    client = discord.Client(intents=discord.Intents.default())
+    tree = app_commands.CommandTree(client)
+    load_commands(tree)
+    return tree
 
 
 @pytest.fixture
@@ -35,8 +50,15 @@ def members():
 
 
 @pytest.fixture
-def guild(members):
-    return make_guild(members)
+def guild(members, monkeypatch):
+    """Test guild built from DEFAULT_MEMBERS. Also patches ut.guildObject
+    so production code paths that read it (ut.get_member, ut.fetch_member,
+    etc.) see the rich members list instead of the empty bootstrap guild
+    installed by tests/_env_setup.py."""
+    g = make_guild(members)
+    import common.utils as ut
+    monkeypatch.setattr(ut, "guildObject", g)
+    return g
 
 
 @pytest.fixture
@@ -50,13 +72,8 @@ def regular_member(members):
 
 
 @pytest.fixture
-def snapshots_dir() -> Path:
-    return Path(__file__).parent / "snapshots"
-
-
-@pytest.fixture
 def seeded_meme_db(db_dir):
-    from tests._fixtures import seed_meme_leaderboard, seed_meme_review
+    from tests._factories import seed_meme_leaderboard, seed_meme_review
     seed_meme_leaderboard(db_dir)
     seed_meme_review(db_dir)
     return db_dir
@@ -64,62 +81,60 @@ def seeded_meme_db(db_dir):
 
 @pytest.fixture
 def seeded_dota_db(db_dir):
-    from tests._fixtures import seed_dota_player_list
+    from tests._factories import seed_dota_player_list
     seed_dota_player_list(db_dir)
     return db_dir
 
 
 @pytest.fixture
 def seeded_twitch_db(db_dir):
-    from tests._fixtures import seed_twitch_streamer_list
+    from tests._factories import seed_twitch_streamer_list
     seed_twitch_streamer_list(db_dir)
     return db_dir
 
 
 @pytest.fixture
 def seeded_emote_db(db_dir):
-    from tests._fixtures import seed_emote_leaderboard
+    from tests._factories import seed_emote_leaderboard
     seed_emote_leaderboard(db_dir)
     return db_dir
 
 
 @pytest.fixture
-def ut_globals(monkeypatch, guild):
-    """Point common.utils.guildObject at the test guild so ut.get_member /
-    ut.get_member_str / ut.get_role work for code under test.
-    """
-    import common.utils as ut
-    monkeypatch.setattr(ut, "guildObject", guild)
-    return guild
-
-
-@pytest.fixture
 def seeded_movie_db(db_dir):
-    from tests._fixtures import seed_movie_suggestions
+    from tests._factories import seed_movie_suggestions
     seed_movie_suggestions(db_dir)
     return db_dir
 
 
 @pytest.fixture
-def snap_send(guild, regular_member, snapshots_dir):
-    """Bundles capture + send + snapshot assertion. Pass any of:
-      str          → sent via interaction.response.send_message(content)
-      discord.Embed → sent via interaction.response.send_message(embed=...)
-      list[str]    → each element sent via interaction.followup.send(...)
-    """
-    import discord
-    from tests._capture import CapturedMessages, make_capturing_interaction, assert_snapshot
+def patched_periodic_start(monkeypatch):
+    """Disable PeriodicTask.start so a component's init() wires the task
+    without launching the background scheduler. Drive via run_periodic_once
+    instead."""
+    from common.periodicTask import PeriodicTask
+    monkeypatch.setattr(PeriodicTask, "start", lambda self, *a, **k: None)
 
-    async def _send(result, snapshot_name, *, user=None):
-        capture = CapturedMessages()
-        interaction = make_capturing_interaction(user or regular_member, guild, capture)
-        if isinstance(result, list):
-            for msg in result:
-                await interaction.followup.send(msg)
-        elif isinstance(result, discord.Embed):
-            await interaction.response.send_message(embed=result)
-        else:
-            await interaction.response.send_message(result)
-        assert_snapshot(capture.to_normalized_list(), snapshot_name, snapshots_dir)
 
-    return _send
+@pytest.fixture
+async def ut_client_ready():
+    """Bind ut.client to the current test's event loop. Production event
+    handlers register on ut.client at GeorgeChampBot import time
+    (module-level @ut.client.event decorators); this fixture ensures
+    `_async_setup_hook` has been called against this test's loop so
+    `ut.client.dispatch(...)` works."""
+    import common.utils as ut
+    import GeorgeChampBot  # noqa: F401 — triggers @ut.client.event registration
+    await ut.client._async_setup_hook()
+    return ut.client
+
+
+@pytest.fixture
+async def dpytest_client(ut_client_ready):
+    """ut.client wired into dpytest's runner. Clean queue between tests."""
+    import discord.ext.test as dpytest
+    dpytest.configure(ut_client_ready)
+    try:
+        yield ut_client_ready
+    finally:
+        await dpytest.empty_queue()

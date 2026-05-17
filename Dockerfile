@@ -17,10 +17,11 @@ COPY ./requirements-test.txt ./
 RUN pip3 install -r requirements-test.txt
 
 COPY ./pytest.ini ./
-COPY ./tests ./tests
-COPY ./commands ./commands
+COPY ./GeorgeChampBot.py ./
 COPY ./common ./common
+COPY ./commands ./commands
 COPY ./components ./components
+COPY ./tests ./tests
 
 # Fallback default; run-tests.sh overrides this to forward "$@" to pytest.
 CMD ["python3", "-m", "pytest", "-v"]
@@ -31,8 +32,8 @@ FROM base AS prod
 
 COPY ./.env ./
 COPY ./GeorgeChampBot.py ./
-COPY ./commands ./commands
 COPY ./common ./common
+COPY ./commands ./commands
 COPY ./components ./components
 
 # Run GeorgeChampBot

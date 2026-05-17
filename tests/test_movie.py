@@ -16,6 +16,7 @@ from components.subcomponents.movieNight.movie import Movie
 async def test_movie_add_suggestion_success(db_dir, ut_globals, snap_send):
     embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Dune", "Sci-Fi", "Sandworms"))
     await snap_send(embed, "movie/add-suggestion-success")
+    assert SUGGESTION_DATABASE.get_movie("alice", "Dune") is not None
 
 
 @pytest.mark.asyncio
@@ -25,6 +26,7 @@ async def test_movie_add_suggestion_at_capacity(db_dir, ut_globals, snap_send):
         SUGGESTION_DATABASE.add_suggestion("alice", Movie(f"Movie {i}", "Genre", f"Reason {i}"))
     embed = SUGGESTION_DATABASE.add_suggestion("alice", Movie("Overflow", "Drama", "Should fail"))
     await snap_send(embed, "movie/add-suggestion-at-capacity")
+    assert SUGGESTION_DATABASE.get_movie("alice", "Overflow") is None
 
 
 # ---- MovieSuggestions: list ----
@@ -55,7 +57,9 @@ async def test_movie_view_suggestion_not_found(seeded_movie_db, ut_globals, snap
 
 @pytest.mark.asyncio
 async def test_movie_remove_suggestion_success(seeded_movie_db, ut_globals, snap_send):
+    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is not None  # sanity pre-check
     await snap_send(SUGGESTION_DATABASE.remove_suggestion("alice", "Inception"), "movie/remove-suggestion-success")
+    assert SUGGESTION_DATABASE.get_movie("alice", "Inception") is None
 
 
 @pytest.mark.asyncio
@@ -114,6 +118,7 @@ async def test_movie_pick_host_no_event(db_dir, ut_globals, snap_send):
 
 @pytest.mark.asyncio
 async def test_movie_pick_host_success(db_dir, ut_globals, snap_send):
+    import shelve
     event = _make_scheduled_event()
 
     with patch("common.utils.movie_event_not_present", new=AsyncMock(return_value=None)), \
@@ -124,6 +129,8 @@ async def test_movie_pick_host_success(db_dir, ut_globals, snap_send):
         embed = await upcomingMovie.set_host("alice")
 
     await snap_send(embed, "movie/pick-host-success")
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        assert db.get("upcoming_host_name") == "alice"
 
 
 # ---- pick-movie ----
@@ -206,6 +213,9 @@ async def test_movie_pick_movie_success(seeded_movie_db, ut_globals, snap_send):
         embed = await upcomingMovie.set_movie("alice", "Interstellar", SUGGESTION_DATABASE)
 
     await snap_send(embed, "movie/pick-movie-success")
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        picked = db.get("upcoming_movie")
+        assert picked is not None and picked.name == "Interstellar"
 
 
 # ---- bump_prev_host (used by pick-host slash command) ----

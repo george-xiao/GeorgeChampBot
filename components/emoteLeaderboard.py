@@ -5,8 +5,22 @@ from collections import Counter
 from datetime import date
 import discord
 import common.utils as ut
+from common.periodicTask import PeriodicTask
 
 WEEKLY_EMOTE_LIMIT = 250
+_ANNOUNCEMENT_TASK = None
+
+
+def init():
+    """Start the periodic emote-leaderboard announcement task."""
+    global _ANNOUNCEMENT_TASK
+    _ANNOUNCEMENT_TASK = PeriodicTask.weekly(
+        ut.env["ANNOUNCEMENT_DAY"],
+        ut.env["ANNOUNCEMENT_HOUR"],
+        ut.env["ANNOUNCEMENT_MIN"],
+        announcement_task,
+    )
+    _ANNOUNCEMENT_TASK.start()
 
 
 class Emoji:

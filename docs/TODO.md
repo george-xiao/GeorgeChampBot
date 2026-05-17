@@ -48,7 +48,7 @@
 - [ ] Add cron job to run.sh to update ytdl dependency daily during off-times
 
 **Bugs:**
-- [ ] Performance issues when queueing multiple songs
+- [x] Performance issues when queueing multiple songs (maybe addressed [remove if no issues surface when using]: process_input migrated to aiogoogle, extract_info wrapped in asyncio.to_thread — event loop no longer blocks during queueing)
 
 **Nits:**
 - [ ] Make queueing songs no longer O(n)
@@ -67,8 +67,8 @@
 **Features:**
 - [ ] Notify channel if movie night date is updated
 - [ ] Send a daily reminder to DatabaseOwner until he acknowledges updating Google Sheets
-- [ ] Make upcomingMovie.py more generic (Do X every Y minutes)
-- [ ] Make eventReminder.py more generic (Do X in Y minutes)
+- [ ] Migrate upcomingMovie.py's reminder loop to `PeriodicTask.daily(12, 0, ...)` (`common/periodicTask.py` now provides the abstraction)
+- [ ] Replace eventReminder.py's bare `AsyncTask` + `asyncio.sleep` pattern with a one-shot scheduling helper (counterpart to `PeriodicTask` for "do X in Y minutes")
 
 **Bugs:**
 - [ ] Picking host when event does not exist does not save the host

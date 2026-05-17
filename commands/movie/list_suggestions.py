@@ -1,5 +1,6 @@
 import discord
-from components.movieNight import SUGGESTION_DATABASE, handle_command_error
+import common.utils as ut
+from components.movieNight import SUGGESTION_DATABASE
 
 
 def register_subcommand(group: discord.app_commands.Group):
@@ -8,4 +9,4 @@ def register_subcommand(group: discord.app_commands.Group):
         reply = SUGGESTION_DATABASE.get_list_embed()
         await interaction.response.send_message(embed=reply)
 
-    list_suggestions.error(handle_command_error)
+    list_suggestions.error(ut.handle_command_error)

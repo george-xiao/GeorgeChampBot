@@ -13,4 +13,4 @@ def register_subcommand(group: discord.app_commands.Group):
 
     transfer.autocomplete("emote_from")(emoteLeaderboard.deleted_emote_autocomplete)
     transfer.autocomplete("emote_to")(emoteLeaderboard.active_emote_autocomplete)
-    transfer.error(ut.handle_member_not_admin_error)
+    transfer.error(ut.handle_command_error)

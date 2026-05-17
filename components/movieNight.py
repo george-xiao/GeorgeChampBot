@@ -27,15 +27,6 @@ async def movie_names_autocomplete(interaction: discord.Interaction, current: st
     return [discord.app_commands.Choice(name=movie_name, value=movie_name) for movie_name in SUGGESTION_DATABASE.get_suggestion_names(user_name) if current.lower() in movie_name.lower()]
 
 
-# Shared error handler for movie commands
-async def handle_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-    print(error)
-    if isinstance(error, discord.app_commands.MissingRole):
-        await ut.handle_member_not_admin_error(interaction)
-    else:
-        await ut.handle_slash_command_error(interaction, error)
-
-
 # Event handlers that handles reminder based on how ScheduledEvent is updated
 # NOTE: Since a ScheduledEvent's name is not unique, update_event_description and start_event_reminder is used in every case to ensure consistency
 @ut.client.event

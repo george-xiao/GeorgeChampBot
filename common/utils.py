@@ -265,3 +265,11 @@ async def handle_slash_command_error(interaction: discord, error):
     embed.title = "Request Denied!"
     embed.description = f"{str(error)}. Please contact {get_role_str('ADMIN_ROLE')} for more information."
     await interaction.response.send_message(get_role_str("ADMIN_ROLE"), embed=embed, delete_after=EXTENDED_MESSAGE_DURATION)
+
+# General error handler for slash commands (use with @command.error)
+async def handle_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    print(error)
+    if isinstance(error, discord.app_commands.MissingRole):
+        await handle_member_not_admin_error(interaction)
+    else:
+        await handle_slash_command_error(interaction, error)

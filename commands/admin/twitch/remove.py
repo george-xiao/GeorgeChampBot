@@ -12,4 +12,4 @@ def register_subcommand(group: discord.app_commands.Group):
         await interaction.response.send_message(text)
 
     remove.autocomplete("streamer")(twitchAnnouncement.tracked_twitch_streamer_autocomplete)
-    remove.error(ut.handle_member_not_admin_error)
+    remove.error(ut.handle_command_error)

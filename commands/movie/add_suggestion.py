@@ -1,5 +1,6 @@
 import discord
-from components.movieNight import SUGGESTION_DATABASE, handle_command_error
+import common.utils as ut
+from components.movieNight import SUGGESTION_DATABASE
 from components.subcomponents.movieNight.movie import Movie
 
 
@@ -20,4 +21,4 @@ def register_subcommand(group: discord.app_commands.Group):
     async def add_suggestion(interaction: discord.Interaction):
         await interaction.response.send_modal(SuggestionModal())
 
-    add_suggestion.error(handle_command_error)
+    add_suggestion.error(ut.handle_command_error)

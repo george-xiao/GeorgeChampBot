@@ -12,4 +12,4 @@ def register_subcommand(group: discord.app_commands.Group):
         await interaction.response.send_message(text)
 
     add_score.autocomplete("emote")(emoteLeaderboard.active_emote_autocomplete)
-    add_score.error(ut.handle_member_not_admin_error)
+    add_score.error(ut.handle_command_error)

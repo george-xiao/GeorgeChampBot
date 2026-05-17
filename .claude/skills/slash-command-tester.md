@@ -136,8 +136,6 @@ If you can't tell from a code change which commands are affected, default to run
 
 ## Patterns for tricky cases
 
-These surfaced during the prefix-to-slash migration. Apply when relevant.
-
 ### Commands that mutate module-level globals
 
 If the slash command's pure function reads or writes module-level state (e.g., `musicPlayer.vc`, `musicPlayer.sq`, `musicPlayer.loop_status`), add an autouse fixture in `tests/test_<feature>.py` that resets that state before/after each test:

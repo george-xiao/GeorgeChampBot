@@ -20,7 +20,7 @@ fi
 # Reuse existing image + container (if prompted)
 ####################################################################
 if [[ "$choice" =~ ^[Yy]$ ]]; then
-    if ! docker ps -q -f name=$CONTAINER_NAME | grep -1 .; then
+    if ! docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
         docker start $CONTAINER_NAME
     fi
     docker logs -f $CONTAINER_NAME

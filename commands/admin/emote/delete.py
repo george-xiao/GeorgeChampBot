@@ -12,4 +12,4 @@ def register_subcommand(group: discord.app_commands.Group):
         await interaction.response.send_message(text)
 
     delete.autocomplete("emote")(emoteLeaderboard.deleted_emote_autocomplete)
-    delete.error(ut.handle_member_not_admin_error)
+    delete.error(ut.handle_command_error)

@@ -10,3 +10,23 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: pytest-build
+        name: pytest build (docker)
+        entry: docker
+        args: [build, --target, test, -t, george_champ_bot_test, .]
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: pytest-run
+        name: pytest run (docker)
+        entry: docker
+        args: [run, --rm, george_champ_bot_test, python3, -m, pytest]
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

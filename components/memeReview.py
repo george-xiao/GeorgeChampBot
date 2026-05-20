@@ -121,7 +121,7 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
         payloadUser = guild.get_member(payload.user_id)
 
         payloadEmoji = payload.emoji
-        if isinstance(payload.emoji, str):
+        if not isinstance(payload.emoji, str):
             payloadEmoji = payload.emoji.name
 
         # If the message is not a meme or the bot added the reaction or the reaction is not valid, leave
@@ -162,7 +162,7 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
         # check whether the message is a considered a meme
         for reaction in message.reactions:
             reactionEmoji = reaction.emoji
-            if isinstance(reactionEmoji, str):
+            if not isinstance(reactionEmoji, str):
                 reactionEmoji = reaction.emoji.name
             if isNotMemeReaction(reactionEmoji):
                 # If the Admin is reacting "Not A Meme", leave
@@ -207,7 +207,7 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
 
         for reaction in message.reactions:
             reactionEmoji = reaction.emoji
-            if isinstance(reactionEmoji, str):
+            if not isinstance(reactionEmoji, str):
                 reactionEmoji = reaction.emoji.name
             if isGoodMemeReaction(reactionEmoji) or isBadMemeReaction(reactionEmoji):
                 sameUser = False
@@ -230,7 +230,7 @@ async def add_meme_reactions(payload, channel, guild, adminRole):
 async def remove_meme_reactions(payload, channel):
     try:
         payloadEmoji = payload.emoji
-        if isinstance(payload.emoji, str):
+        if not isinstance(payload.emoji, str):
             payloadEmoji = payload.emoji.name
 
         # If the message is not a meme or the bot added the reaction or the reaction is not valid, leave
@@ -247,7 +247,7 @@ async def remove_meme_reactions(payload, channel):
         notMemeReaction = None
         for reaction in message.reactions:
             notMemeReaction = reaction.emoji
-            if isinstance(notMemeReaction, str):
+            if not isinstance(notMemeReaction, str):
                 notMemeReaction = reaction.emoji.name
             if isNotMemeReaction(notMemeReaction):
                 notMemeReaction = reaction

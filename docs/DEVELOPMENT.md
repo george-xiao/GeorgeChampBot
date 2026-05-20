@@ -9,7 +9,7 @@ See the [discord.py app-commands docs](https://discordpy.readthedocs.io/en/stabl
 
 ## Pre-Push Lint Hook
 
-This project uses [Ruff](https://docs.astral.sh/ruff/) for Python linting and runs it via [pre-commit](https://pre-commit.com/) on every `git push`. One-time setup per clone:
+This project uses [Ruff](https://docs.astral.sh/ruff/) for Python linting and runs the full pytest suite (via Docker, see [Testing](#testing)) on every `git push` via [pre-commit](https://pre-commit.com/). A push is blocked if lint or tests fail. One-time setup per clone:
 
 ```
 pip install pre-commit

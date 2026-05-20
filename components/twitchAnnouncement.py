@@ -89,7 +89,7 @@ async def validate_twitch_OAuth_token(channel):
 
             response = await ut.async_get_request(url, headers=headers)
 
-            return not response or ("status" in response and response.get("status")) == 401
+            return bool(response) and ("status" not in response or response.get("status") != 401)
         except Exception as e:
             await channel.send("Error Validating Twitch OAuth Token: " + str(e))
     return False

@@ -1,11 +1,9 @@
 """Integration tests for emote.
 
 - Slash commands dispatch through `tree._call`.
-- Gateway events (`on_message`, `on_raw_reaction_add`) dispatch through
-  the real `register_event_handlers`-attached handlers via dpytest.
+- Gateway events (`on_message`, `on_raw_reaction_add`, `on_guild_emojis_update`) dispatch through the real `register_event_handlers`-attached handlers via dpytest / `client.dispatch`.
 
-All assertions are on observable behavior — response substrings + DB
-state via `emoteLeaderboard.get_emote`.
+All assertions are on observable behavior — response substrings + DB state via `emoteLeaderboard.get_emote`.
 """
 
 import asyncio
@@ -307,3 +305,139 @@ async def test_weekly_announcement_silent_message_when_no_activity(
 
     [msg] = capture.messages
     assert "No emotes were used this week" in msg.content
+
+
+# --- on_guild_emojis_update → rename_emote ---
+
+
+def _server_emoji_mock(name: str, emoji_id: int) -> MagicMock:
+    e = MagicMock()
+    e.name = name
+    e.id = emoji_id
+    return e
+
+
+async def test_on_guild_emojis_update_adds_new_emoji(seeded_emote_db, ut_client_ready, monkeypatch):
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    new = _server_emoji_mock("wow", 999)
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [], [new])
+    await asyncio.sleep(0)
+
+    assert emoteLeaderboard.get_emote("wow") is not None
+    assert any("wow" in m.content and "added" in m.content for m in capture.messages)
+
+
+async def test_on_guild_emojis_update_marks_removed_emoji_deleted(seeded_emote_db, ut_client_ready, monkeypatch):
+    # kekw is in the seed with score=500 → soft-delete (entry stays, deleted flag flips)
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    gone = _server_emoji_mock("kekw", 101)
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [gone], [])
+    await asyncio.sleep(0)
+
+    emote = emoteLeaderboard.get_emote("kekw")
+    assert emote is not None
+    assert emote.deleted is True
+    assert any("kekw" in m.content and "deleted" in m.content for m in capture.messages)
+
+
+async def test_on_guild_emojis_update_rename_is_remove_then_add(seeded_emote_db, ut_client_ready, monkeypatch):
+    # Same id, different name → before/after dnames differ → remove old + add new
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    old = _server_emoji_mock("kekw", 101)
+    renamed = _server_emoji_mock("kekw_renamed", 101)
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [old], [renamed])
+    await asyncio.sleep(0)
+
+    assert emoteLeaderboard.get_emote("kekw").deleted is True
+    assert emoteLeaderboard.get_emote("kekw_renamed") is not None
+
+
+async def test_on_guild_emojis_update_hard_deletes_zero_score_emoji(seeded_emote_db, ut_client_ready, monkeypatch):
+    # Seed a zero-score entry; remove_emote deletes it outright (vs. soft-delete for nonzero scores).
+    import shelve
+
+    from components.emoteLeaderboard import Emoji
+
+    with shelve.open("./database/all_time_georgechamp_shelf.db", writeback=True) as s:
+        s["fresh"] = Emoji("fresh", "<:fresh:777>", score=0)
+
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    gone = _server_emoji_mock("fresh", 777)
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [gone], [])
+    await asyncio.sleep(0)
+
+    assert emoteLeaderboard.get_emote("fresh") is None
+    assert any("fresh" in m.content and "deleted" in m.content for m in capture.messages)
+
+
+async def test_on_guild_emojis_update_re_add_clears_deleted_flag(seeded_emote_db, ut_client_ready, monkeypatch):
+    # oldmeme is seeded with deleted=True, score=80; re-adding flips deleted back to False.
+    assert emoteLeaderboard.get_emote("oldmeme").deleted is True
+
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    revived = _server_emoji_mock("oldmeme", 201)
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [], [revived])
+    await asyncio.sleep(0)
+
+    revived_emote = emoteLeaderboard.get_emote("oldmeme")
+    assert revived_emote is not None
+    assert revived_emote.deleted is False
+    assert revived_emote.score == 80  # score preserved across the revive
+
+
+async def test_on_guild_emojis_update_no_op_emits_no_changes(seeded_emote_db, ut_client_ready, monkeypatch):
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    kekw = _server_emoji_mock("kekw", 101)
+    score_before = emoteLeaderboard.get_emote("kekw").score
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [kekw], [kekw])
+    await asyncio.sleep(0)
+
+    assert capture.messages == []
+    assert emoteLeaderboard.get_emote("kekw").score == score_before
+    assert emoteLeaderboard.get_emote("kekw").deleted is False
+
+
+async def test_on_guild_emojis_update_batch_add_and_remove(seeded_emote_db, ut_client_ready, monkeypatch):
+    # Two adds + two removes in one event; every entry should be processed.
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "botChannel", make_capturing_channel(capture))
+
+    before = [_server_emoji_mock("kekw", 101), _server_emoji_mock("pog", 102)]
+    after = [_server_emoji_mock("alpha", 555), _server_emoji_mock("beta", 666)]
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, before, after)
+    await asyncio.sleep(0)
+
+    assert emoteLeaderboard.get_emote("kekw").deleted is True
+    assert emoteLeaderboard.get_emote("pog").deleted is True
+    assert emoteLeaderboard.get_emote("alpha") is not None
+    assert emoteLeaderboard.get_emote("beta") is not None
+
+
+async def test_on_guild_emojis_update_error_path_sends_error_message(seeded_emote_db, ut_client_ready, monkeypatch):
+    # Force the inner rename_emote to raise so the outer handler's except branch fires.
+    async def _raise(*_args, **_kwargs):
+        raise RuntimeError("simulated failure")
+
+    monkeypatch.setattr(emoteLeaderboard, "rename_emote", _raise)
+
+    capture = CapturedMessages()
+    monkeypatch.setattr(ut, "mainChannel", make_capturing_channel(capture))
+
+    ut_client_ready.dispatch("guild_emojis_update", ut.guildObject, [], [])
+    await asyncio.sleep(0)
+
+    [msg] = capture.messages
+    assert "Error With On Emoji Update Event" in msg.content
+    assert "simulated failure" in msg.content

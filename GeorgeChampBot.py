@@ -58,7 +58,7 @@ async def on_member_remove(member):
     try:
         await ut.mainChannel.send(member.name + " has decided to leave us :(")
     except Exception as e:
-        await ut.mainChannel.send("Error With On Ready Event: " + str(e))
+        await ut.mainChannel.send("Error With On Member Remove Event: " + str(e))
 
 
 @ut.client.event

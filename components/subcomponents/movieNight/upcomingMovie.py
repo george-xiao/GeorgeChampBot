@@ -72,28 +72,28 @@ async def set_movie(member_name: str, movie_name: str, suggestion_database: Movi
     if failed_embed := await ut.movie_event_not_present(True):
         return failed_embed
 
+    event: discord.ScheduledEvent | None = await ut.get_movie_event()
     with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         upcoming_host_name: str | None = db.get("upcoming_host_name")
-        event: discord.ScheduledEvent | None = await ut.get_movie_event()
 
-    embed = discord.Embed(colour=ut.embed_colour["ERROR"])
-    if not upcoming_host_name:
-        embed.title = "You are not the upcoming movie night host!"
-        embed.description = "Upcoming movie night host has not been selected yet."
-        embed.description += "\nPlease contact a dictator so that they can select a host."
-    elif member_name != upcoming_host_name:
-        embed.title = "You are not the upcoming movie night host!"
-        embed.description = f"{upcoming_host_name} is the upcoming movie night host."
-        embed.description += "\nPlease contact a dictator if you think there has been a mixup."
-    elif not (movie := suggestion_database.get_movie(member_name, movie_name)):
-        embed.title = f"{movie_name} does not exist in your suggestion list!"
-        embed.description = "Please add the movie to your suggestion list and then try again."
-    else:
-        db["upcoming_movie"] = movie
-        embed.colour = ut.embed_colour["MOVIE_NIGHT"]
-        embed.title = f"{member_name} finally picked a movie!"
-        embed.description = f"Next movie set as {movie.name}"
-        embed.description += f"\nThe movie will be watched on {ut.convert_to_est_time(event.start_time)}."
+        embed = discord.Embed(colour=ut.embed_colour["ERROR"])
+        if not upcoming_host_name:
+            embed.title = "You are not the upcoming movie night host!"
+            embed.description = "Upcoming movie night host has not been selected yet."
+            embed.description += "\nPlease contact a dictator so that they can select a host."
+        elif member_name != upcoming_host_name:
+            embed.title = "You are not the upcoming movie night host!"
+            embed.description = f"{upcoming_host_name} is the upcoming movie night host."
+            embed.description += "\nPlease contact a dictator if you think there has been a mixup."
+        elif not (movie := suggestion_database.get_movie(member_name, movie_name)):
+            embed.title = f"{movie_name} does not exist in your suggestion list!"
+            embed.description = "Please add the movie to your suggestion list and then try again."
+        else:
+            db["upcoming_movie"] = movie
+            embed.colour = ut.embed_colour["MOVIE_NIGHT"]
+            embed.title = f"{member_name} finally picked a movie!"
+            embed.description = f"Next movie set as {movie.name}"
+            embed.description += f"\nThe movie will be watched on {ut.convert_to_est_time(event.start_time)}."
 
     update_event_description(True)
     return embed

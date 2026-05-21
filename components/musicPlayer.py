@@ -315,16 +315,16 @@ def queue_response():
     return queue_response_page(1)
 
 
-def queue_response_page(page: int = 1):
+def queue_response_page(page: int = 1) -> discord.Embed:
     try:
         if not sq.queue:
-            return "Queue is empty."
+            return discord.Embed(description="Queue is empty.", colour=ut.embed_colour["MUSIC"])
 
         page_num = page - 1
         if page_num < 0:
-            return "Page number out of range..."
+            return discord.Embed(description="Page number out of range...", colour=ut.embed_colour["MUSIC"])
 
-        embed = discord.Embed(title="Queue", description="", colour=discord.Colour.dark_grey())
+        embed = discord.Embed(title="Queue", description="", colour=ut.embed_colour["MUSIC"])
         start = page_num * 10
         end = min(len(sq.queue), (page_num + 1) * 10)
         for i in range(start, end):
@@ -332,28 +332,27 @@ def queue_response_page(page: int = 1):
         embed.set_footer(text=f"Page {page_num+1}/{ceil(len(sq.queue)/10)}")
 
         if embed.description == "":
-            return "Page number out of range..."
+            return discord.Embed(description="Page number out of range...", colour=ut.embed_colour["MUSIC"])
         return embed
     except Exception as e:
-        return f"Error Printing Queue: {e}"
+        return discord.Embed(description=f"Error Printing Queue: {e}", colour=ut.embed_colour["ERROR"])
 
 
-def build_now_playing_embed():
-    """Returns either a str ('No songs playing currently.') or a discord.Embed."""
+def build_now_playing_embed() -> discord.Embed:
     try:
         if not sq.curr_song:
-            return "No songs playing currently."
+            return discord.Embed(description="No songs playing currently.", colour=ut.embed_colour["MUSIC"])
 
         song = sq.curr_song
         duration_time = ut.seconds_to_time(song.duration)
         elapsed = (datetime.now() - song.start_time).total_seconds() if song.start_time else 0
         curr_time = ut.seconds_to_time(elapsed)
 
-        embed = discord.Embed(title="Now Playing", description=song.title, colour=discord.Colour.dark_grey())
+        embed = discord.Embed(title="Now Playing", description=song.title, colour=ut.embed_colour["MUSIC"])
         embed.set_footer(text=curr_time + "/" + duration_time)
         return embed
     except Exception as e:
-        return f"Error Printing Now Playing: {e}"
+        return discord.Embed(description=f"Error Printing Now Playing: {e}", colour=ut.embed_colour["ERROR"])
 
 
 def shuffle_queue() -> str:

@@ -38,7 +38,7 @@ guildObject = None
 mainChannel = None
 botChannel = None
 # Color for Embedded Messages
-embed_colour = {"MOVIE_NIGHT": 0x4F4279, "ERROR": 0xED4337}
+embed_colour = {"MOVIE_NIGHT": 0x4F4279, "MUSIC": 0x607D8B, "ERROR": 0xED4337}
 MOVIE_EVENT_NAME = "Movie Night"
 DEFAULT_MESSAGE_DURATION = 10 * 60
 EXTENDED_MESSAGE_DURATION = 24 * 60 * 60

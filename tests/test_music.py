@@ -207,7 +207,7 @@ async def test_music_pause_when_paused(tree, guild, music_member, fake_vc, stubb
 async def test_music_queue_empty(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music queue", music_member, guild)
     [msg] = capture.messages
-    assert "empty" in msg.content.lower()
+    assert "empty" in msg.embed["description"].lower()
 
 
 async def test_music_queue_with_songs(tree, guild, music_member, stubbed_bot):
@@ -231,7 +231,7 @@ async def test_music_queue_page_out_of_range(tree, guild, music_member, stubbed_
         options={"page": 99},
     )
     [msg] = capture.messages
-    assert "out of range" in msg.content.lower()
+    assert "out of range" in msg.embed["description"].lower()
 
 
 # --- /music now-playing ---
@@ -240,7 +240,7 @@ async def test_music_queue_page_out_of_range(tree, guild, music_member, stubbed_
 async def test_music_now_playing_none(tree, guild, music_member, stubbed_bot):
     capture = await invoke_slash(tree, "music now-playing", music_member, guild)
     [msg] = capture.messages
-    assert "no songs playing" in msg.content.lower()
+    assert "no songs playing" in msg.embed["description"].lower()
 
 
 async def test_music_now_playing_active(tree, guild, music_member, stubbed_bot):

@@ -21,11 +21,3 @@ async def require_voice(interaction: discord.Interaction) -> bool:
             return False
 
     return True
-
-
-async def send_string_or_embed(interaction: discord.Interaction, result):
-    """Sends either a plain-text result or a Discord embed result via the slash response."""
-    if isinstance(result, discord.Embed):
-        await interaction.response.send_message(embed=result)
-    else:
-        await interaction.response.send_message(result)

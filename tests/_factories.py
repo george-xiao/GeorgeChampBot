@@ -1,8 +1,7 @@
 """Shared test data factories.
 
-`make_member` / `make_guild` build the MagicMock entities the integration
-tests pass to `invoke_slash`. The `seed_*` functions populate shelve DBs
-with deterministic content so each feature's tests have predictable state.
+`make_member` / `make_guild` build the MagicMock entities the tests pass to `invoke_slash`.
+The `seed_*` functions populate shelve DBs with deterministic content so each feature's tests have predictable state.
 """
 
 from __future__ import annotations

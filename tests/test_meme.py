@@ -1,4 +1,4 @@
-"""Integration tests for meme.
+"""Tests for meme.
 
 - Slash commands dispatch through `tree._call`.
 - Gateway events (`on_message` → `check_meme`, `on_raw_reaction_add` →

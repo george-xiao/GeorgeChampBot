@@ -1,4 +1,4 @@
-"""Integration tests for dota.
+"""Tests for dota.
 
 Slash commands dispatch through `tree._call`; the periodic task
 dispatches through `run_periodic_once` on the same `PeriodicTask`

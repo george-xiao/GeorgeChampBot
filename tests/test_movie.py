@@ -1,4 +1,4 @@
-"""Integration tests for movie.
+"""Tests for movie.
 
 - Slash commands dispatch through `tree._call`.
 - The `/movie add-suggestion` modal-submit path dispatches through the

@@ -1,4 +1,4 @@
-"""Integration tests for twitch.
+"""Tests for twitch.
 
 - Slash commands dispatch through `tree._call`.
 - Periodic 15-min live-streamer poll dispatches through

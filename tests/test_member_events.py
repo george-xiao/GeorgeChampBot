@@ -1,4 +1,4 @@
-"""Integration tests for member join/leave gateway events.
+"""Tests for member join/leave gateway events.
 
 Both handlers dispatch through `ut.client.dispatch` and exercise the `@ut.client.event`-registered handlers in GeorgeChampBot.py.
 """

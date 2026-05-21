@@ -1,4 +1,4 @@
-"""Integration-test dispatch helpers.
+"""Test dispatch helpers.
 
 `invoke_slash`: build a fake Interaction payload and feed it to
 `CommandTree._call`, exercising the real slash dispatch path

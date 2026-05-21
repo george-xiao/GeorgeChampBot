@@ -1,4 +1,4 @@
-"""Integration tests for music.
+"""Tests for music.
 
 - Slash commands (`/music *`) dispatch through `tree._call`.
 - The `play_song` lifecycle tests (LOOPQUEUE rotation, LOOPSONG replay,

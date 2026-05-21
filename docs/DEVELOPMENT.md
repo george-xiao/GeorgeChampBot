@@ -1,93 +1,130 @@
 # DEVELOPMENT.md
 
-## Standard Development Process
+## Getting Started
 
-See [Setup](../README.md#setup) and [Run Application Using Docker](../README.md#run-application-using-docker-recommended) for environment setup. Develop in Docker; production is Linux, so verify any shell-script changes work there too (GitBash works for Windows users).
+See [Setup](../README.md#setup) for environment setup. Before merging, [run the bot in Docker](../README.md#run-application-using-docker-recommended) and verify your changes behave as expected.
 
-### Adding new features
-See the [discord.py app-commands docs](https://discordpy.readthedocs.io/en/stable/interactions/api.html#application-commands) and [commands README](../commands/README.md) for the slash-command authoring workflow.
+One-time setup for the pre-push hooks:
 
-## Pre-Push Lint Hook
-
-This project uses [Ruff](https://docs.astral.sh/ruff/) for Python linting and runs the full pytest suite (via Docker, see [Testing](#testing)) on every `git push` via [pre-commit](https://pre-commit.com/). A push is blocked if lint or tests fail. One-time setup per clone:
-
-```
+```bash
 pip install pre-commit
 pre-commit install --hook-type pre-push
 ```
 
-To run the linter manually across the whole repo:
+This runs [Ruff](https://docs.astral.sh/ruff/) (lint + format) and the full test suite on every `git push`. A push is blocked if either fails.
 
-```
-pre-commit run --all-files
-```
+## Adding Features
 
-To bump Ruff to the latest version: `pre-commit autoupdate`.
+Typical workflow:
+
+1. Create a component in `components/` with pure functions that return string or embed data.
+2. Add slash commands under `commands/` that call the component. See [commands/README.md](../commands/README.md) for structure and reference files.
+3. Write tests. See [Automated Testing](#automated-testing) below.
+4. Push. The pre-push hook verifies lint and tests pass.
+
+If you use Claude Code, the [`slash-command-tester`](../.claude/skills/slash-command-tester.md) skill automates step 3: it ensures that a test exists, walks you through writing one if not, and catches unintentional behavior changes.
+
+## Coding Rules
 
 ### Async / non-blocking
-The bot runs on a single asyncio event loop (discord.py). Any synchronous blocking call inside an `async def` — `requests`, `time.sleep`, sync database drivers, sync HTTP/library APIs — freezes every gateway heartbeat, voice tick, and concurrent slash command until it returns. New code must stay non-blocking:
+The bot runs on a single asyncio event loop. Any blocking call inside `async def` freezes heartbeats, voice, and every other command.
 
-- HTTP → `common.utils.async_get_request` / `async_post_request` (aiohttp).
-- Google APIs → `aiogoogle` (already a dependency).
-- Unavoidable sync libraries (e.g. `yt-dlp`'s `extract_info`) → wrap with `asyncio.to_thread(fn, *args)`.
-- Recurring/scheduled work → `PeriodicTask` (see `common/periodicTask.py`); never `while True: time.sleep(...)`.
+Keep everything non-blocking:
 
-## Testing
+- HTTP → `common.utils.async_get_request` / `async_post_request` (aiohttp)
+- Google APIs → `aiogoogle`
+- Unavoidable sync libraries (e.g. `yt-dlp`) → wrap with `asyncio.to_thread(fn, *args)`
+- Recurring/scheduled work → `AsyncTask/PeriodicTask` (see `common/asyncTask.py`/`common/periodicTask.py`); never `while True: sleep(...)`.
 
-Tests run in Docker via the `test` stage of the `Dockerfile`, which extends the `base` layer with `requirements-test.txt`.
+### Error handling
+
+Catch exceptions in event handlers and component functions. Return a context-specific error string (e.g. `f"Error fetching leaderboard: {e}"`) rather than letting exceptions propagate silently.
+
+## Automated Testing
+
+Automated tests run in Docker.
 
 ```bash
 ./run-tests.sh                          # all tests
 ./run-tests.sh tests/test_meme.py -v    # single feature
 ```
 
-### Integration-only by design
+### Testing philosophy
 
-Every test drives production code through one of its real dispatch entry points. Assertions are on observable behavior (response substrings, post-condition DB state, captured channel messages) — there are no output snapshots. A renamed component function or a forgotten `register_subcommand` will fail an integration test before any other check catches it.
+Test at the highest level you practically can, then drop down when the layer above isn't testable:
 
-There are three dispatch patterns, one per entry-point type:
+1. **Simulate the gateway** (dpytest): Real client, real event dispatch. Used for message/reaction handlers.
+2. **Call `tree._call` with a crafted payload** (`invoke_slash`): Real command routing and callbacks. Used for slash commands (dpytest doesn't support interactions).
+3. **Call the entry point directly** (`run_periodic_once`, `play_song()`): Real component logic. Use when no external trigger exists (periodic tasks, voice callbacks).
+4. **Call a function directly**: Last resort, loses wiring coverage. Only for pure math with no dispatch boundary (`test_periodic_task.py`).
+
+Each level exercises less of the real stack but is sometimes the only practical option. Don't drop lower than you need to.
+
+### Dispatch patterns
+
+Assert on observable behavior (response substrings, DB state, captured messages) — not output snapshots.
+
+A forgotten `register_subcommand` or missing test is caught by the [coverage guard](../tests/test_command_coverage.py).
 
 | Entry point | Helper | Example |
 |---|---|---|
-| Slash command (`@group.command`) | `tests/_dispatch.py:invoke_slash(tree, "dota list", user, guild)` | `test_dota.py` |
-| Gateway event (`@client.event`) | `dpytest.message(...)` / `dpytest.add_reaction(...)` for the cases dpytest covers, otherwise `client.dispatch("event_name", *args)` with a mocked payload | `test_emote.py` (dpytest) / `test_movie.py` (bare dispatch) |
-| Periodic task (`PeriodicTask.*`) | `tests/_dispatch.py:run_periodic_once(task)` after the component's `init()` wires it up | `test_dota.py`, `test_twitch.py` |
+| Slash command (`@group.command`) | `invoke_slash(tree, "dota list", user, guild)` | `test_dota.py` |
+| Gateway event (`@client.event`) | `dpytest.message(...)` or `client.dispatch("event_name", *args)` | `test_emote.py` (dpytest) / `test_movie.py` (bare dispatch) |
+| Periodic task (`PeriodicTask.*`) | `run_periodic_once(task)` after `component.init()` | `test_dota.py`, `test_twitch.py` |
+| Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `test_movie.py` |
+| Voice callback (`vc.play`'s `after=`) | Call `play_song()` directly | `test_music.py` |
 
-A modal-only path (`/movie add-suggestion`) goes through `Modal.on_submit(interaction)` since Discord modals don't traverse the command tree. The `play_song` lifecycle tests in `test_music.py` invoke `play_song()` directly — that's the dispatch boundary for `vc.play`'s `after=` callback when a track ends.
+### Adding a test
 
-### Permitted non-integration tests
+#### Fixtures
 
-One file doesn't use dispatch, by design:
+Tests use the production `CommandTree` built by `commands.load_commands(tree)`. The session-scoped `tree` fixture in `tests/conftest.py` constructs it once per test session.
 
-- `tests/test_periodic_task.py` — pure scheduling math (`_next_delay()`). No entry point exists to dispatch through.
+Other shared fixtures in `tests/conftest.py` include:
 
-Every other slash command, event handler, and periodic task must be exercised through its real dispatch boundary. If you add a new slash command file under `commands/`, you must add an integration test that calls it via `invoke_slash`; there is no smoke fallback that confirms the file at least imports.
+| Fixture | Purpose |
+|---|---|
+| `tree` | Production command tree |
+| `guild` / `admin_member` / `regular_member` | Test guild with members |
+| `db_dir` / `seeded_<feature>_db` | Temp database, optionally pre-seeded |
+| `patched_periodic_start` | Disables scheduler; drive with `run_periodic_once` |
+| `ut_client_ready` / `dpytest_client` | Event loop + dpytest wiring |
 
-### Adding tests
-
-Tests dispatch through the same `app_commands.CommandTree` that production builds — one tree, all commands attached via `commands/__init__.py:load_commands(tree)`. The shared session-scoped `tree` fixture (in `tests/conftest.py`) constructs it once per test session and every test depends on it. Cross-feature wiring is exercised for free.
-
-Other shared fixtures in `tests/conftest.py`:
-- `guild` / `members` / `admin_member` / `regular_member` — test guild plus `DEFAULT_MEMBERS` from `tests/_factories.py`. The `guild` fixture also `monkeypatch`-installs itself onto `ut.guildObject` so component code that reads the singleton sees test data.
-- `db_dir` / `seeded_<feature>_db` — chdir to a tmp path and (optionally) seed the feature's shelve DB.
-- `patched_periodic_start` — disables `PeriodicTask.start` so a component's `init()` wires its task without launching the background scheduler.
-- `ut_client_ready` / `dpytest_client` — bind `ut.client` to the test's event loop; the latter also wires it into dpytest's runner.
-
-Per-feature state resets that don't generalize stay in the feature's test file as autouse fixtures (e.g., `tests/test_music.py:fresh_music_state`, `tests/test_twitch.py:reset_twitch_module_state`).
+#### Stubs
 
 External I/O is stubbed at the library boundary, not at the production helper that calls it:
 
-- HTTP → patch `common.utils.async_get_request` / `async_post_request`
-- YouTube API → patch `musicPlayer.Aiogoogle` and `musicPlayer.YoutubeDL`
-- Voice → `MagicMock(spec=discord.VoiceClient)` with tracked play/pause/disconnect
+| Dependency | Patch target |
+|---|---|
+| HTTP | `common.utils.async_get_request` / `async_post_request` |
+| YouTube | `musicPlayer.Aiogoogle` / `musicPlayer.YoutubeDL` |
+| Voice | `MagicMock(spec=discord.VoiceClient)` |
 
-Patching at the helper level (e.g., `memeReview.check_meme`, `twitchAnnouncement._validate_twitch_username`) is what the old unit-test pattern did — it lets renames and refactors slip through. Stick to library-boundary stubs.
+Patching production helpers directly (e.g., `memeReview.check_meme`) lets renames slip through undetected. Stick to library-boundary stubs.
+
+#### Common Patterns
+
+Reference these tests for non-obvious cases:
+
+| Pattern | Reference | Key Insight |
+|---|---|---|
+| `discord.Member` parms | `tests/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
+| Module-level state reset | `tests/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
+| Modal submission | `tests/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
+
+## Tooling
+
+Run the linter manually:
+```bash
+pre-commit run --all-files
+```
+To bump Ruff to the latest version: `pre-commit autoupdate`.
 
 ## Update Dependencies
 
 This project uses [pip-tools](https://pip-tools.readthedocs.io/) to manage dependencies. To update dependencies:
 
-```
+```bash
 pip install pip-tools
 pip-compile --upgrade requirements.in
 ```
@@ -96,5 +133,5 @@ pip-compile --upgrade requirements.in
 
 * [discord.py](https://discordpy.readthedocs.io/en/latest/) - Discord API wrapper
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp) - YouTube audio extraction for music player
-* [google-api-python-client](https://github.com/googleapis/google-api-python-client) - YouTube API for video metadata
+* [aiogoogle](https://github.com/omarryhan/aiogoogle) - Async Google APIs for video metadata
 * [ffmpeg](https://ffmpeg.org/) - Audio processing for voice channels

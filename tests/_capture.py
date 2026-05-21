@@ -1,4 +1,4 @@
-"""Discord message-capture utilities for slash command integration tests.
+"""Discord message-capture utilities for slash command tests.
 
 A slash command response can be plain text, an embed, or (for deferred
 commands) multiple messages via followup.send. `CapturedMessages` collects

@@ -1,4 +1,4 @@
-"""Integration tests for emote.
+"""Tests for emote.
 
 - Slash commands dispatch through `tree._call`.
 - Gateway events (`on_message`, `on_raw_reaction_add`, `on_guild_emojis_update`) dispatch through the real `register_event_handlers`-attached handlers via dpytest / `client.dispatch`.

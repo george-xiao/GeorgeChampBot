@@ -1,8 +1,10 @@
-"""Discord message-capture utilities for slash command tests.
+"""Fake Discord outputs for test assertions.
 
-A slash command response can be plain text, an embed, or (for deferred
-commands) multiple messages via followup.send. `CapturedMessages` collects
-each call into a list of `SentMessage` records that tests assert against.
+Use `make_capturing_interaction(user, guild, capture)` for slash command tests.
+Use `make_capturing_channel(capture)` for event handler tests.
+
+Both record sent messages into a `CapturedMessages` instance.
+Assert on `capture.messages[0].content` or `.embed`.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ class CapturedMessages:
 
 
 def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
-    """Return a channel-like mock whose .send() appends to the capture."""
+    """Fake channel for event handler tests. Patch onto ut.mainChannel or ut.get_channel."""
 
     async def _send(content="", embed=None, delete_after=None, **kwargs):
         capture.messages.append(
@@ -45,7 +47,7 @@ def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
 
 
 def make_capturing_interaction(user, guild, capture: CapturedMessages) -> MagicMock:
-    """Mock a discord.Interaction. response.send_message + followup.send both feed `capture`."""
+    """Fake interaction for slash command tests. Passed to invoke_slash internally."""
 
     async def _send_message(content="", embed=None, delete_after=None, **kwargs):
         capture.messages.append(

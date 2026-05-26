@@ -1,26 +1,16 @@
-"""Tests for movie.
+"""Tests for movie commands, modal submission, and scheduled-event gateway handlers."""
 
-- Slash commands dispatch through `tree._call`.
-- The `/movie add-suggestion` modal-submit path dispatches through the
-  `SuggestionModal.on_submit` callback (Discord modals don't go through
-  the command tree; this is their dispatch boundary).
-- Scheduled-event gateway handlers (registered on `ut.client` at import
-  time in `components/movieNight.py`) dispatch via `ut.client.dispatch`.
-"""
-
-import asyncio
 import shelve
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
-import pytest
 
 import common.utils as ut
 from commands.movie.add_suggestion import SuggestionModal
 from components import movieNight  # noqa: F401 — import triggers on_scheduled_event_* registration
 from components.movieNight import SUGGESTION_DATABASE
-from components.subcomponents.movieNight import upcomingMovie, eventReminder
+from components.subcomponents.movieNight import upcomingMovie
 from tests._capture import CapturedMessages, make_capturing_interaction
 from tests._dispatch import invoke_slash
 from tests._factories import make_member
@@ -39,20 +29,16 @@ def _make_scheduled_event(start_time=None):
 
 
 def _patch_event_present(monkeypatch, event=None):
-    """Set up the 'a Movie Night event exists' state on ut.* helpers."""
-    monkeypatch.setattr(ut, "movie_event_not_present", AsyncMock(return_value=None))
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event or _make_scheduled_event()))
-    monkeypatch.setattr(ut, "convert_to_est_time", lambda _t: "Jun 15, 04:00 PM EDT")
-    # Side-effect helpers triggered by set_host/set_movie — silence them.
-    monkeypatch.setattr(upcomingMovie, "update_event_description", lambda *a, **k: None)
-    monkeypatch.setattr(upcomingMovie, "start_pick_reminder", lambda *a, **k: None)
+    """Stub guild.scheduled_events and fetch_scheduled_events so ut.get_movie_event() finds an event."""
+    ev = event or _make_scheduled_event()
+    monkeypatch.setattr(ut.guildObject, "scheduled_events", [ev])
+    monkeypatch.setattr(ut.guildObject, "fetch_scheduled_events", AsyncMock(return_value=[ev]))
 
 
 def _patch_event_missing(monkeypatch):
-    error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
-    error_embed.title = '"Movie Night" event does not exist!'
-    error_embed.description = "Event must exist"
-    monkeypatch.setattr(ut, "movie_event_not_present", AsyncMock(return_value=error_embed))
+    """Stub guild with no scheduled events so ut.movie_event_not_present() returns an error embed."""
+    monkeypatch.setattr(ut.guildObject, "scheduled_events", [])
+    monkeypatch.setattr(ut.guildObject, "fetch_scheduled_events", AsyncMock(return_value=[]))
 
 
 # --- /movie list-suggestions ---
@@ -148,7 +134,6 @@ async def test_movie_view_upcoming_no_event(db_dir, tree, guild, regular_member,
 
 async def test_movie_view_upcoming_with_event(db_dir, tree, guild, regular_member, monkeypatch):
     _patch_event_present(monkeypatch)
-    monkeypatch.setattr(ut, "get_movie_event_link", AsyncMock(return_value="https://discord.com/events/1000/99999"))
     capture = await invoke_slash(tree, "movie view-upcoming", regular_member, guild)
     [msg] = capture.messages
     assert "Click here" in msg.content
@@ -252,7 +237,7 @@ async def test_movie_pick_host_no_event(db_dir, tree, guild, admin_member, monke
     assert "does not exist" in msg.embed["title"].lower()
 
 
-async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkeypatch):
+async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkeypatch, tasks_noop):
     _patch_event_present(monkeypatch)
     monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
     alice = make_member(101, "alice", nick="Alice the Great")
@@ -267,6 +252,38 @@ async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkey
     assert "host selected" in msg.embed["title"].lower()
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         assert db.get("upcoming_host_name") == "alice"
+
+
+async def test_movie_pick_host_prev_host_not_in_list(db_dir, tree, guild, admin_member, monkeypatch):
+    monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
+    new_host = make_member(102, "bob")
+    ghost = make_member(199, "ghost")  # not in any suggestion list → bump fails
+    capture = await invoke_slash(
+        tree,
+        "admin movie pick-host",
+        admin_member,
+        guild,
+        options={"user": new_host, "prev_host": ghost},
+    )
+    [msg] = capture.messages
+    assert "does not exist in suggestion list" in msg.embed["description"].lower()
+
+
+async def test_movie_pick_host_prev_host_bumped(seeded_movie_db, tree, guild, admin_member, monkeypatch, tasks_noop):
+    _patch_event_present(monkeypatch)
+    monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
+    new_host = make_member(102, "bob")
+    prev = make_member(101, "alice")  # alice has seeded suggestions → bump succeeds
+    capture = await invoke_slash(
+        tree,
+        "admin movie pick-host",
+        admin_member,
+        guild,
+        options={"user": new_host, "prev_host": prev},
+    )
+    [msg] = capture.messages
+    assert "host selected" in msg.embed["title"].lower()
+    assert "bumped to the end" in msg.embed["description"].lower()
 
 
 # --- Modal: /movie add-suggestion → SuggestionModal.on_submit ---
@@ -306,64 +323,3 @@ async def test_movie_add_suggestion_modal_at_capacity(db_dir, guild, regular_mem
     [msg] = capture.messages
     assert msg.embed is not None
     assert SUGGESTION_DATABASE.get_movie("alice", "Overflow") is None
-
-
-# --- Scheduled-event handlers ---
-
-
-@pytest.fixture
-def scheduled_event_bot(monkeypatch):
-    """Patch the side-effect helpers the on_scheduled_event_* handlers call,
-    so we can assert they're invoked without running the real bodies (which
-    spawn AsyncTasks against ut.client's loop, edit ScheduledEvents, etc.)."""
-    update_calls = []
-    reminder_calls = []
-    monkeypatch.setattr(upcomingMovie, "update_event_description", lambda is_command: update_calls.append(is_command))
-    monkeypatch.setattr(eventReminder, "start_event_reminder", lambda: reminder_calls.append(True))
-    return update_calls, reminder_calls
-
-
-async def test_on_scheduled_event_create_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
-
-    ut_client_ready.dispatch("scheduled_event_create", _make_scheduled_event())
-    await asyncio.sleep(0)
-
-    assert update_calls == [False]
-    assert reminder_calls == [True]
-
-
-async def test_on_scheduled_event_update_skips_reminder_when_start_unchanged(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
-
-    same = datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
-    old = _make_scheduled_event(start_time=same)
-    new = _make_scheduled_event(start_time=same)
-    ut_client_ready.dispatch("scheduled_event_update", old, new)
-    await asyncio.sleep(0)
-
-    assert update_calls == [False]
-    # Same start_time → reminder isn't restarted.
-    assert reminder_calls == []
-
-
-async def test_on_scheduled_event_update_restarts_reminder_when_start_changes(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
-
-    old = _make_scheduled_event(start_time=datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc))
-    new = _make_scheduled_event(start_time=datetime(2024, 6, 16, 20, 0, 0, tzinfo=timezone.utc))
-    ut_client_ready.dispatch("scheduled_event_update", old, new)
-    await asyncio.sleep(0)
-
-    assert update_calls == [False]
-    assert reminder_calls == [True]
-
-
-async def test_on_scheduled_event_delete_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
-
-    ut_client_ready.dispatch("scheduled_event_delete", _make_scheduled_event())
-    await asyncio.sleep(0)
-
-    assert update_calls == [False]
-    assert reminder_calls == [True]

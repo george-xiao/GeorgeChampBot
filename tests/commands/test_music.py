@@ -1,21 +1,4 @@
-"""Tests for music.
-
-- Slash commands (`/music *`) dispatch through `tree._call`.
-- The `play_song` lifecycle tests (LOOPQUEUE rotation, LOOPSONG replay,
-  disconnect race) call `play_song()` directly — that's the entry point
-  triggered by `vc.play`'s `after=` callback when a track ends. It's
-  the dispatch boundary for "song ended", just like a slash dispatch is
-  the boundary for "user invoked /skip".
-- `on_voice_state_update` dispatches through the production handler in
-  `GeorgeChampBot.py` via `ut.client.dispatch`.
-- The 3-min `check_disconnect` periodic task dispatches via
-  `run_periodic_once` on the task `musicPlayer.init()` wires up.
-
-External I/O stubbed at the library boundary:
-- `musicPlayer.YoutubeDL` (yt-dlp) for `process_song`.
-- `musicPlayer.Aiogoogle` (YouTube Data API) for `process_input`.
-- `discord.VoiceClient` for vc.play / vc.pause / vc.disconnect.
-"""
+"""Tests for music slash commands + on_voice_state_update (background: tests/background/test_music.py)."""
 
 import asyncio
 from collections import deque
@@ -29,7 +12,7 @@ import common.utils as ut
 import GeorgeChampBot  # noqa: F401 — module-level @ut.client.event registers handlers on ut.client
 from components import musicPlayer
 from components.musicPlayer import SongItem
-from tests._dispatch import invoke_slash, run_periodic_once
+from tests._dispatch import invoke_slash
 
 
 # --- Fixtures ---
@@ -199,6 +182,27 @@ async def test_music_pause_when_paused(tree, guild, music_member, fake_vc, stubb
     [msg] = capture.messages
     assert "resumed" in msg.content.lower()
     fake_vc.resume.assert_called_once()
+
+
+# --- require_voice guard (shared by all /music commands) ---
+
+
+async def test_music_requires_user_in_voice_channel(tree, guild, regular_member):
+    regular_member.voice = None  # caller not in any voice channel
+    capture = await invoke_slash(tree, "music pause", regular_member, guild)
+    [msg] = capture.messages
+    assert "enter a voice channel" in msg.content.lower()
+
+
+async def test_music_requires_same_voice_channel_as_bot(tree, guild, music_member, fake_vc, monkeypatch):
+    musicPlayer.vc = fake_vc  # bot is connected somewhere
+    bot_obj = MagicMock()
+    bot_obj.voice.channel = MagicMock()  # ...a different channel than the caller's
+    monkeypatch.setattr(ut, "botObject", bot_obj)
+
+    capture = await invoke_slash(tree, "music pause", music_member, guild)
+    [msg] = capture.messages
+    assert "same voice channel as the bot" in msg.content.lower()
 
 
 # --- /music queue ---
@@ -431,7 +435,6 @@ async def test_music_loop_song_to_disabled(tree, guild, music_member, stubbed_bo
 async def test_music_play_no_results(tree, guild, music_member, fake_vc, stubbed_bot, bot_channel_stub, monkeypatch):
     # Search returns no video → process_input returns [].
     _patch_youtube(monkeypatch, search_video_id=None)
-    monkeypatch.setattr(musicPlayer, "play_song", AsyncMock())  # don't actually play
     capture = await invoke_slash(
         tree,
         "music play",
@@ -447,7 +450,15 @@ async def test_music_play_single_song_adds_to_queue(
     tree, guild, music_member, fake_vc, stubbed_bot, bot_channel_stub, monkeypatch
 ):
     _patch_youtube(monkeypatch, search_video_id="abc123")
-    monkeypatch.setattr(musicPlayer, "play_song", AsyncMock())
+
+    async def _process(song_queue):
+        # Mirror process_song's contract: resolve the next song's stream URL so
+        # play_song's FFmpegPCMAudio(song_url) doesn't choke on None.
+        if song_queue.queue:
+            song_queue.queue[0].song_url = "https://stream.example/test.mp3"
+        return True
+
+    monkeypatch.setattr(musicPlayer, "process_song", AsyncMock(side_effect=_process))
     capture = await invoke_slash(
         tree,
         "music play",
@@ -455,10 +466,12 @@ async def test_music_play_single_song_adds_to_queue(
         guild,
         options={"query": "My Song"},
     )
+    # play_song is kicked off as a tracked background task; await it to completion.
+    await asyncio.gather(*musicPlayer._PENDING_TASKS)
     contents = [m.content for m in capture.messages]
     assert any("Added 'My Song'" in c for c in contents)
-    assert len(musicPlayer.sq.queue) == 1
-    assert musicPlayer.sq.queue[0].title == "My Song"
+    # play_song ran and called vc.play (song is now playing)
+    fake_vc.play.assert_called_once()
 
 
 # === on_voice_state_update ===
@@ -482,150 +495,3 @@ async def test_on_voice_state_update_resets_when_bot_disconnects(monkeypatch, fa
 
     assert musicPlayer.vc is None
     assert list(musicPlayer.sq.queue) == []
-
-
-# === Periodic: check_disconnect ===
-
-
-async def test_check_disconnect_no_vc_is_noop(patched_periodic_start, bot_channel_stub):
-    musicPlayer.init()
-    await run_periodic_once(musicPlayer._DISCONNECT_TASK)
-    assert bot_channel_stub.send.await_count == 0
-
-
-async def test_check_disconnect_alone_in_channel_eventually_disconnects(
-    patched_periodic_start, bot_channel_stub, fake_vc
-):
-    """First run flips should_disconnect to True; second run actually disconnects."""
-    fake_vc.channel.members = [MagicMock()]  # just the bot
-    musicPlayer.vc = fake_vc
-    musicPlayer.init()
-
-    await run_periodic_once(musicPlayer._DISCONNECT_TASK)
-    # First pass arms the disconnect; bot still connected.
-    assert musicPlayer.should_disconnect is True
-    fake_vc.disconnect.assert_not_called()
-
-    await run_periodic_once(musicPlayer._DISCONNECT_TASK)
-    # Second pass triggers it.
-    fake_vc.disconnect.assert_awaited_once()
-
-
-async def test_check_disconnect_not_alone_clears_arm(patched_periodic_start, bot_channel_stub, fake_vc):
-    """If the queue is playing and others are in the channel, should_disconnect stays False."""
-    fake_vc.channel.members = [MagicMock(), MagicMock()]
-    musicPlayer.vc = fake_vc
-    musicPlayer.sq.curr_song = make_song_item("Currently Playing")
-    musicPlayer.should_disconnect = True  # previously armed
-
-    musicPlayer.init()
-    await run_periodic_once(musicPlayer._DISCONNECT_TASK)
-
-    assert musicPlayer.should_disconnect is False
-    fake_vc.disconnect.assert_not_called()
-
-
-# === play_song lifecycle ===
-# play_song is invoked by vc.play's after= callback when a track ends. We
-# invoke it directly here — that callback is the entry point, just as
-# tree._call is the entry point for slash commands.
-
-
-def _make_live_vc():
-    vc = MagicMock(spec=discord.VoiceClient)
-    vc.is_connected.return_value = True
-    vc.is_playing.return_value = False
-    vc.is_paused.return_value = False
-    return vc
-
-
-async def test_play_song_logs_playback_error(bot_channel_stub):
-    await musicPlayer.play_song(playback_error=Exception("ffmpeg crashed"))
-    error_call = next(c for c in bot_channel_stub.send.await_args_list if "embed" in c.kwargs)
-    embed = error_call.kwargs["embed"]
-    assert embed.title == "Playback error"
-    assert embed.description == "ffmpeg crashed"
-
-
-async def test_play_song_bails_when_vc_disconnected(bot_channel_stub):
-    vc_mock = _make_live_vc()
-    vc_mock.is_connected.return_value = False
-    musicPlayer.vc = vc_mock
-    musicPlayer.sq.queue = deque([make_song_item("Next Song")])
-
-    with patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)):
-        await musicPlayer.play_song()
-
-    vc_mock.play.assert_not_called()
-
-
-async def test_play_song_loopqueue_rotates_to_back(bot_channel_stub):
-    vc_mock = _make_live_vc()
-    musicPlayer.vc = vc_mock
-    musicPlayer.loop_status = 1  # LOOPQUEUE
-
-    song_a = make_song_item("Song A")
-    song_b = make_song_item("Song B")
-    musicPlayer.sq.curr_song = song_a
-    musicPlayer.sq.queue = deque([song_b])
-
-    with (
-        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
-        patch("components.musicPlayer.FFmpegPCMAudio"),
-    ):
-        await musicPlayer.play_song()
-
-    assert musicPlayer.sq.curr_song is song_b
-    assert list(musicPlayer.sq.queue) == [song_a]
-
-
-async def test_play_song_loopsong_replays_current(bot_channel_stub):
-    vc_mock = _make_live_vc()
-    musicPlayer.vc = vc_mock
-    musicPlayer.loop_status = 2  # LOOPSONG
-
-    song_a = make_song_item("Song A")
-    song_b = make_song_item("Song B")
-    musicPlayer.sq.curr_song = song_a
-    musicPlayer.sq.queue = deque([song_b])
-
-    with (
-        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
-        patch("components.musicPlayer.FFmpegPCMAudio"),
-    ):
-        await musicPlayer.play_song()
-
-    assert musicPlayer.sq.curr_song is song_a
-    assert list(musicPlayer.sq.queue) == [song_b]
-
-
-async def test_play_song_loopsong_replays_with_empty_queue(bot_channel_stub):
-    """Regression: previously the empty-queue early return fired before the
-    loop re-append, dropping the only song instead of looping it."""
-    vc_mock = _make_live_vc()
-    musicPlayer.vc = vc_mock
-    musicPlayer.loop_status = 2  # LOOPSONG
-
-    song = make_song_item("Only Song")
-    musicPlayer.sq.curr_song = song
-
-    with (
-        patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)),
-        patch("components.musicPlayer.FFmpegPCMAudio"),
-    ):
-        await musicPlayer.play_song()
-
-    assert musicPlayer.sq.curr_song is song
-    vc_mock.play.assert_called_once()
-
-
-async def test_play_song_loopdisabled_clears_when_queue_empty(bot_channel_stub):
-    vc_mock = _make_live_vc()
-    musicPlayer.vc = vc_mock
-    musicPlayer.sq.curr_song = make_song_item("Final Song")
-
-    with patch("components.musicPlayer.process_song", new=AsyncMock(return_value=True)):
-        await musicPlayer.play_song()
-
-    assert musicPlayer.sq.curr_song is None
-    vc_mock.play.assert_not_called()

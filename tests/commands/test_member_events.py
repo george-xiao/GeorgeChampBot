@@ -1,7 +1,4 @@
-"""Tests for member join/leave gateway events.
-
-Both handlers dispatch through `ut.client.dispatch` and exercise the `@ut.client.event`-registered handlers in GeorgeChampBot.py.
-"""
+"""Tests for member join/leave gateway events (on_member_join, on_member_remove)."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock

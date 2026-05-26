@@ -1,7 +1,7 @@
-"""Shared test data factories.
+"""Test data builders.
 
-`make_member` / `make_guild` build the MagicMock entities the tests pass to `invoke_slash`.
-The `seed_*` functions populate shelve DBs with deterministic content so each feature's tests have predictable state.
+Use `make_member(id, name)` / `make_guild(members)` to create fake Discord objects.
+Use `seed_*_db(db_dir)` to pre-populate a shelve database with known state.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from unittest.mock import MagicMock
 
 import discord
 
+from tests._env_setup import make_admin_role
+
 
 def make_member(member_id: int, name: str, nick: str | None = None, is_admin: bool = False) -> MagicMock:
-    # spec=discord.Member so `isinstance(member, discord.Member)` checks
-    # in production code (e.g., commands/music/_helpers.py:require_voice)
-    # accept the mock. Attribute assignment still works post-spec.
+    """Create a fake Member. Pass to invoke_slash or use in guild fixtures."""
     member = MagicMock(spec=discord.Member)
     member.id = member_id
     member.name = name
@@ -27,18 +27,18 @@ def make_member(member_id: int, name: str, nick: str | None = None, is_admin: bo
     member.roles = []
     member.voice = None
     if is_admin:
-        admin_role = MagicMock()
-        admin_role.name = "ADMIN"
-        member.roles.append(admin_role)
+        member.roles.append(make_admin_role())
     return member
 
 
 def make_guild(members: list[MagicMock]) -> MagicMock:
+    """Create a fake Guild with the given members. Used by the `guild` fixture."""
     guild = MagicMock()
     guild.id = 1000
     guild.name = "TestGuild"
     guild.members = members
     guild.emojis = []
+    guild.roles = [make_admin_role()]
 
     by_id = {m.id: m for m in members}
 
@@ -61,7 +61,7 @@ DEFAULT_MEMBERS = [
 
 
 def seed_meme_leaderboard(db_dir: Path) -> None:
-    """Populate database/meme_leaderboard.db with deterministic content."""
+    """Seed meme leaderboard with 5 members (alice=50, bob=30, carol=25, dave=10, eve=5)."""
     db_path = db_dir / "meme_leaderboard.db"
     with shelve.open(str(db_path)) as s:
         # struct: [memer_score, daily_meme_count]
@@ -73,17 +73,14 @@ def seed_meme_leaderboard(db_dir: Path) -> None:
 
 
 def seed_meme_review(db_dir: Path) -> None:
-    """Populate database/meme_review.db with deterministic content."""
+    """Seed meme review DB with one tracked meme (id=999001, author=alice)."""
     db_path = db_dir / "meme_review.db"
     with shelve.open(str(db_path)) as s:
         s["999001"] = [10, True, 101, "https://example.invalid/meme1.png"]
 
 
 def seed_dota_player_list(db_dir: Path, entries: dict[str, str] | None = None) -> None:
-    """Seed the dota DB with {player_id: member_name} entries.
-
-    Defaults: 12345 → alice; 67890 → bob.
-    """
+    """Seed dota player list. Defaults: 12345→alice, 67890→bob."""
     db_path = db_dir / "dota_player_list.db"
     with shelve.open(str(db_path)) as s:
         for k, v in (entries or {"12345": "alice", "67890": "bob"}).items():
@@ -91,7 +88,7 @@ def seed_dota_player_list(db_dir: Path, entries: dict[str, str] | None = None) -
 
 
 def seed_emote_leaderboard(db_dir: Path) -> None:
-    """Populate the all_time_georgechamp_shelf and starting_date_shelf with deterministic content."""
+    """Seed emote leaderboard with 12 active emotes + 2 deleted ones."""
     from components.emoteLeaderboard import Emoji
 
     shelf_path = db_dir / "all_time_georgechamp_shelf.db"
@@ -127,7 +124,7 @@ def seed_emote_leaderboard(db_dir: Path) -> None:
 
 
 def seed_movie_suggestions(db_dir: Path) -> None:
-    """Populate the movie_suggestion_list shelve with deterministic content."""
+    """Seed movie suggestions. alice has 2 movies, bob has 1."""
     from components.movieNight import SUGGESTION_DATABASE
     from components.subcomponents.movieNight.movie import Movie
 
@@ -141,10 +138,7 @@ def seed_movie_suggestions(db_dir: Path) -> None:
 
 
 def seed_twitch_streamer_list(db_dir: Path, entries: dict[str, str] | None = None) -> None:
-    """Seed the twitch DB with {twitch_username: member_name} entries.
-
-    Defaults: alicestream → alice; bobstream → bob.
-    """
+    """Seed twitch streamer list. Defaults: alicestream→alice, bobstream→bob."""
     db_path = db_dir / "twitch_streamer_list.db"
     with shelve.open(str(db_path)) as s:
         for twitch_username, member_name in (entries or {"alicestream": "alice", "bobstream": "bob"}).items():

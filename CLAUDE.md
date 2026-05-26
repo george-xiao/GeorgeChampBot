@@ -12,7 +12,7 @@ GeorgeChampBot is a Python Discord bot built with discord.py. Features include m
 ```bash
 ./run.sh                                # run bot (Docker)
 ./run-tests.sh                          # all tests
-./run-tests.sh tests/test_meme.py -v    # single feature
+./run-tests.sh tests/commands/test_meme.py -v    # single feature
 ```
 
 ## Architecture

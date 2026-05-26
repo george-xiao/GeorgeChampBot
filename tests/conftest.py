@@ -1,8 +1,7 @@
-"""Pytest fixtures.
+"""Shared fixtures for all tests.
 
-NOTE: `_env_setup` is imported FIRST. It sets placeholder env vars before
-common.utils is loaded by any subsequent import. Without this, common.utils
-crashes at import time on ANNOUNCEMENT_DAY/HOUR/MIN int casts.
+NOTE: `_env_setup` must be imported first — it sets placeholder env vars
+before common.utils loads (which crashes without them).
 """
 
 from tests import _env_setup  # noqa: F401  (must come before any common.* import)
@@ -14,12 +13,12 @@ import pytest
 from tests._factories import DEFAULT_MEMBERS, make_guild
 
 
+# --- Core ---
+
+
 @pytest.fixture(scope="session")
 def tree():
-    """The production CommandTree, built once per test session via
-    `commands.load_commands`. Tests dispatch on this exact tree —
-    matching how `GeorgeChampBot.on_ready` wires production.
-    """
+    """Production command tree with all slash commands loaded. Session-scoped."""
     import discord
     from discord import app_commands
     from commands import load_commands
@@ -32,16 +31,25 @@ def tree():
 
 @pytest.fixture
 def db_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Move CWD to a tmp directory with a fresh `database/` subfolder.
-
-    All components open shelve DBs with relative paths like
-    './database/meme_leaderboard.db'. Chdir-ing here makes those land in
-    the tmp dir, so tests don't touch the real database/.
-    """
+    """Temp directory with a `database/` subfolder. CWD is moved here so
+    shelve operations don't touch the real database."""
     monkeypatch.chdir(tmp_path)
     db = tmp_path / "database"
     db.mkdir()
     return db
+
+
+@pytest.fixture
+def tasks_noop(monkeypatch):
+    """Disable all background task scheduling. Auto-applied in tests/commands/."""
+    from common.asyncTask import AsyncTask
+    from common.periodicTask import PeriodicTask
+
+    monkeypatch.setattr(PeriodicTask, "start", lambda self, *a, **k: None)
+    monkeypatch.setattr(AsyncTask, "start", lambda self, *a, **k: None)
+
+
+# --- Discord objects ---
 
 
 @pytest.fixture
@@ -51,10 +59,7 @@ def members():
 
 @pytest.fixture
 def guild(members, monkeypatch):
-    """Test guild built from DEFAULT_MEMBERS. Also patches ut.guildObject
-    so production code paths that read it (ut.get_member, ut.fetch_member,
-    etc.) see the rich members list instead of the empty bootstrap guild
-    installed by tests/_env_setup.py."""
+    """Fake guild with 5 members. Patches ut.guildObject globally."""
     g = make_guild(members)
     import common.utils as ut
 
@@ -70,6 +75,9 @@ def admin_member(members):
 @pytest.fixture
 def regular_member(members):
     return members[0]  # alice
+
+
+# --- Seeded databases ---
 
 
 @pytest.fixture
@@ -113,23 +121,12 @@ def seeded_movie_db(db_dir):
     return db_dir
 
 
-@pytest.fixture
-def patched_periodic_start(monkeypatch):
-    """Disable PeriodicTask.start so a component's init() wires the task
-    without launching the background scheduler. Drive via run_periodic_once
-    instead."""
-    from common.periodicTask import PeriodicTask
-
-    monkeypatch.setattr(PeriodicTask, "start", lambda self, *a, **k: None)
+# --- Event dispatch (dpytest) ---
 
 
 @pytest.fixture
 async def ut_client_ready():
-    """Bind ut.client to the current test's event loop. Production event
-    handlers register on ut.client at GeorgeChampBot import time
-    (module-level @ut.client.event decorators); this fixture ensures
-    `_async_setup_hook` has been called against this test's loop so
-    `ut.client.dispatch(...)` works."""
+    """ut.client ready for dispatch. Use for gateway event tests via client.dispatch(...)."""
     import common.utils as ut
     import GeorgeChampBot  # noqa: F401 — triggers @ut.client.event registration
 
@@ -139,7 +136,7 @@ async def ut_client_ready():
 
 @pytest.fixture
 async def dpytest_client(ut_client_ready):
-    """ut.client wired into dpytest's runner. Clean queue between tests."""
+    """ut.client wired into dpytest. Use for dpytest.message(...) tests."""
     import discord.ext.test as dpytest
 
     dpytest.configure(ut_client_ready)

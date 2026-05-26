@@ -39,7 +39,7 @@ def _walk_tree_paths(tree: app_commands.CommandTree) -> set[str]:
 
 def _collect_invoked_paths() -> set[str]:
     paths: set[str] = set()
-    for file in TESTS_DIR.glob("test_*.py"):
+    for file in TESTS_DIR.rglob("test_*.py"):
         for node in ast.walk(ast.parse(file.read_text(encoding="utf-8"))):
             if (
                 isinstance(node, ast.Call)
@@ -90,7 +90,7 @@ def test_every_registered_command_has_a_test(tree: app_commands.CommandTree) -> 
         bullets = "\n".join(f"  - /{p}" for p in missing)
         pytest.fail(
             f"Registered slash commands without an `invoke_slash` test:\n{bullets}\n\n"
-            'Add `invoke_slash(tree, "<path>", user, guild, ...)` in tests/test_<feature>.py. '
+            'Add `invoke_slash(tree, "<path>", user, guild, ...)` in tests/commands/test_<feature>.py. '
             "See docs/DEVELOPMENT.md#adding-a-test.",
             pytrace=False,
         )

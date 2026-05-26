@@ -80,4 +80,3 @@
 
 **Testing:**
 - [ ] Add linting + testing when PR gets created (GitHub Actions)
-- [ ] Convert simple integration tests into multi-flow ones

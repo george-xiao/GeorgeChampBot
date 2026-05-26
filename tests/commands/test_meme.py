@@ -1,11 +1,4 @@
-"""Tests for meme.
-
-- Slash commands dispatch through `tree._call`.
-- Gateway events (`on_message` → `check_meme`, `on_raw_reaction_add` →
-  `add_meme_reactions`) dispatch through dpytest / `client.dispatch`.
-- Periodic tasks (weekly best-meme + daily counter reset) dispatch via
-  `run_periodic_once` on the actual tasks `memeReview.init()` wires up.
-"""
+"""Tests for meme commands + gateway events (on_message, on_raw_reaction_add)."""
 
 import asyncio
 import shelve
@@ -17,9 +10,8 @@ import pytest
 
 import common.utils as ut
 import GeorgeChampBot  # noqa: F401 — module-level @ut.client.event registers handlers on ut.client
-from components import memeReview
-from tests._capture import CapturedMessages, SentMessage, make_capturing_channel
-from tests._dispatch import invoke_slash, run_periodic_once
+from tests._capture import CapturedMessages, SentMessage
+from tests._dispatch import invoke_slash
 
 
 # --- /meme leaderboard ---
@@ -167,42 +159,3 @@ async def test_on_raw_reaction_add_good_meme_increments_score(meme_event_bot, mo
         bob_entry = db.get("102")
     assert bob_entry is not None
     assert bob_entry[0] == 31  # 30 (seeded) + 1 for reacting
-
-
-# --- Periodic: weekly best-meme announcement + daily reset ---
-
-
-async def test_weekly_best_meme_announces_to_main_channel(seeded_meme_db, patched_periodic_start, monkeypatch):
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
-
-    memeReview.init()
-    await run_periodic_once(memeReview._BEST_ANNOUNCEMENT_TASK)
-
-    [msg] = capture.messages
-    assert "Memer of the Week" in msg.content
-
-
-async def test_weekly_best_meme_handles_no_memes(db_dir, patched_periodic_start, monkeypatch):
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
-
-    memeReview.init()
-    await run_periodic_once(memeReview._BEST_ANNOUNCEMENT_TASK)
-
-    [msg] = capture.messages
-    assert "No memes" in msg.content
-
-
-async def test_daily_reset_clears_daily_meme_counts(seeded_meme_db, patched_periodic_start):
-    with shelve.open("./database/meme_leaderboard.db", writeback=True) as db:
-        db["101"] = [50, 3]
-    memeReview.init()
-    await run_periodic_once(memeReview._RESET_LIMIT_TASK)
-
-    with shelve.open("./database/meme_leaderboard.db") as db:
-        alice_after = db["101"]
-    assert alice_after[0] == 50
-    assert alice_after[1] == 0

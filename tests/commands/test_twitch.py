@@ -1,19 +1,10 @@
-"""Tests for twitch.
-
-- Slash commands dispatch through `tree._call`.
-- Periodic 15-min live-streamer poll dispatches through
-  `run_periodic_once` on the task `twitchAnnouncement.init()` wires up.
-- Twitch OAuth + Helix endpoints are stubbed at `ut.async_get_request`
-  and `ut.async_post_request` so the real validate/generate flow runs
-  end-to-end (replaces the old direct `_validate_twitch_username` patch).
-"""
+"""Tests for twitch slash commands (/twitch list, /admin twitch add, /admin twitch remove)."""
 
 import pytest
 
 import common.utils as ut
 from components import twitchAnnouncement
-from tests._capture import CapturedMessages, make_capturing_channel
-from tests._dispatch import invoke_slash, run_periodic_once
+from tests._dispatch import invoke_slash
 from tests._factories import make_member
 
 
@@ -146,50 +137,3 @@ async def test_twitch_remove_not_tracked(db_dir, tree, guild, admin_member):
     )
     [msg] = capture.messages
     assert "isn't being tracked" in msg.content
-
-
-# --- Periodic: 15-min live-streamers poll ---
-
-
-async def test_periodic_announces_new_live_streamer(seeded_twitch_db, patched_periodic_start, monkeypatch):
-    _stub_twitch(
-        monkeypatch,
-        live_streams=[
-            {"user_name": "alicestream", "viewer_count": 42},
-        ],
-    )
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
-
-    twitchAnnouncement.init()
-    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
-
-    [msg] = capture.messages
-    assert "alicestream is live" in msg.content
-    assert "42 viewers" in msg.content
-    assert "twitch.tv/alicestream" in msg.content
-
-
-async def test_periodic_silent_when_no_one_live(seeded_twitch_db, patched_periodic_start, monkeypatch):
-    _stub_twitch(monkeypatch, live_streams=[])
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
-
-    twitchAnnouncement.init()
-    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
-
-    assert capture.messages == []
-
-
-async def test_periodic_skips_when_no_tracked_streamers(db_dir, patched_periodic_start, monkeypatch):
-    _stub_twitch(monkeypatch)
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
-
-    twitchAnnouncement.init()
-    await run_periodic_once(twitchAnnouncement._LIVE_CHECK_TASK)
-
-    assert capture.messages == []

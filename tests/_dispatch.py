@@ -1,16 +1,9 @@
-"""Test dispatch helpers.
+"""Slash command dispatch for tests.
 
-`invoke_slash`: build a fake Interaction payload and feed it to
-`CommandTree._call`, exercising the real slash dispatch path
-(command lookup, Namespace construction, callback invocation).
+Use `invoke_slash(tree, "feature subcommand", user, guild, options={...})`
+to trigger a slash command. Returns a `CapturedMessages` with the bot's response.
 
-`run_periodic_once`: invoke the inner coroutine factory wired into a
-`PeriodicTask` exactly once, bypassing the scheduler's sleep loop.
-
-Supports leaf options of type STRING (3), INTEGER (4), BOOLEAN (5),
-and USER (6 — Member-like values are auto-resolved). CHANNEL (7) and
-ROLE (8) options need extra resolved data; add support when the first
-test that needs them lands.
+Supported option types: STRING, INTEGER, BOOLEAN, USER (Member).
 """
 
 from __future__ import annotations
@@ -29,8 +22,7 @@ _OPTION_TYPE_SUBCOMMAND_GROUP = 2
 
 
 def _is_member_like(value: Any) -> bool:
-    """True for `discord.Member` (real or spec'd MagicMock).
-    `make_member` in tests/_fixtures.py builds Member-spec'd mocks."""
+    """Check if value is a discord.Member (real or mock)."""
     return isinstance(value, discord.Member)
 
 
@@ -90,35 +82,12 @@ def _build_data(
     }
 
 
-async def invoke_slash(
-    tree: app_commands.CommandTree,
-    command_path: str,
-    user,
-    guild,
-    *,
-    options: dict[str, Any] | None = None,
-) -> CapturedMessages:
-    """Dispatch a slash command through `tree._call` with a hand-built Interaction.
+def _build_member_resolved(options: dict[str, Any] | None, data: dict) -> MagicMock:
+    """Wire resolved member data into the payload so discord.py constructs real Members.
 
-    `command_path` is space-separated, e.g. "dota list" or "admin dota remove".
-    `options` maps leaf parameter names to Python values; option types are
-    inferred from `type(value)`.
+    discord.py's Member transformer does isinstance(value, Member) and rejects fakes.
+    We feed it raw user/member data via data["resolved"], then intercept state.store_user() to return a mock with the right .name/.id/.bot attributes.
     """
-    parts = command_path.split()
-    if not parts:
-        raise ValueError("command_path cannot be empty")
-
-    leaf_options = [_build_leaf_option(n, v) for n, v in (options or {}).items()]
-    data = _build_data(parts, leaf_options, guild.id)
-
-    # Build resolved data for any Member-like option values. We use the
-    # `resolved.members` path so discord.py constructs a real `discord.Member`
-    # — needed because the transformer for a `discord.Member`-annotated param
-    # does `isinstance(value, Member)` and rejects anything else.
-    #
-    # Member.__init__ calls `state.store_user(data['user'])`; we make that
-    # return a MagicMock whose .name/.id/.bot match the test's input member,
-    # so `member.name` returns the expected string downstream.
     members_by_id: dict[str, Any] = {}
     for value in (options or {}).values():
         if _is_member_like(value):
@@ -152,6 +121,32 @@ async def invoke_slash(
 
         state.store_user.side_effect = _store_user
 
+    return state
+
+
+async def invoke_slash(
+    tree: app_commands.CommandTree,
+    command_path: str,
+    user,
+    guild,
+    *,
+    options: dict[str, Any] | None = None,
+) -> CapturedMessages:
+    """Trigger a slash command. Returns CapturedMessages with the bot's response.
+
+    `command_path`: space-separated, e.g. "dota list" or "admin dota remove".
+    `options`: parameter names → values (types inferred automatically).
+    """
+    parts = command_path.split()
+    if not parts:
+        raise ValueError("command_path cannot be empty")
+
+    leaf_options = [_build_leaf_option(n, v) for n, v in (options or {}).items()]
+    data = _build_data(parts, leaf_options, guild.id)
+
+    # Build resolved data for any Member-like option values.
+    state = _build_member_resolved(options, data)
+
     capture = CapturedMessages()
     interaction = make_capturing_interaction(user, guild, capture)
     interaction.data = data
@@ -162,14 +157,3 @@ async def invoke_slash(
 
     await tree._call(interaction)
     return capture
-
-
-async def run_periodic_once(task) -> None:
-    """Invoke a `PeriodicTask`'s inner coroutine factory exactly once.
-
-    Bypasses the scheduler's sleep loop — the schedule math is covered
-    separately by `tests/test_periodic_task.py`. This helper exercises
-    the actual work-doing coroutine in isolation, so tests can drive
-    periodic side effects deterministically.
-    """
-    await task._coroutine_factory()

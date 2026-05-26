@@ -34,10 +34,6 @@ class PeriodicTask(AsyncTask):
                 "PeriodicTask cannot be constructed directly. "
                 "Use one of: PeriodicTask.every/.minutely/.hourly/.daily/.weekly"
             )
-        # `_coroutine_factory` is the user's actual task body, exposed so
-        # tests can invoke it via run_periodic_once without going through
-        # the scheduler loop. AsyncTask.coroutine_factory (set by the
-        # super().__init__ below) wraps it in `self._loop`.
         self._next_delay = next_delay
         self._coroutine_factory = coroutine_factory
         super().__init__(self._loop)

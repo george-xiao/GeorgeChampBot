@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-See [Setup](../README.md#setup) for environment setup. Before merging, [run the bot in Docker](../README.md#run-application-using-docker-recommended) and verify your changes behave as expected.
+See [Setup](../README.md#setup) for environment setup.
 
 One-time setup for the pre-push hooks:
 
@@ -20,7 +20,8 @@ Typical workflow:
 1. Create a component in `components/` with pure functions that return string or embed data.
 2. Add slash commands under `commands/` that call the component. See [commands/README.md](../commands/README.md) for structure and reference files.
 3. Write tests. See [Automated Testing](#automated-testing) below.
-4. Push. The pre-push hook verifies lint and tests pass.
+4. [Run the bot in Docker](../README.md#run-application-using-docker-recommended) and verify your changes behave as expected.
+5. Push. The pre-push hook verifies lint and tests pass.
 
 If you use Claude Code, the [`slash-command-tester`](../.claude/skills/slash-command-tester.md) skill automates step 3: it ensures that a test exists, walks you through writing one if not, and catches unintentional behavior changes.
 
@@ -45,36 +46,45 @@ Catch exceptions in event handlers and component functions. Return a context-spe
 Automated tests run in Docker.
 
 ```bash
-./run-tests.sh                          # all tests
-./run-tests.sh tests/test_meme.py -v    # single feature
+./run-tests.sh                                    # all tests
+./run-tests.sh tests/commands/test_meme.py -v     # single feature
 ```
 
 ### Testing philosophy
 
-Test at the highest level you practically can, then drop down when the layer above isn't testable:
+All tests inject at the dispatch boundary (the highest practical level). The WebSocket receive/parse path (discord.py internals) is not exercised. Testing it would require a mock Discord server that stays in sync with discord.py's expected gateway payloads across versions, a maintenance cost that outweighs the benefit for this project.
 
-1. **Simulate the gateway** (dpytest): Real client, real event dispatch. Used for message/reaction handlers.
-2. **Call `tree._call` with a crafted payload** (`invoke_slash`): Real command routing and callbacks. Used for slash commands (dpytest doesn't support interactions).
-3. **Call the entry point directly** (`run_periodic_once`, `play_song()`): Real component logic. Use when no external trigger exists (periodic tasks, voice callbacks).
-4. **Call a function directly**: Last resort, loses wiring coverage. Only for pure math with no dispatch boundary (`test_periodic_task.py`).
+- Gateway events (messages, reactions, member joins): `dpytest.message(...)` or `client.dispatch(...)`
+- Slash commands: `invoke_slash(...)`. dpytest doesn't support interactions, so we built this.
+- Background tasks: `@pytest.mark.looptime`. Real tasks fire via fast-forwarded asyncio time. See `tests/background/` directory.
+- Voice callbacks: Capture `after=` from `vc.play()`, invoke it to trigger `_schedule_next_song` → `play_song()`.
 
-Each level exercises less of the real stack but is sometimes the only practical option. Don't drop lower than you need to.
+### File conventions
+
+- `tests/commands/test_<feature>.py`: command/event tests. `tasks_noop` is autouse via `commands/conftest.py`.
+- `tests/background/test_<feature>.py`: background task tests. `@pytest.mark.looptime` at module level, `db_dir` is autouse via `background/conftest.py`.
+- `tests/test_command_coverage.py`: meta-test ensuring every command has a test.
 
 ### Dispatch patterns
 
-Assert on observable behavior (response substrings, DB state, captured messages) — not output snapshots.
+Assert on observable behavior (response substrings, DB state, captured messages).
 
 A forgotten `register_subcommand` or missing test is caught by the [coverage guard](../tests/test_command_coverage.py).
 
 | Entry point | Helper | Example |
 |---|---|---|
-| Slash command (`@group.command`) | `invoke_slash(tree, "dota list", user, guild)` | `test_dota.py` |
-| Gateway event (`@client.event`) | `dpytest.message(...)` or `client.dispatch("event_name", *args)` | `test_emote.py` (dpytest) / `test_movie.py` (bare dispatch) |
-| Periodic task (`PeriodicTask.*`) | `run_periodic_once(task)` after `component.init()` | `test_dota.py`, `test_twitch.py` |
-| Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `test_movie.py` |
-| Voice callback (`vc.play`'s `after=`) | Call `play_song()` directly | `test_music.py` |
+| Slash command (`@group.command`) | `invoke_slash(tree, "dota list", user, guild)` | `tests/commands/test_dota.py` |
+| Gateway event (`@client.event`) | `dpytest.message(...)` or `client.dispatch(...)` | `tests/commands/test_emote.py` / `tests/commands/test_movie.py` |
+| Periodic/Async task (`PeriodicTask` / `AsyncTask`) | `@pytest.mark.looptime` + trigger (`init()` or gateway event) | `tests/background/test_dota.py` / `tests/background/test_movie.py` |
+| Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `tests/commands/test_movie.py` |
+| Voice callback (`vc.play`'s `after=`) | Capture `after=` from `vc.play()`, invoke it | `tests/background/test_music.py` |
 
 ### Adding a test
+
+1. **Command or event?** → `tests/commands/test_<feature>.py`. Use `invoke_slash(...)` for commands, `dpytest.message(...)`/`client.dispatch(...)` for events.
+2. **Background task?** → `tests/background/test_<feature>.py`. Call `component.init()`, then `await asyncio.sleep(interval)` to trigger it.
+3. **Need test data?** → Use `seeded_<feature>_db` fixture or build state inline.
+4. **Need to stub an API?** → Use helpers from `tests/_stubs.py`.
 
 #### Fixtures
 
@@ -87,18 +97,19 @@ Other shared fixtures in `tests/conftest.py` include:
 | `tree` | Production command tree |
 | `guild` / `admin_member` / `regular_member` | Test guild with members |
 | `db_dir` / `seeded_<feature>_db` | Temp database, optionally pre-seeded |
-| `patched_periodic_start` | Disables scheduler; drive with `run_periodic_once` |
+| `tasks_noop` | Disables all background task scheduling (autouse in `commands/`) |
 | `ut_client_ready` / `dpytest_client` | Event loop + dpytest wiring |
 
 #### Stubs
 
-External I/O is stubbed at the library boundary, not at the production helper that calls it:
+External I/O is stubbed at the library boundary, not at the production helper that calls it. Centralized stubs live in `tests/_stubs.py`:
 
-| Dependency | Patch target |
-|---|---|
-| HTTP | `common.utils.async_get_request` / `async_post_request` |
-| YouTube | `musicPlayer.Aiogoogle` / `musicPlayer.YoutubeDL` |
-| Voice | `MagicMock(spec=discord.VoiceClient)` |
+| Dependency | Stub | Patch target |
+|---|---|---|
+| HTTP (Dota) | `stub_dota_api(monkeypatch, ...)` | `ut.async_get_request` |
+| HTTP (Twitch) | `stub_twitch_api(monkeypatch, ...)` | `ut.async_get_request` / `async_post_request` |
+| YouTube + yt-dlp | `stub_youtube(monkeypatch, ...)` | `musicPlayer.Aiogoogle` / `musicPlayer.YoutubeDL` |
+| Voice | `MagicMock(spec=discord.VoiceClient)` | Local fixture |
 
 Patching production helpers directly (e.g., `memeReview.check_meme`) lets renames slip through undetected. Stick to library-boundary stubs.
 
@@ -108,9 +119,9 @@ Reference these tests for non-obvious cases:
 
 | Pattern | Reference | Key Insight |
 |---|---|---|
-| `discord.Member` parms | `tests/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
-| Module-level state reset | `tests/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
-| Modal submission | `tests/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
+| `discord.Member` params | `tests/commands/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
+| Module-level state reset | `tests/commands/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
+| Modal submission | `tests/commands/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
 
 ## Tooling
 

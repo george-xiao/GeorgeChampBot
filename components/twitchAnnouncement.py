@@ -114,7 +114,7 @@ async def generate_twitch_OAuth_token(channel):
 
 
 # Validates a Twitch username against the Twitch Helix API. Handles OAuth internally.
-# Returns False on any failure (network, auth, unknown user). Tests mock this directly.
+# Returns False on any failure (network, auth, unknown user).
 async def _validate_twitch_username(twitch_username: str) -> bool:
     global twitch_OAuth_token
     try:

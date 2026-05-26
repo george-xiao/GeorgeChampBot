@@ -43,17 +43,22 @@ import discord  # noqa: E402
 from unittest.mock import MagicMock  # noqa: E402
 import common.utils as ut  # noqa: E402
 
-if ut.guildObject is None:
-    _admin_role = MagicMock()
-    _admin_role.name = _PLACEHOLDERS["ADMIN_ROLE"]
-    _admin_role.id = 2001
-    _admin_role.permissions = discord.Permissions(administrator=True)
 
+def make_admin_role() -> MagicMock:
+    """Build the test admin role. Shared by the bootstrap guild and tests/_factories.py."""
+    role = MagicMock()
+    role.name = os.environ["ADMIN_ROLE"]
+    role.id = 2001
+    role.permissions = discord.Permissions(administrator=True)
+    return role
+
+
+if ut.guildObject is None:
     _guild = MagicMock()
     _guild.id = 1000
     _guild.name = _PLACEHOLDERS["DISCORD_GUILD"]
     _guild.members = []
-    _guild.roles = [_admin_role]
+    _guild.roles = [make_admin_role()]
     _guild.emojis = []
 
     ut.guildObject = _guild

@@ -26,11 +26,11 @@ Mental test: **could a Discord user notice a difference after this change?** If 
 trigger fires
 
 1. Identify affected slash command(s).
-2. Does tests/test_<feature>.py contain a test that invokes this command via `invoke_slash(tree, "<feature> <name>", ...)`?
+2. Does tests/commands/test_<feature>.py contain a test that invokes this command via `invoke_slash(tree, "<feature> <name>", ...)`?
       no  → Sub-flow A
       yes → continue
 
-3. Run the relevant tests: ./run-tests.sh tests/test_<feature>.py -v
+3. Run the relevant tests: ./run-tests.sh tests/commands/test_<feature>.py -v
       pass → done.
       fail → Sub-flow B
 ```
@@ -44,16 +44,16 @@ Follow the patterns in `docs/DEVELOPMENT.md#adding-a-test` for fixtures, dispatc
 Key steps:
 1. Ensure the slash command wrapper is thin - it calls a pure function in `components/` and sends the result. The pure function must not take `discord.Interaction` as a parameter.
 2. Write the test using `invoke_slash(tree, "<path>", user, guild, options={...})`.
-3. If creating a new test file, include a docstring listing what's tested and at which level (see existing test files for the format).
+3. If creating a new test file, include a one-line docstring describing what's tested.
 4. Assert on observable behavior (response substrings, DB state, embed fields).
 5. Test the error path: stub the dependency to raise, assert the response contains an error string (e.g. `"Error fetching .."`). This ensures the pure function has try/except handling.
-6. Run: `./run-tests.sh tests/test_<feature>.py::test_<name> -v`
+6. Run: `./run-tests.sh tests/commands/test_<feature>.py::test_<name> -v`
 7. Show the user the output. If it fails, ask whether the assertion or the code is wrong.
 
 For tricky cases (Member params, external APIs, modals, multiple messages), check existing tests:
-   `tests/test_twitch.py` - HTTP-stubbed external API
-   `tests/test_music.py` - voice client + YouTube stubs, module-level state reset
-   `tests/test_movie.py` - modal `on_submit`, scheduled events
+   `tests/commands/test_twitch.py` - HTTP-stubbed external API
+   `tests/commands/test_music.py` - voice client + YouTube stubs, module-level state reset
+   `tests/commands/test_movie.py` - modal `on_submit`, scheduled events
 
 If the new command introduces a dispatch pattern not in the table at `docs/DEVELOPMENT.md#dispatch-patterns`, add a row to that table. Similarly, if a new fixture or stubbing pattern is introduced, update the tables in `docs/DEVELOPMENT.md#adding-a-test`.
 
@@ -68,7 +68,7 @@ A previously-passing test is now failing.
 
 ## Identifying affected commands
 
-- `commands/<feature>/<name>.py` -> test file: `tests/test_<feature>.py`
+- `commands/<feature>/<name>.py` -> test file: `tests/commands/test_<feature>.py`
 - `components/<module>.py` -> grep `commands/` for imports of the changed function
 - `tests/_capture.py`/ `tests/_dispatch.py` / `tests/_factories.py` -> run full suite: `./run-tests.sh -v`
 

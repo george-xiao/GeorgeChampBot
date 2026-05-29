@@ -19,6 +19,10 @@ _RESET_LIMIT_TASK = None
 def init():
     """Start the periodic meme tasks: weekly best-of announcement + daily reset."""
     global _BEST_ANNOUNCEMENT_TASK, _RESET_LIMIT_TASK
+    if _BEST_ANNOUNCEMENT_TASK:
+        _BEST_ANNOUNCEMENT_TASK.stop()
+    if _RESET_LIMIT_TASK:
+        _RESET_LIMIT_TASK.stop()
     _BEST_ANNOUNCEMENT_TASK = PeriodicTask.weekly(
         (ut.env["ANNOUNCEMENT_DAY"] - 1) % 7,
         ut.env["ANNOUNCEMENT_HOUR"],

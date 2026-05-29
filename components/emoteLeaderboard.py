@@ -14,6 +14,8 @@ _ANNOUNCEMENT_TASK = None
 def init():
     """Start the periodic emote-leaderboard announcement task."""
     global _ANNOUNCEMENT_TASK
+    if _ANNOUNCEMENT_TASK:
+        _ANNOUNCEMENT_TASK.stop()
     _ANNOUNCEMENT_TASK = PeriodicTask.weekly(
         ut.env["ANNOUNCEMENT_DAY"],
         ut.env["ANNOUNCEMENT_HOUR"],

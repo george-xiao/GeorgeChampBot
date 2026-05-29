@@ -2,8 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from components import dotaReplay, emoteLeaderboard, twitchAnnouncement
-from components import movieNight
+from components import dotaReplay, emoteLeaderboard, movieNight, twitchAnnouncement
 
 
 async def test_dota_autocomplete_filters_tracked_players(seeded_dota_db):

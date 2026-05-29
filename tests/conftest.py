@@ -41,7 +41,8 @@ def db_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture
 def tasks_noop(monkeypatch):
-    """Disable all background task scheduling. Auto-applied in tests/commands/."""
+    """Disable all background task scheduling. Opt-in for tests/immediate/ tests that
+    would otherwise kick off periodic/async tasks during their immediate code path."""
     from common.asyncTask import AsyncTask
     from common.periodicTask import PeriodicTask
 
@@ -144,3 +145,48 @@ async def dpytest_client(ut_client_ready):
         yield ut_client_ready
     finally:
         await dpytest.empty_queue()
+
+
+# --- Music ---
+
+
+@pytest.fixture
+def voice_channel():
+    from unittest.mock import MagicMock
+
+    channel = MagicMock()
+    channel.id = 5555
+    channel.members = []
+    return channel
+
+
+@pytest.fixture
+def fake_vc(voice_channel):
+    """discord.VoiceClient mock with the full surface used by music tests.
+    voice_channel.connect is wired so production's `await user.voice.channel.connect()` returns this fake."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    import discord
+
+    vc = MagicMock(spec=discord.VoiceClient)
+    vc.channel = voice_channel
+    vc.is_paused.return_value = False
+    vc.is_playing.return_value = False
+    vc.is_connected.return_value = True
+    vc.disconnect = AsyncMock()
+    vc.stop = MagicMock()
+    vc.pause = MagicMock()
+    vc.resume = MagicMock()
+    vc.play = MagicMock()
+    voice_channel.connect = AsyncMock(return_value=vc)
+    return vc
+
+
+@pytest.fixture
+def music_member(regular_member, voice_channel):
+    """`regular_member` (alice) with .voice.channel set so `require_voice` passes."""
+    from unittest.mock import MagicMock
+
+    regular_member.voice = MagicMock()
+    regular_member.voice.channel = voice_channel
+    return regular_member

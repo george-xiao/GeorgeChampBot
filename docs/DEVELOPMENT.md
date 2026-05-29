@@ -47,7 +47,7 @@ Automated tests run in Docker.
 
 ```bash
 ./run-tests.sh                                    # all tests
-./run-tests.sh tests/commands/test_meme.py -v     # single feature
+./run-tests.sh tests/immediate/test_meme.py -v     # single feature
 ```
 
 ### Testing philosophy
@@ -59,11 +59,35 @@ All tests inject at the dispatch boundary (the highest practical level). The Web
 - Background tasks: `@pytest.mark.looptime`. Real tasks fire via fast-forwarded asyncio time. See `tests/background/` directory.
 - Voice callbacks: Capture `after=` from `vc.play()`, invoke it to trigger `_schedule_next_song` → `play_song()`.
 
-### File conventions
+### Immediate vs background tests
 
-- `tests/commands/test_<feature>.py`: command/event tests. `tasks_noop` is autouse via `commands/conftest.py`.
-- `tests/background/test_<feature>.py`: background task tests. `@pytest.mark.looptime` at module level, `db_dir` is autouse via `background/conftest.py`.
-- `tests/test_command_coverage.py`: meta-test ensuring every command has a test.
+**The decision rule:**
+
+> If I deleted everything after `invoke_slash(...)` (or `client.dispatch(...)`) returns, can my assertions still run?
+> - **Yes** → `tests/immediate/`
+> - **No** → `tests/background/`
+
+**Example.** `/music play` has tests in both folders:
+
+- `test_music_play_no_results` asserts on the "couldn't find" reply — assertions run immediately. → `immediate/`
+- `test_music_play_single_song_adds_to_queue` awaits `asyncio.gather(*musicPlayer._PENDING_TASKS)` and asserts on `vc.play` being called — assertions need the background task to finish. → `background/`
+
+**What each folder is for:**
+
+| Folder | Use for |
+|---|---|
+| `tests/immediate/` | Slash commands, modals, gateway-event handlers that complete synchronously. |
+| `tests/background/` | Autostarted periodic tasks, **or** commands that return immediately but kick off async work whose effects the test asserts on. |
+
+**Conftest autouse machinery (you don't need to think about it, but here's what's running):**
+
+| Folder | Autouse | Purpose |
+|---|---|---|
+| `tests/immediate/conftest.py` | `tasks_noop` | Disables `PeriodicTask.start` / `AsyncTask.start`, so nothing leaks into the background during a sync test. |
+| `tests/background/conftest.py` | `db_dir` (via `_ensure_db_dir`) | Every background test gets a fresh shelve dir (tasks write to disk). |
+| `tests/background/conftest.py` | `_looptime_clock` | Patches `datetime.now()` inside `PeriodicTask` to track looptime's fake clock — without it, periodic tasks hang under `@pytest.mark.looptime`. |
+
+Background tests must add `pytestmark = [pytest.mark.looptime]` at module level to enable the fake-clock fast-forward.
 
 ### Dispatch patterns
 
@@ -73,15 +97,15 @@ A forgotten `register_subcommand` or missing test is caught by the [coverage gua
 
 | Entry point | Helper | Example |
 |---|---|---|
-| Slash command (`@group.command`) | `invoke_slash(tree, "dota list", user, guild)` | `tests/commands/test_dota.py` |
-| Gateway event (`@client.event`) | `dpytest.message(...)` or `client.dispatch(...)` | `tests/commands/test_emote.py` / `tests/commands/test_movie.py` |
+| Slash command (`@group.command`) | `invoke_slash(tree, "dota list", user, guild)` | `tests/immediate/test_dota.py` |
+| Gateway event (`@client.event`) | `dpytest.message(...)` or `client.dispatch(...)` | `tests/immediate/test_emote.py` (immediate) / `tests/background/test_movie.py` (kicks off background) |
 | Periodic/Async task (`PeriodicTask` / `AsyncTask`) | `@pytest.mark.looptime` + trigger (`init()` or gateway event) | `tests/background/test_dota.py` / `tests/background/test_movie.py` |
-| Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `tests/commands/test_movie.py` |
+| Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `tests/immediate/test_movie.py` |
 | Voice callback (`vc.play`'s `after=`) | Capture `after=` from `vc.play()`, invoke it | `tests/background/test_music.py` |
 
 ### Adding a test
 
-1. **Command or event?** → `tests/commands/test_<feature>.py`. Use `invoke_slash(...)` for commands, `dpytest.message(...)`/`client.dispatch(...)` for events.
+1. **Command or event?** → `tests/immediate/test_<feature>.py`. Use `invoke_slash(...)` for commands, `dpytest.message(...)`/`client.dispatch(...)` for events.
 2. **Background task?** → `tests/background/test_<feature>.py`. Call `component.init()`, then `await asyncio.sleep(interval)` to trigger it.
 3. **Need test data?** → Use `seeded_<feature>_db` fixture or build state inline.
 4. **Need to stub an API?** → Use helpers from `tests/_stubs.py`.
@@ -97,7 +121,7 @@ Other shared fixtures in `tests/conftest.py` include:
 | `tree` | Production command tree |
 | `guild` / `admin_member` / `regular_member` | Test guild with members |
 | `db_dir` / `seeded_<feature>_db` | Temp database, optionally pre-seeded |
-| `tasks_noop` | Disables all background task scheduling (autouse in `commands/`) |
+| `tasks_noop` | Disables all background task scheduling (autouse in `immediate/`) |
 | `ut_client_ready` / `dpytest_client` | Event loop + dpytest wiring |
 
 #### Stubs
@@ -109,9 +133,21 @@ External I/O is stubbed at the library boundary, not at the production helper th
 | HTTP (Dota) | `stub_dota_api(monkeypatch, ...)` | `ut.async_get_request` |
 | HTTP (Twitch) | `stub_twitch_api(monkeypatch, ...)` | `ut.async_get_request` / `async_post_request` |
 | YouTube + yt-dlp | `stub_youtube(monkeypatch, ...)` | `musicPlayer.Aiogoogle` / `musicPlayer.YoutubeDL` |
-| Voice | `MagicMock(spec=discord.VoiceClient)` | Local fixture |
+| Discord channels (capturing) | `patch_bot_channel` / `patch_main_channel` / `patch_channel(name)` | `ut.botChannel` / `ut.mainChannel` / `ut.guildObject.channels` |
+| Discord scheduled events | `patch_movie_event_present` / `patch_movie_event_missing` | `ut.guildObject.scheduled_events` |
+| Voice client | `fake_vc` fixture in `tests/conftest.py` | `musicPlayer.vc` |
 
-Patching production helpers directly (e.g., `memeReview.check_meme`) lets renames slip through undetected. Stick to library-boundary stubs.
+**Library-boundary means "the line where our code calls into discord.py / aiohttp / yt-dlp."** Patching helpers in `common/utils.py` or `components/` is wrong — it bypasses the code under test, and a rename of the helper passes tests while breaking prod. Concrete: `monkeypatch.setattr(ut, "get_role", lambda _: my_role)` is the violation; the fix is to grab the bootstrapped role with the real `ut.get_role(ut.env["ADMIN_ROLE"])` and mutate the field you care about (e.g., `.members = []`).
+
+#### Bootstrap defaults
+
+`tests/_env_setup.py` ships the test guild with named channels (`MEME_CHANNEL`, `DOTA_CHANNEL`, `MOVIE_CHANNEL`) and roles (`ADMIN_ROLE`, `MOVIE_ROLE`, `WELCOME_ROLE`) already on `ut.guildObject`. Production code that calls `ut.get_channel(name)` / `ut.get_role(name)` resolves naturally without per-test patching.
+
+The default channels are **fail-loud**: their `.send` raises
+
+> `AssertionError: Test sent to channel 'X' without patching. Call patch_channel(monkeypatch, 'X').`
+
+If you see that, your test exercised a send path on a channel that needs a capturing version. Call `patch_channel(monkeypatch, ut.env["X_CHANNEL"])` and assert on its `.messages`.
 
 #### Common Patterns
 
@@ -119,9 +155,9 @@ Reference these tests for non-obvious cases:
 
 | Pattern | Reference | Key Insight |
 |---|---|---|
-| `discord.Member` params | `tests/commands/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
-| Module-level state reset | `tests/commands/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
-| Modal submission | `tests/commands/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
+| `discord.Member` params | `tests/immediate/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
+| Module-level state reset | `tests/immediate/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
+| Modal submission | `tests/immediate/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
 
 ## Tooling
 

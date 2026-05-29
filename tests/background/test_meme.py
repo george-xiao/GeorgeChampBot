@@ -5,17 +5,14 @@ import shelve
 
 import pytest
 
-import common.utils as ut
 from components import memeReview
-from tests._capture import CapturedMessages, make_capturing_channel
+from tests._stubs import patch_main_channel
 
 pytestmark = [pytest.mark.looptime]
 
 
 async def test_weekly_best_meme_announces_to_main_channel(seeded_meme_db, monkeypatch):
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
+    capture = patch_main_channel(monkeypatch)
 
     memeReview.init()
     memeReview._RESET_LIMIT_TASK.stop()  # only test the weekly task
@@ -26,9 +23,7 @@ async def test_weekly_best_meme_announces_to_main_channel(seeded_meme_db, monkey
 
 
 async def test_weekly_best_meme_handles_no_memes(monkeypatch):
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
+    capture = patch_main_channel(monkeypatch)
 
     memeReview.init()
     memeReview._RESET_LIMIT_TASK.stop()

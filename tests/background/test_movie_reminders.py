@@ -2,57 +2,44 @@
 
 import shelve
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import pytest
 
 import common.utils as ut
 from components.subcomponents.movieNight import eventReminder, upcomingMovie
 from components.subcomponents.movieNight.movie import Movie
-from tests._capture import CapturedMessages, make_capturing_channel
+from tests._stubs import make_scheduled_event, patch_channel, patch_movie_event_missing, patch_movie_event_present
 
 pytestmark = [pytest.mark.looptime]
 
 
-def _scheduled_event(start_time):
-    event = MagicMock()
-    event.start_time = start_time
-    event.status = discord.EventStatus.scheduled
-    return event
+# --- eventReminder.__remind_event_coroutine ---
 
 
-# === eventReminder.__remind_event_coroutine ===
-
-
-async def test_event_reminder_pings_movie_role_when_event_near(monkeypatch):
+async def test_event_reminder_pings_movie_role_when_event_near(guild, monkeypatch):
     # Event 30 min out (inside the 1h reminder threshold) -> reminder fires now.
-    event = _scheduled_event(datetime.now(timezone.utc) + timedelta(minutes=30))
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event))
-    monkeypatch.setattr(ut, "get_movie_event_link", AsyncMock(return_value="https://discord.com/events/1/2"))
-    monkeypatch.setattr(ut, "get_role_str", lambda _: "<@&MOVIE>")
-    capture = CapturedMessages()
-    monkeypatch.setattr(ut, "get_channel", lambda _: make_capturing_channel(capture))
+    event = make_scheduled_event(start_time=datetime.now(timezone.utc) + timedelta(minutes=30))
+    patch_movie_event_present(monkeypatch, event=event)
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
 
     eventReminder.start_event_reminder()
     await eventReminder.EVENT_REMINDER_TASK.async_task
 
     [msg] = capture.messages
     assert "Movie night alert" in msg.content
-    assert "<@&MOVIE>" in msg.content
+    assert "<@&2002>" in msg.content  # MOVIE role id from make_movie_role
 
 
-async def test_event_reminder_skips_when_already_reminded(monkeypatch):
+async def test_event_reminder_skips_when_already_reminded(guild, monkeypatch):
     import pickle
 
-    event = _scheduled_event(datetime.now(timezone.utc) + timedelta(minutes=30))
+    event = make_scheduled_event(start_time=datetime.now(timezone.utc) + timedelta(minutes=30))
     # Mark this exact start_time as already reminded.
     with open(eventReminder.LAST_EVENT_PATH, "wb") as f:
         pickle.dump(event.start_time, f)
 
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event))
-    capture = CapturedMessages()
-    monkeypatch.setattr(ut, "get_channel", lambda _: make_capturing_channel(capture))
+    patch_movie_event_present(monkeypatch, event=event)
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
 
     eventReminder.start_event_reminder()
     await eventReminder.EVENT_REMINDER_TASK.async_task
@@ -60,10 +47,9 @@ async def test_event_reminder_skips_when_already_reminded(monkeypatch):
     assert capture.messages == []
 
 
-async def test_event_reminder_skips_when_no_event(monkeypatch):
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=None))
-    capture = CapturedMessages()
-    monkeypatch.setattr(ut, "get_channel", lambda _: make_capturing_channel(capture))
+async def test_event_reminder_skips_when_no_event(guild, monkeypatch):
+    patch_movie_event_missing(monkeypatch)
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
 
     eventReminder.start_event_reminder()
     await eventReminder.EVENT_REMINDER_TASK.async_task
@@ -71,18 +57,15 @@ async def test_event_reminder_skips_when_no_event(monkeypatch):
     assert capture.messages == []
 
 
-# === upcomingMovie.__remind_host_coroutine ===
+# --- upcomingMovie.__remind_host_coroutine ---
 
 
-async def test_pick_reminder_nags_host_then_stops_once_movie_picked(monkeypatch):
-    event = _scheduled_event(datetime.now(timezone.utc) + timedelta(days=2))
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event))
-    monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
-    monkeypatch.setattr(ut, "convert_to_est_time", lambda t: "soon")
+async def test_pick_reminder_nags_host_then_stops_once_movie_picked(guild, monkeypatch):
+    event = make_scheduled_event(start_time=datetime.now(timezone.utc) + timedelta(days=2))
+    patch_movie_event_present(monkeypatch, event=event)
 
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    base_send = channel.send
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
+    base_send = capture.channel.send
 
     async def send_then_pick(*args, **kwargs):
         # After the nag is sent, the host "picks" a movie so the next loop
@@ -92,8 +75,7 @@ async def test_pick_reminder_nags_host_then_stops_once_movie_picked(monkeypatch)
             db["upcoming_movie"] = Movie("Dune", "Sci-Fi", "picked")
         return msg
 
-    channel.send = send_then_pick
-    monkeypatch.setattr(ut, "get_channel", lambda _: channel)
+    capture.channel.send = send_then_pick
 
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         db["upcoming_host_name"] = "alice"  # host set, no movie yet
@@ -103,13 +85,13 @@ async def test_pick_reminder_nags_host_then_stops_once_movie_picked(monkeypatch)
 
     [msg] = capture.messages
     assert "please select the upcoming movie" in msg.embed["title"].lower()
+    assert "<@101>" in msg.embed["title"]  # alice's id from DEFAULT_MEMBERS
 
 
-async def test_pick_reminder_skips_when_movie_already_picked(monkeypatch):
-    event = _scheduled_event(datetime.now(timezone.utc) + timedelta(days=2))
-    monkeypatch.setattr(ut, "get_movie_event", AsyncMock(return_value=event))
-    capture = CapturedMessages()
-    monkeypatch.setattr(ut, "get_channel", lambda _: make_capturing_channel(capture))
+async def test_pick_reminder_skips_when_movie_already_picked(guild, monkeypatch):
+    event = make_scheduled_event(start_time=datetime.now(timezone.utc) + timedelta(days=2))
+    patch_movie_event_present(monkeypatch, event=event)
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
 
     with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
         db["upcoming_host_name"] = "alice"

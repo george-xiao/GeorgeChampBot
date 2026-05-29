@@ -41,12 +41,12 @@ Keep everything non-blocking:
 
 Catch exceptions in event handlers and component functions. Return a context-specific error string (e.g. `f"Error fetching leaderboard: {e}"`) rather than letting exceptions propagate silently.
 
-## Automated Testing
+## Automated Integration Testing
 
 Automated tests run in Docker.
 
 ```bash
-./run-tests.sh                                    # all tests
+./run-tests.sh                                     # all tests
 ./run-tests.sh tests/immediate/test_meme.py -v     # single feature
 ```
 
@@ -54,10 +54,12 @@ Automated tests run in Docker.
 
 All tests inject at the dispatch boundary (the highest practical level). The WebSocket receive/parse path (discord.py internals) is not exercised. Testing it would require a mock Discord server that stays in sync with discord.py's expected gateway payloads across versions, a maintenance cost that outweighs the benefit for this project.
 
-- Gateway events (messages, reactions, member joins): `dpytest.message(...)` or `client.dispatch(...)`
-- Slash commands: `invoke_slash(...)`. dpytest doesn't support interactions, so we built this.
-- Background tasks: `@pytest.mark.looptime`. Real tasks fire via fast-forwarded asyncio time. See `tests/background/` directory.
-- Voice callbacks: Capture `after=` from `vc.play()`, invoke it to trigger `_schedule_next_song` → `play_song()`.
+Because each test runs the real code path end to end (these are integration tests), stub only at the *library* boundary (where our code calls into discord.py / aiohttp / yt-dlp), never a production helper that calls it. Patching a `common/utils.py` or `components/` helper bypasses the code under test and survives a prod-breaking rename.
+
+- **Wrong:** `monkeypatch.setattr(ut, "get_role", ...)` replaces the helper itself.
+- **Right:** call `ut.get_role(ut.env["ADMIN_ROLE"])`, then mutate the field you need (e.g. `.members = []`).
+
+In addition to feature tests, **every bug fix ships with a regression test** that fails without the fix; see [Regression tests](#regression-tests) under Adding a test for the how-to.
 
 ### Immediate vs background tests
 
@@ -72,28 +74,9 @@ All tests inject at the dispatch boundary (the highest practical level). The Web
 - `test_music_play_no_results` asserts on the "couldn't find" reply — assertions run immediately. → `immediate/`
 - `test_music_play_single_song_adds_to_queue` awaits `asyncio.gather(*musicPlayer._PENDING_TASKS)` and asserts on `vc.play` being called — assertions need the background task to finish. → `background/`
 
-**What each folder is for:**
-
-| Folder | Use for |
-|---|---|
-| `tests/immediate/` | Slash commands, modals, gateway-event handlers that complete synchronously. |
-| `tests/background/` | Autostarted periodic tasks, **or** commands that return immediately but kick off async work whose effects the test asserts on. |
-
-**Conftest autouse machinery (you don't need to think about it, but here's what's running):**
-
-| Folder | Autouse | Purpose |
-|---|---|---|
-| `tests/immediate/conftest.py` | `tasks_noop` | Disables `PeriodicTask.start` / `AsyncTask.start`, so nothing leaks into the background during a sync test. |
-| `tests/background/conftest.py` | `db_dir` (via `_ensure_db_dir`) | Every background test gets a fresh shelve dir (tasks write to disk). |
-| `tests/background/conftest.py` | `_looptime_clock` | Patches `datetime.now()` inside `PeriodicTask` to track looptime's fake clock — without it, periodic tasks hang under `@pytest.mark.looptime`. |
-
-Background tests must add `pytestmark = [pytest.mark.looptime]` at module level to enable the fake-clock fast-forward.
-
 ### Dispatch patterns
 
 Assert on observable behavior (response substrings, DB state, captured messages).
-
-A forgotten `register_subcommand` or missing test is caught by the [coverage guard](../tests/test_command_coverage.py).
 
 | Entry point | Helper | Example |
 |---|---|---|
@@ -103,61 +86,38 @@ A forgotten `register_subcommand` or missing test is caught by the [coverage gua
 | Modal (`discord.ui.Modal`) | Instantiate modal, call `on_submit(interaction)` directly | `tests/immediate/test_movie.py` |
 | Voice callback (`vc.play`'s `after=`) | Capture `after=` from `vc.play()`, invoke it | `tests/background/test_music.py` |
 
+### Test layout
+
+```
+tests/
+  conftest.py               # shared fixtures: tree, guild, members, db_dir / seeded_<feature>_db, fake_vc, client wiring
+  _env_setup.py             # env + ut.guildObject bootstrap (named channels/roles)
+  _factories.py             # make_<obj>() object builders + seed_<feature>_db() data
+  _stubs.py                 # external-I/O stubs (HTTP, YouTube) + capturing-channel / scheduled-event patches
+  _capture.py               # CapturedMessages + capturing channel/interaction
+  _dispatch.py              # invoke_slash() — the slash-command test driver
+  test_command_coverage.py  # guard: every registered command has a test
+  immediate/                # command / modal / sync-event tests (assert right after dispatch)
+  background/               # periodic & async-task tests (assert after the task runs)
+```
+
 ### Adding a test
 
 1. **Command or event?** → `tests/immediate/test_<feature>.py`. Use `invoke_slash(...)` for commands, `dpytest.message(...)`/`client.dispatch(...)` for events.
 2. **Background task?** → `tests/background/test_<feature>.py`. Call `component.init()`, then `await asyncio.sleep(interval)` to trigger it.
-3. **Need test data?** → Use `seeded_<feature>_db` fixture or build state inline.
-4. **Need to stub an API?** → Use helpers from `tests/_stubs.py`.
+3. **Fixing a bug?** → write it as a regression test that fails without your fix.
+4. **Need test data?** → Use `seeded_<feature>_db` fixture or build state inline.
+5. **Need to stub an API?** → Use helpers from `tests/_stubs.py`.
 
-#### Fixtures
+Match the structure of an existing test file: a module docstring plus `# --- … ---` separators per entry point, each named in the trigger's own vocabulary (`/cmd`, `on_event`, `@cadence`, `starter()`). The structure doubles as a per-file index of what's covered.
 
-Tests use the production `CommandTree` built by `commands.load_commands(tree)`. The session-scoped `tree` fixture in `tests/conftest.py` constructs it once per test session.
+#### Regression tests
 
-Other shared fixtures in `tests/conftest.py` include:
+**Litmus:** revert the fix and run the test; if it still passes, it isn't testing the fix. Assert the invariant that broke, not an incidental symptom another code path can mask.
 
-| Fixture | Purpose |
-|---|---|
-| `tree` | Production command tree |
-| `guild` / `admin_member` / `regular_member` | Test guild with members |
-| `db_dir` / `seeded_<feature>_db` | Temp database, optionally pre-seeded |
-| `tasks_noop` | Disables all background task scheduling (autouse in `immediate/`) |
-| `ut_client_ready` / `dpytest_client` | Event loop + dpytest wiring |
+Mark it with a docstring starting `Regression (<commit/issue>):` and place it under the relevant entry-point separator.
 
-#### Stubs
-
-External I/O is stubbed at the library boundary, not at the production helper that calls it. Centralized stubs live in `tests/_stubs.py`:
-
-| Dependency | Stub | Patch target |
-|---|---|---|
-| HTTP (Dota) | `stub_dota_api(monkeypatch, ...)` | `ut.async_get_request` |
-| HTTP (Twitch) | `stub_twitch_api(monkeypatch, ...)` | `ut.async_get_request` / `async_post_request` |
-| YouTube + yt-dlp | `stub_youtube(monkeypatch, ...)` | `musicPlayer.Aiogoogle` / `musicPlayer.YoutubeDL` |
-| Discord channels (capturing) | `patch_bot_channel` / `patch_main_channel` / `patch_channel(name)` | `ut.botChannel` / `ut.mainChannel` / `ut.guildObject.channels` |
-| Discord scheduled events | `patch_movie_event_present` / `patch_movie_event_missing` | `ut.guildObject.scheduled_events` |
-| Voice client | `fake_vc` fixture in `tests/conftest.py` | `musicPlayer.vc` |
-
-**Library-boundary means "the line where our code calls into discord.py / aiohttp / yt-dlp."** Patching helpers in `common/utils.py` or `components/` is wrong — it bypasses the code under test, and a rename of the helper passes tests while breaking prod. Concrete: `monkeypatch.setattr(ut, "get_role", lambda _: my_role)` is the violation; the fix is to grab the bootstrapped role with the real `ut.get_role(ut.env["ADMIN_ROLE"])` and mutate the field you care about (e.g., `.members = []`).
-
-#### Bootstrap defaults
-
-`tests/_env_setup.py` ships the test guild with named channels (`MEME_CHANNEL`, `DOTA_CHANNEL`, `MOVIE_CHANNEL`) and roles (`ADMIN_ROLE`, `MOVIE_ROLE`, `WELCOME_ROLE`) already on `ut.guildObject`. Production code that calls `ut.get_channel(name)` / `ut.get_role(name)` resolves naturally without per-test patching.
-
-The default channels are **fail-loud**: their `.send` raises
-
-> `AssertionError: Test sent to channel 'X' without patching. Call patch_channel(monkeypatch, 'X').`
-
-If you see that, your test exercised a send path on a channel that needs a capturing version. Call `patch_channel(monkeypatch, ut.env["X_CHANNEL"])` and assert on its `.messages`.
-
-#### Common Patterns
-
-Reference these tests for non-obvious cases:
-
-| Pattern | Reference | Key Insight |
-|---|---|---|
-| `discord.Member` params | `tests/immediate/test_dota.py:test_dota_add_success` | Pass `make_member()` directly in options; `invoke_slash` handles resolved data |
-| Module-level state reset | `tests/immediate/test_music.py:fresh_music_state` | `autouse=True` fixture to reset globals if needed |
-| Modal submission | `tests/immediate/test_movie.py:test_movie_add_suggestion_modal_submit_adds_to_db` | Instantiate modal, set `TextInput._value`, call `on_submit` |
+Example: `tests/background/test_twitch.py::test_init_twice_cancels_the_first_task` (commit `0a4171e`: `on_ready` re-firing on reconnect stacked duplicate tasks).
 
 ## Tooling
 

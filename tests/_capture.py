@@ -25,13 +25,18 @@ class SentMessage:
 @dataclass
 class CapturedMessages:
     messages: list[SentMessage] = field(default_factory=list)
+    sent: list[MagicMock] = field(default_factory=list)
     channel: MagicMock | None = (
         None  # populated by make_capturing_channel — lets tests grab the patched channel without re-looking it up
     )
 
 
 def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
-    """Fake channel that records all sent messages into `capture`."""
+    """Fake channel that records all sent messages into `capture`.
+
+    `capture.messages` holds the content/embed payloads; `capture.sent` holds the returned
+    message mocks, so tests can assert on reactions prod adds (`capture.sent[0].add_reaction`).
+    """
 
     async def _send(content="", embed=None, delete_after=None, **kwargs):
         capture.messages.append(
@@ -43,6 +48,8 @@ def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
         )
         msg = MagicMock(id=len(capture.messages))
         msg.add_reaction = AsyncMock()  # prod handlers may call `await msg.add_reaction(emoji)`
+        msg.remove_reaction = AsyncMock()
+        capture.sent.append(msg)
         return msg
 
     channel = MagicMock()

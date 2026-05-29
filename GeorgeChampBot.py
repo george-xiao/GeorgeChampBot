@@ -10,7 +10,9 @@ instanceRunning = False
 
 
 @ut.client.event
-async def on_ready():
+async def on_ready():  # pragma: no cover
+    # Only fires when the client actually runs (live gateway connection), which tests cannot do
+    # Forced to test the pieces (each init(), each handler) in isolation instead.
     try:
         ut.init_utils()
         if not os.path.exists("database"):
@@ -112,5 +114,7 @@ async def on_voice_state_update(member, before, after):
         await ut.mainChannel.send("Error With On Voice State Update Event: " + str(e))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
+    # entry point: client.run() opens the live Discord gateway (WebSocket) and blocks.
+    # Cannot run under test due to stubbing from dispatch.
     ut.client.run(ut.env["TOKEN"])

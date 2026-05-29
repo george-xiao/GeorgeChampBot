@@ -28,6 +28,8 @@ backports-asyncio-runner==1.2.0
     # via pytest-asyncio
 colorama==0.4.6
     # via pytest
+coverage==7.14.1
+    # via pytest-cov
 discord-py==2.7.1
     # via
     #   -c requirements.txt
@@ -57,7 +59,9 @@ multidict==6.7.0
 packaging==26.2
     # via pytest
 pluggy==1.6.0
-    # via pytest
+    # via
+    #   pytest
+    #   pytest-cov
 propcache==0.4.1
     # via
     #   -c requirements.txt
@@ -70,12 +74,17 @@ pytest==9.0.3
     #   -r requirements-test.in
     #   dpytest
     #   pytest-asyncio
+    #   pytest-cov
 pytest-asyncio==1.3.0
     # via
     #   -r requirements-test.in
     #   dpytest
+pytest-cov==7.1.0
+    # via -r requirements-test.in
 tomli==2.4.1
-    # via pytest
+    # via
+    #   coverage
+    #   pytest
 typing-extensions==4.15.0
     # via
     #   -c requirements.txt

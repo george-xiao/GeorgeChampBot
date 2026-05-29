@@ -7,8 +7,9 @@ Commands: /emote count
 Events: on_message
         on_raw_reaction_add
         on_guild_emojis_update
+Startup: init_emote_leaderboard
 
-Verifies score counting, leaderboard paging, admin mutations, and emoji add/remove/rename tracking.
+Verifies score counting, leaderboard paging, admin mutations, emoji add/remove/rename tracking, and offline reconciliation.
 """
 
 import asyncio
@@ -384,3 +385,41 @@ async def test_on_guild_emojis_update_error_path_sends_error_message(seeded_emot
 
     [msg] = capture.messages
     assert "Error Renaming Emotes" in msg.content
+
+
+# --- init_emote_leaderboard (offline reconciliation) ---
+
+
+async def test_init_emote_leaderboard_adds_emote_present_in_guild(db_dir, guild, monkeypatch):
+    """An emoji present in the guild but missing from the DB is added (e.g. added while offline)."""
+    patch_bot_channel(monkeypatch)
+    monkeypatch.setattr(ut.guildObject, "emojis", [make_emoji("wow", 999)])
+
+    await emoteLeaderboard.init_emote_leaderboard()
+
+    added = emoteLeaderboard.get_emote("wow")
+    assert added is not None
+    assert added.deleted is False
+
+
+async def test_init_emote_leaderboard_removes_emote_absent_from_guild(db_dir, guild, monkeypatch):
+    """A tracked emote no longer present in the guild is soft-deleted (e.g. removed while offline)."""
+    patch_bot_channel(monkeypatch)
+    with shelve.open("./database/all_time_georgechamp_shelf.db") as s:
+        s["kekw"] = Emoji("kekw", "<:kekw:101>", score=500)
+    monkeypatch.setattr(ut.guildObject, "emojis", [])  # kekw is gone from the guild
+
+    await emoteLeaderboard.init_emote_leaderboard()
+
+    assert emoteLeaderboard.get_emote("kekw").deleted is True
+
+
+async def test_init_emote_leaderboard_sets_starting_date_when_missing(db_dir, guild, monkeypatch):
+    """First run seeds the leaderboard's start date."""
+    patch_bot_channel(monkeypatch)
+    monkeypatch.setattr(ut.guildObject, "emojis", [])
+
+    await emoteLeaderboard.init_emote_leaderboard()
+
+    with shelve.open("./database/starting_date_shelf.db") as s:
+        assert "date" in s

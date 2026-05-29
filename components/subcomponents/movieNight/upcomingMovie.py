@@ -40,29 +40,6 @@ async def set_host(member_name: str) -> discord.Embed:
     return embed
 
 
-# Allows admins to reset upcoming movie night host
-async def remove_host() -> discord.Embed:
-    # Should only be performed if ScheduledEvent MOVIE_EVENT_NAME exists
-    if failed_embed := await ut.movie_event_not_present(True):
-        return failed_embed
-
-    with shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
-        if db.get("upcoming_host_name"):
-            del db["upcoming_host_name"]
-        if db.get("upcoming_movie"):
-            del db["upcoming_movie"]
-
-    # Stop pick reminder for host
-    PICK_REMINDER_TASK.stop()
-
-    # Create and return embedded success-message
-    embed = discord.Embed(colour=ut.embed_colour["MOVIE_NIGHT"])
-    embed.title = "Movie night host reset!"
-    embed.description = "Upcoming movie night host has been successfully reset."
-    update_event_description(True)
-    return embed
-
-
 # Allows the upcoming movie night host to set the next movie that will be watched
 # Validation of member and movie is done here as well
 #   member: Only member selected as upcoming_member can select a movie

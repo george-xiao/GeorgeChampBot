@@ -1,4 +1,10 @@
-"""Tests for meme commands + gateway events (on_message, on_raw_reaction_add)."""
+"""Tests for meme
+Commands: /meme leaderboard
+Events: on_message
+        on_raw_reaction_add
+
+Verifies leaderboard paging, meme detection from image attachments, and reaction-driven scoring.
+"""
 
 import asyncio
 import shelve

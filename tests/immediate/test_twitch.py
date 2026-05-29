@@ -1,4 +1,10 @@
-"""Tests for twitch slash commands (/twitch list, /admin twitch add, /admin twitch remove)."""
+"""Tests for twitch
+Commands: /twitch list
+          /admin twitch add
+          /admin twitch remove
+
+Verifies streamer list display, add/duplicate/invalid handling, and remove paths.
+"""
 
 from components import twitchAnnouncement
 from tests._dispatch import invoke_slash

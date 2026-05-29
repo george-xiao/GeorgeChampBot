@@ -1,4 +1,9 @@
-"""Background tests for movie-night reminders — event-soon ping + host pick nag (looptime)."""
+"""Background tests for movie-night reminders
+Tasks: _EVENT_REMINDER_TASK
+       _PICK_REMINDER_TASK
+
+Verifies event-soon pings, host pick nags, and skip conditions (already reminded, already picked).
+"""
 
 import shelve
 from datetime import datetime, timedelta, timezone
@@ -13,7 +18,7 @@ from tests._stubs import make_scheduled_event, patch_channel, patch_movie_event_
 pytestmark = [pytest.mark.looptime]
 
 
-# --- eventReminder.__remind_event_coroutine ---
+# --- start_event_reminder() ---
 
 
 async def test_event_reminder_pings_movie_role_when_event_near(guild, monkeypatch):
@@ -57,7 +62,7 @@ async def test_event_reminder_skips_when_no_event(guild, monkeypatch):
     assert capture.messages == []
 
 
-# --- upcomingMovie.__remind_host_coroutine ---
+# --- start_pick_reminder() ---
 
 
 async def test_pick_reminder_nags_host_then_stops_once_movie_picked(guild, monkeypatch):

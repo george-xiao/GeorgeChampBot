@@ -1,4 +1,8 @@
-"""Background tests for twitch — periodic live-stream check (looptime)."""
+"""Background tests for twitch
+Tasks: _LIVE_CHECK_TASK (15mins via twitchAnnouncement.init())
+
+Verifies live-stream detection, announcement, silence when no one is live, and skip when no streamers are tracked.
+"""
 
 import asyncio
 
@@ -8,6 +12,9 @@ from components import twitchAnnouncement
 from tests._stubs import patch_main_channel, stub_twitch_api
 
 pytestmark = [pytest.mark.looptime]
+
+
+# --- @every-15min check_twitch_live ---
 
 
 async def test_periodic_announces_new_live_streamer(seeded_twitch_db, monkeypatch):

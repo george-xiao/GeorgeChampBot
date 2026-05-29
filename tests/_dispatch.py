@@ -22,7 +22,6 @@ _OPTION_TYPE_SUBCOMMAND_GROUP = 2
 
 
 def _is_member_like(value: Any) -> bool:
-    """Check if value is a discord.Member (real or mock)."""
     return isinstance(value, discord.Member)
 
 

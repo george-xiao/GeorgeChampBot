@@ -1,4 +1,9 @@
-"""Background tests for meme — weekly best-of + daily reset (looptime)."""
+"""Background tests for meme
+Tasks: _BEST_ANNOUNCEMENT_TASK (weekly via memeReview.init())
+       _RESET_LIMIT_TASK (daily via memeReview.init())
+
+Verifies weekly best-of announcement and daily meme-count reset.
+"""
 
 import asyncio
 import shelve
@@ -9,6 +14,9 @@ from components import memeReview
 from tests._stubs import patch_main_channel
 
 pytestmark = [pytest.mark.looptime]
+
+
+# --- @weekly best_announcement_task ---
 
 
 async def test_weekly_best_meme_announces_to_main_channel(seeded_meme_db, monkeypatch):
@@ -31,6 +39,9 @@ async def test_weekly_best_meme_handles_no_memes(monkeypatch):
 
     [msg] = capture.messages
     assert "No memes" in msg.content
+
+
+# --- @daily resetLimit ---
 
 
 async def test_daily_reset_clears_daily_meme_counts(seeded_meme_db):

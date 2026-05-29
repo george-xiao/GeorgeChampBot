@@ -1,4 +1,9 @@
-"""Tests for member join/leave gateway events (on_member_join, on_member_remove)."""
+"""Tests for member events
+Events: on_member_join
+        on_member_remove
+
+Verifies join welcome/role assignment, leave farewell, and error-path reporting for both.
+"""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock

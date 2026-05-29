@@ -1,3 +1,9 @@
+"""Autouse fixtures for background task tests.
+
+Ensures every test gets a temp DB directory.
+Wires PeriodicTask's wall clock to looptime's fake event-loop clock so `await asyncio.sleep(period)` triggers tasks.
+"""
+
 import asyncio
 from datetime import datetime
 
@@ -13,21 +19,15 @@ def _ensure_db_dir(db_dir):
 def _looptime_clock(monkeypatch):
     """Make PeriodicTask's wall clock advance with looptime's fake clock.
 
-    PeriodicTask's `every`/`daily`/`weekly` compute their delay from
-    `datetime.now()` so tasks fire aligned to real-clock boundaries. looptime
-    fast-forwards the *event-loop* clock, not the wall clock, so a wall-clock
-    delay never elapses under looptime and the task loop wedges.
+    Problem: PeriodicTask computes delays from `datetime.now()`, but looptime
+    only fast-forwards the `event-loop` clock.
 
-    We leave the production schedule math untouched and only swap the clock it
-    reads: `datetime.now()` now tracks `loop.time()` (the fake clock). The real
-    boundary math then runs on fake time -- the first firing lands inside the
-    first period (prod fires at the next boundary, < period away) and every
-    firing after is a full period apart. So `await asyncio.sleep(<period>)`
-    lands exactly one firing per period, matching how these tests are written.
+    Fix: Monkeypatch `datetime.now()` in periodicTask to return a timestamp
+    derived from `loop.time()`, so the production schedule math runs against
+    the fake clock.
 
-    BASE is a fixed, arbitrary epoch that is not aligned to any period boundary,
-    so the first delay is strictly inside the period (no boundary tie with the
-    test's own sleep).
+    Note: BASE is an arbitrary epoch not aligned to any period boundary,
+    ensuring first delay < one full period.
     """
     import common.periodicTask as periodic_task
 

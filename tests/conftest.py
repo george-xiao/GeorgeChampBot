@@ -31,8 +31,7 @@ def tree():
 
 @pytest.fixture
 def db_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Temp directory with a `database/` subfolder. CWD is moved here so
-    shelve operations don't touch the real database."""
+    """Temp directory with a `database/` subfolder. CWD is moved here so shelve operations don't touch the real database."""
     monkeypatch.chdir(tmp_path)
     db = tmp_path / "database"
     db.mkdir()
@@ -41,8 +40,7 @@ def db_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture
 def tasks_noop(monkeypatch):
-    """Disable all background task scheduling. Opt-in for tests/immediate/ tests that
-    would otherwise kick off periodic/async tasks during their immediate code path."""
+    """Disable all background task scheduling (autouse in tests/immediate/ tests, opt-in elsewhere)."""
     from common.asyncTask import AsyncTask
     from common.periodicTask import PeriodicTask
 

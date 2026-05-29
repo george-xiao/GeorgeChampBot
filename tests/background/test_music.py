@@ -1,4 +1,9 @@
-"""Background tests for music — check_disconnect periodic task + play_song callback chain (looptime)."""
+"""Background tests for music
+Tasks: _DISCONNECT_TAKS (3mins via musicPlayer.init())
+Misc.: play_song() callback chain (for auto-playing next song)
+
+Verifies auto-disconnect on idle, song queuing via after= callbacks, and playback lifecycle.
+"""
 
 import asyncio
 from collections import deque
@@ -22,7 +27,7 @@ def fresh_music_state():
     musicPlayer.reset_state()
 
 
-# --- Periodic: check_disconnect ---
+# --- @every-3min check_disconnect ---
 
 
 async def test_check_disconnect_no_vc_is_noop(monkeypatch):

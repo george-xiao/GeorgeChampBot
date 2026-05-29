@@ -1,4 +1,18 @@
-"""Tests for music slash commands + on_voice_state_update (background: tests/background/test_music.py)."""
+"""Tests for music
+Commands: /music play
+          /music pause
+          /music queue
+          /music now-playing
+          /music skip
+          /music clear
+          /music disconnect
+          /music shuffle
+          /music move
+          /music loop
+Events: on_voice_state_update
+
+Verifies playback controls, queue management, and voice-disconnect state reset.
+"""
 
 import asyncio
 from collections import deque

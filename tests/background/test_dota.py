@@ -1,4 +1,8 @@
-"""Background tests for dota — periodic recent-matches check (looptime)."""
+"""Background tests for DotA
+Tasks: _RECENT_MATCHES_TASK (hourly via dotaReplay.init())
+
+Verifies recent-match detection, embed posting, and silence when no new games.
+"""
 
 import asyncio
 from datetime import datetime
@@ -10,6 +14,9 @@ from components import dotaReplay
 from tests._stubs import patch_channel, stub_dota_api
 
 pytestmark = [pytest.mark.looptime]
+
+
+# --- @hourly check_recent_matches ---
 
 
 def _recent_match(match_id: int, hero_id: int = 1, won: bool = True) -> dict:

@@ -275,3 +275,43 @@ async def test_music_play_single_song_adds_to_queue(tree, guild, music_member, f
     [now_playing] = bot_capture.messages
     assert now_playing.embed["title"] == "Now Playing"
     assert now_playing.embed["description"] == "My Song"
+
+
+async def test_music_play_watch_url_adds_song(tree, guild, music_member, fake_vc, monkeypatch):
+    """A watch URL is parsed to a single video and queued (process_input watch-URL branch)."""
+    patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch)
+    capture = await invoke_slash(
+        tree, "music play", music_member, guild, options={"query": "https://youtube.com/watch?v=abc123"}
+    )
+    await asyncio.gather(*musicPlayer._PENDING_TASKS)
+    assert any("Added 'My Song'" in m.content for m in capture.messages)
+
+
+async def test_music_play_playlist_adds_songs(tree, guild, music_member, fake_vc, monkeypatch):
+    """A playlist URL is paginated into videos and queued (process_input playlist branch)."""
+    patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch, playlist_video_ids=["v1", "v2"])
+    capture = await invoke_slash(
+        tree, "music play", music_member, guild, options={"query": "https://youtube.com/playlist?list=PL123"}
+    )
+    await asyncio.gather(*musicPlayer._PENDING_TASKS)
+    assert any("Added" in m.content for m in capture.messages)
+
+
+async def test_music_play_skips_unavailable_song(tree, guild, music_member, fake_vc, monkeypatch):
+    """A queued song yt-dlp can't fetch is dropped with an 'unavailable' notice (process_song)."""
+    bot_capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch, search_video_id="abc123", ytdl_unavailable=True)
+    await invoke_slash(tree, "music play", music_member, guild, options={"query": "My Song"})
+    await asyncio.gather(*musicPlayer._PENDING_TASKS)
+    assert any("unavailable" in m.content for m in bot_capture.messages)
+
+
+async def test_music_play_skips_song_without_playable_format(tree, guild, music_member, fake_vc, monkeypatch):
+    """A song with no playable format is dropped with a 'url couldn't be found' notice (process_song)."""
+    bot_capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch, search_video_id="abc123", ytdl_info={"formats": [{"ext": "mhtml", "url": "x"}]})
+    await invoke_slash(tree, "music play", music_member, guild, options={"query": "My Song"})
+    await asyncio.gather(*musicPlayer._PENDING_TASKS)
+    assert any("couldn't be found" in m.content for m in bot_capture.messages)

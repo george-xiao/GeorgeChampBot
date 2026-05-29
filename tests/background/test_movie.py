@@ -7,6 +7,7 @@ Verifies event description updates, reminder restarts on reschedule, and deletio
 """
 
 import asyncio
+import shelve
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -14,6 +15,8 @@ import pytest
 
 import common.utils as ut
 from components import movieNight  # noqa: F401 — registers on_scheduled_event_* handlers
+from components.subcomponents.movieNight import upcomingMovie
+from components.subcomponents.movieNight.movie import Movie
 from tests._stubs import patch_channel, patch_movie_event_missing, patch_movie_event_present
 
 
@@ -38,6 +41,35 @@ async def test_on_scheduled_event_create_updates_event_description(event_bot):
     await asyncio.sleep(0.1)  # let AsyncTask run
 
     event.edit.assert_awaited_once()
+
+
+async def test_on_scheduled_event_create_describes_host_and_movie(event_bot):
+    """With a host and picked movie set, the event name/description reflect them."""
+    client, event = event_bot
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = "alice"
+        db["upcoming_movie"] = Movie("Dune", "Sci-Fi", "Sandworms")
+
+    client.dispatch("scheduled_event_create", event)
+    await asyncio.sleep(0.1)
+
+    _, kwargs = event.edit.call_args
+    assert "alice" in kwargs["name"]
+    assert "Dune" in kwargs["description"]
+
+
+async def test_on_scheduled_event_create_describes_host_without_movie(event_bot):
+    """With a host but no movie yet, the description prompts that the movie isn't picked."""
+    client, event = event_bot
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        db["upcoming_host_name"] = "alice"
+
+    client.dispatch("scheduled_event_create", event)
+    await asyncio.sleep(0.1)
+
+    _, kwargs = event.edit.call_args
+    assert "alice" in kwargs["name"]
+    assert "not been picked" in kwargs["description"].lower()
 
 
 # --- on_scheduled_event_update → update + restart reminder on reschedule ---

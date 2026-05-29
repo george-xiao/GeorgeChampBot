@@ -25,7 +25,10 @@ repos:
       - id: pytest-run
         name: pytest run (docker)
         entry: docker
-        args: [run, --rm, george_champ_bot_test, python3, -m, pytest]
+        # Coverage gate: fails the push if total coverage drops below 80%.
+        args: [run, --rm, george_champ_bot_test, python3, -m, pytest,
+               --cov=common, --cov=commands, --cov=components, --cov=GeorgeChampBot,
+               --cov-report=term-missing, --cov-fail-under=90]
         language: system
         pass_filenames: false
         always_run: true

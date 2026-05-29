@@ -73,58 +73,120 @@ def patch_movie_event_missing(monkeypatch):
     monkeypatch.setattr(ut.guildObject, "fetch_scheduled_events", AsyncMock(return_value=[]))
 
 
+# --- HTTP (aiohttp boundary) ---
+#
+# Stub aiohttp itself (the library boundary) rather than ut.async_get_request /
+# ut.async_post_request (production helpers) — per CLAUDE.md rule #7. This keeps the
+# real wrappers in the tested path, including their `status == 200` check.
+
+
+class _FakeResponse:
+    """Stand-in for an aiohttp response: an async context manager with .status + .json()."""
+
+    def __init__(self, payload, status=200):
+        self._payload = payload
+        self.status = status
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def json(self):
+        return self._payload
+
+
+class _FakeSession:
+    """Stand-in for aiohttp.ClientSession. `router(method, url) -> (json_payload, status)`."""
+
+    def __init__(self, router):
+        self._router = router
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def get(self, url, headers=None):
+        return _FakeResponse(*self._router("GET", url))
+
+    def post(self, url, data=None):
+        return _FakeResponse(*self._router("POST", url))
+
+
+def stub_aiohttp(monkeypatch, router):
+    """Patch aiohttp.ClientSession so ut.async_get_request / ut.async_post_request run
+    against fake responses. `router(method, url) -> (json_payload, status)`."""
+    monkeypatch.setattr(ut.aiohttp, "ClientSession", lambda: _FakeSession(router))
+
+
 # --- Dota / OpenDota ---
 
 
 def stub_dota_api(monkeypatch, *, matches=None, broken=False):
-    """Patch ut.async_get_request to return Dota match data (or empty).
-    broken=True simulates an API failure (returns None for every request)."""
+    """Stub the Dota/OpenDota HTTP boundary to return match data (or empty).
+    broken=True simulates an API failure (HTTP 500 -> async_get_request returns None)."""
 
-    async def fake_get(url, headers=None):
+    def router(method, url):
         if broken:
-            return None
+            return None, 500  # non-200 -> wrapper returns None
         if "/recentMatches" in url:
-            return matches if matches is not None else []
-        return []
+            return (matches if matches is not None else []), 200
+        return [], 200
 
-    monkeypatch.setattr(ut, "async_get_request", fake_get)
+    stub_aiohttp(monkeypatch, router)
 
 
 # --- Twitch ---
 
 
-def stub_twitch_api(monkeypatch, *, live_streams=None, valid_users=None):
-    """Patch ut.async_get_request and ut.async_post_request to mimic Twitch (valid_users=None accepts any login)."""
+def stub_twitch_api(monkeypatch, *, live_streams=None, valid_users=None, streams_down=False):
+    """Stub the Twitch HTTP boundary (valid_users=None accepts any login).
+    streams_down=True makes the /streams endpoint fail (HTTP 500 → request returns None)."""
     # Twitch caches OAuth + livestreams at module scope; reset so prior tests don't leak.
     monkeypatch.setattr(twitchAnnouncement, "twitch_OAuth_token", None)
     monkeypatch.setattr(twitchAnnouncement, "twitch_curr_livestreams", {})
 
-    async def fake_get(url, headers=None):
+    def router(method, url):
+        if method == "POST":
+            if "id.twitch.tv/oauth2/token" in url:
+                return {"access_token": "test-token", "expires_in": 3600}, 200
+            return None, 200
         if "id.twitch.tv/oauth2/validate" in url:
-            return {"status": 200}
+            return {"status": 200}, 200
         if "api.twitch.tv/helix/users" in url:
             name = url.rsplit("login=", 1)[-1]
             if valid_users is None or name in valid_users:
-                return {"data": [{"login": name, "id": "12345"}]}
-            return {"data": []}
+                return {"data": [{"login": name, "id": "12345"}]}, 200
+            return {"data": []}, 200
         if "api.twitch.tv/helix/streams" in url:
-            return {"data": list(live_streams or [])}
-        return None
+            if streams_down:
+                return None, 500
+            return {"data": list(live_streams or [])}, 200
+        return None, 200
 
-    async def fake_post(url, body):
-        if "id.twitch.tv/oauth2/token" in url:
-            return {"access_token": "test-token", "expires_in": 3600}
-        return None
-
-    monkeypatch.setattr(ut, "async_get_request", fake_get)
-    monkeypatch.setattr(ut, "async_post_request", fake_post)
+    stub_aiohttp(monkeypatch, router)
 
 
 # --- YouTube / yt-dlp ---
 
 
-def stub_youtube(monkeypatch, *, search_video_id=None, video_meta=None, ytdl_info=None):
-    """Patch musicPlayer.Aiogoogle and musicPlayer.YoutubeDL."""
+def stub_youtube(
+    monkeypatch,
+    *,
+    search_video_id=None,
+    video_meta=None,
+    ytdl_info=None,
+    playlist_video_ids=None,
+    ytdl_unavailable=False,
+):
+    """Patch musicPlayer.Aiogoogle and musicPlayer.YoutubeDL.
+
+    playlist_video_ids: ids returned by playlistItems.list (drives the playlist branch).
+    ytdl_unavailable=True makes YoutubeDL.extract_info return None (drives the 'unavailable' skip).
+    """
 
     class _Request:
         def __init__(self, kind):
@@ -168,6 +230,9 @@ def stub_youtube(monkeypatch, *, search_video_id=None, video_meta=None, ytdl_inf
                 return {"items": []}
             if request.kind == "videos":
                 return {"items": [video_meta or default_meta]}
+            if request.kind == "playlistItems":
+                # Single page (no nextPageToken) so process_input's pagination loop breaks.
+                return {"items": [{"contentDetails": {"videoId": vid}} for vid in (playlist_video_ids or [])]}
             return {"items": []}
 
     monkeypatch.setattr(musicPlayer, "Aiogoogle", _FakeAiogoogle)
@@ -177,6 +242,8 @@ def stub_youtube(monkeypatch, *, search_video_id=None, video_meta=None, ytdl_inf
             pass
 
         def extract_info(self, url, download=False):
+            if ytdl_unavailable:
+                return None
             return ytdl_info or {"formats": [{"ext": "mp3", "url": "https://stream.example/test.mp3"}]}
 
     monkeypatch.setattr(musicPlayer, "YoutubeDL", _FakeYDL)

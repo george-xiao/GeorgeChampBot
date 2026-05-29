@@ -13,7 +13,7 @@ _FACTORY_KEY = object()
 class PeriodicTask(AsyncTask):
     """
     A recurring background task. Construct via the classmethod factories
-    (`every`, `minutely`, `hourly`, `daily`, `weekly`) rather than the bare
+    (`every`, `hourly`, `daily`, `weekly`) rather than the bare
     constructor — each factory wires the schedule math for you.
 
     Example:
@@ -31,8 +31,7 @@ class PeriodicTask(AsyncTask):
     ):
         if _factory_key is not _FACTORY_KEY:
             raise TypeError(
-                "PeriodicTask cannot be constructed directly. "
-                "Use one of: PeriodicTask.every/.minutely/.hourly/.daily/.weekly"
+                "PeriodicTask cannot be constructed directly. " "Use one of: PeriodicTask.every/.hourly/.daily/.weekly"
             )
         self._next_delay = next_delay
         self._coroutine_factory = coroutine_factory
@@ -60,11 +59,6 @@ class PeriodicTask(AsyncTask):
             return next_boundary - now
 
         return cls(_compute, coroutine_factory, _factory_key=_FACTORY_KEY)
-
-    @classmethod
-    def minutely(cls, coroutine_factory: Callable[[], Coroutine]) -> "PeriodicTask":
-        """Fire at the top of every minute."""
-        return cls.every(60, coroutine_factory)
 
     @classmethod
     def hourly(cls, coroutine_factory: Callable[[], Coroutine]) -> "PeriodicTask":

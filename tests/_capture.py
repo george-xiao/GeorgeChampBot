@@ -25,10 +25,13 @@ class SentMessage:
 @dataclass
 class CapturedMessages:
     messages: list[SentMessage] = field(default_factory=list)
+    channel: MagicMock | None = (
+        None  # populated by make_capturing_channel — lets tests grab the patched channel without re-looking it up
+    )
 
 
 def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
-    """Fake channel for event handler tests. Patch onto ut.mainChannel or ut.get_channel."""
+    """Fake channel that records sends. For tests, prefer the patch_* helpers in tests/_stubs.py."""
 
     async def _send(content="", embed=None, delete_after=None, **kwargs):
         capture.messages.append(
@@ -38,11 +41,14 @@ def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
                 delete_after=delete_after,
             )
         )
-        return MagicMock(id=len(capture.messages))
+        msg = MagicMock(id=len(capture.messages))
+        msg.add_reaction = AsyncMock()  # prod handlers may call `await msg.add_reaction(emoji)`
+        return msg
 
     channel = MagicMock()
     channel.send = _send
     channel.id = 12345
+    capture.channel = channel
     return channel
 
 

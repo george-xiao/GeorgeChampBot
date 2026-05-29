@@ -4,9 +4,8 @@ import asyncio
 
 import pytest
 
-import common.utils as ut
 from components import emoteLeaderboard
-from tests._capture import CapturedMessages, make_capturing_channel
+from tests._stubs import patch_main_channel
 
 pytestmark = [pytest.mark.looptime]
 
@@ -15,9 +14,7 @@ async def test_weekly_announcement_reports_used_emotes(seeded_emote_db, monkeypa
     emoteLeaderboard.update_counts("<:kekw:101>", 5)
     emoteLeaderboard.update_counts("<:pog:102>", 3)
 
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
+    capture = patch_main_channel(monkeypatch)
 
     emoteLeaderboard.init()
     await asyncio.sleep(7 * 24 * 3600)
@@ -32,9 +29,7 @@ async def test_weekly_announcement_reports_used_emotes(seeded_emote_db, monkeypa
 
 
 async def test_weekly_announcement_silent_message_when_no_activity(seeded_emote_db, monkeypatch):
-    capture = CapturedMessages()
-    channel = make_capturing_channel(capture)
-    monkeypatch.setattr(ut, "mainChannel", channel)
+    capture = patch_main_channel(monkeypatch)
 
     emoteLeaderboard.init()
     await asyncio.sleep(7 * 24 * 3600)

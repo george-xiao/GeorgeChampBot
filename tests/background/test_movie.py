@@ -1,15 +1,15 @@
 """Background tests for movie — scheduled-event gateway handlers trigger real AsyncTasks (looptime)."""
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from datetime import timedelta
+from unittest.mock import MagicMock
 
-import discord
 import pytest
 
 import common.utils as ut
 from components import movieNight  # noqa: F401 — registers on_scheduled_event_* handlers
-from tests._capture import CapturedMessages, make_capturing_channel
+from tests._stubs import patch_channel, patch_movie_event_missing, patch_movie_event_present
+
 
 pytestmark = [pytest.mark.looptime]
 
@@ -17,17 +17,7 @@ pytestmark = [pytest.mark.looptime]
 @pytest.fixture
 async def event_bot(ut_client_ready, guild, monkeypatch):
     """Boot ut.client with a fake scheduled event on the guild."""
-    event = MagicMock()
-    event.start_time = datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
-    event.guild_id = 1000
-    event.id = 99999
-    event.status = discord.EventStatus.scheduled
-    event.name = "Movie Night"
-    event.description = ""
-    event.edit = AsyncMock()
-
-    monkeypatch.setattr(ut.guildObject, "scheduled_events", [event])
-    monkeypatch.setattr(ut.guildObject, "fetch_scheduled_events", AsyncMock(return_value=[event]))
+    event = patch_movie_event_present(monkeypatch)
     return ut_client_ready, event
 
 
@@ -59,7 +49,7 @@ async def test_on_scheduled_event_update_restarts_when_start_changes(event_bot, 
     client, event = event_bot
 
     old = MagicMock()
-    old.start_time = datetime(2024, 6, 14, 20, 0, 0, tzinfo=timezone.utc)  # different
+    old.start_time = event.start_time - timedelta(days=1)  # different from event's start_time
     client.dispatch("scheduled_event_update", old, event)
     await asyncio.sleep(0.1)
 
@@ -71,12 +61,8 @@ async def test_on_scheduled_event_delete_notifies_when_event_missing(event_bot, 
     "event does not exist" notification to the movie channel (it does not edit)."""
     client, event = event_bot
 
-    # After delete, no event exists
-    monkeypatch.setattr(ut.guildObject, "scheduled_events", [])
-    monkeypatch.setattr(ut.guildObject, "fetch_scheduled_events", AsyncMock(return_value=[]))
-
-    capture = CapturedMessages()
-    monkeypatch.setattr(ut, "get_channel", lambda _: make_capturing_channel(capture))
+    patch_movie_event_missing(monkeypatch)  # event gone after delete
+    capture = patch_channel(monkeypatch, ut.env["MOVIE_CHANNEL"])
 
     client.dispatch("scheduled_event_delete", event)
     await asyncio.sleep(0.1)  # looptime drains the (sleep-free) task before waking

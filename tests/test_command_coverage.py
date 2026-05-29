@@ -90,7 +90,7 @@ def test_every_registered_command_has_a_test(tree: app_commands.CommandTree) -> 
         bullets = "\n".join(f"  - /{p}" for p in missing)
         pytest.fail(
             f"Registered slash commands without an `invoke_slash` test:\n{bullets}\n\n"
-            'Add `invoke_slash(tree, "<path>", user, guild, ...)` in tests/commands/test_<feature>.py. '
+            'Add `invoke_slash(tree, "<path>", user, guild, ...)` in tests/immediate/test_<feature>.py. '
             "See docs/DEVELOPMENT.md#adding-a-test.",
             pytrace=False,
         )

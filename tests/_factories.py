@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import discord
 
-from tests._env_setup import make_admin_role
+from tests._env_setup import make_admin_role, make_default_channels, make_movie_role, make_welcome_role
 
 
 def make_member(member_id: int, name: str, nick: str | None = None, is_admin: bool = False) -> MagicMock:
@@ -38,7 +38,8 @@ def make_guild(members: list[MagicMock]) -> MagicMock:
     guild.name = "TestGuild"
     guild.members = members
     guild.emojis = []
-    guild.roles = [make_admin_role()]
+    guild.roles = [make_admin_role(), make_movie_role(), make_welcome_role()]
+    guild.channels = make_default_channels()
 
     by_id = {m.id: m for m in members}
 
@@ -58,6 +59,30 @@ DEFAULT_MEMBERS = [
     make_member(104, "dave"),
     make_member(105, "eve", nick="Eve", is_admin=True),
 ]
+
+
+def make_song_item(title: str = "Song A", duration: int = 180):
+    """Build a SongItem bypassing the API-driven constructor."""
+    from components.musicPlayer import SongItem
+
+    song = SongItem.__new__(SongItem)
+    song.yt_url = "https://www.youtube.com/watch?v=test"
+    song.song_url = "https://stream.example/test.mp3"
+    song.title = title
+    song.channel_title = "Test Channel"
+    song.requester = "alice"
+    song.duration = duration
+    song.start_time = None
+    return song
+
+
+def make_emoji(name: str, emoji_id: int) -> MagicMock:
+    """Create a fake Discord Emoji with name, id, and animated=False."""
+    e = MagicMock()
+    e.name = name
+    e.id = emoji_id
+    e.animated = False
+    return e
 
 
 def seed_meme_leaderboard(db_dir: Path) -> None:

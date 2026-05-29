@@ -18,25 +18,26 @@ async def on_ready():
         await emoteLeaderboard.init_emote_leaderboard()
         musicPlayer.reset_state()
 
-        # Start periodic tasks
+        # Start async tasks
         movieNight.init()
-        emoteLeaderboard.init()
-        memeReview.init()
-        dotaReplay.init()
-        twitchAnnouncement.init()
-        musicPlayer.init()
-
-        # Initialize slash commands
-        if not ut.commandTree:
-            ut.commandTree = discord.app_commands.CommandTree(ut.client)
-            load_commands(ut.commandTree)
-            ut.commandTree.copy_global_to(guild=ut.guildObject)
-            await ut.commandTree.sync(guild=ut.guildObject)
 
         global instanceRunning
         if instanceRunning:
             await ut.send_react_msg("GeorgeChampBot restarted! Check terminal for more information.", "georgechamp")
         else:
+            # Start periodic tasks
+            emoteLeaderboard.init()
+            memeReview.init()
+            dotaReplay.init()
+            twitchAnnouncement.init()
+            musicPlayer.init()
+
+            # Initialize slash commands
+            ut.commandTree = discord.app_commands.CommandTree(ut.client)
+            load_commands(ut.commandTree)
+            ut.commandTree.copy_global_to(guild=ut.guildObject)
+            await ut.commandTree.sync(guild=ut.guildObject)
+
             instanceRunning = True
             await ut.send_react_msg("GeorgeChampBot reporting for duty!", "georgechamp")
     except Exception as e:

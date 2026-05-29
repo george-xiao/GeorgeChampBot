@@ -16,6 +16,8 @@ _LIVE_CHECK_TASK = None
 def init():
     """Start the periodic Twitch live-streamers check (every 15 minutes aligned)."""
     global _LIVE_CHECK_TASK
+    if _LIVE_CHECK_TASK:
+        _LIVE_CHECK_TASK.stop()
     _LIVE_CHECK_TASK = PeriodicTask.every(900, lambda: check_twitch_live(ut.mainChannel))
     _LIVE_CHECK_TASK.start()
 
@@ -32,35 +34,36 @@ async def check_twitch_live(channel):
         with shelve.open(STREAMER_DB_PATH) as streamer_list_shelf:
             if not streamer_list_shelf:
                 return
+            streamer_keys = list(streamer_list_shelf.keys())
 
-            # Request list of live streamers currently online from Twitch
-            # Documentation: https://dev.twitch.tv/docs/api/reference/#get-streams
-            twitch_streamers = "?user_login=" + "&user_login=".join(streamer_list_shelf.keys())
-            url = "https://api.twitch.tv/helix/streams" + twitch_streamers
-            headers = {"Client-ID": ut.env["TWITCH_CLIENT_ID"], "Authorization": "Bearer " + twitch_OAuth_token}
+        # Request list of live streamers currently online from Twitch
+        # Documentation: https://dev.twitch.tv/docs/api/reference/#get-streams
+        twitch_streamers = "?user_login=" + "&user_login=".join(streamer_keys)
+        url = "https://api.twitch.tv/helix/streams" + twitch_streamers
+        headers = {"Client-ID": ut.env["TWITCH_CLIENT_ID"], "Authorization": "Bearer " + twitch_OAuth_token}
 
+        stream = await ut.async_get_request(url, headers=headers)
+        # Let stream fail once before generating twitch OAuth token
+        # This will reduce the number of calls made by the application over time
+        if not stream:
+            if not await validate_twitch_OAuth_token(channel):
+                await generate_twitch_OAuth_token(channel)
             stream = await ut.async_get_request(url, headers=headers)
-            # Let stream fail once before generating twitch OAuth token
-            # This will reduce the number of calls made by the application over time
-            if not stream:
-                if not await validate_twitch_OAuth_token(channel):
-                    await generate_twitch_OAuth_token(channel)
-                stream = await ut.async_get_request(url, headers=headers)
-            # If it fails with a newly generated OAuth, then Twitch is probably down
-            if not stream:
-                raise Exception("Twitch is probably not online. Ignoring request")
+        # If it fails with a newly generated OAuth, then Twitch is probably down
+        if not stream:
+            raise Exception("Twitch is probably not online. Ignoring request")
 
-            # If livestream is new, create message
-            # else update the viewer count
-            fetched_livestreams = {}
-            for livestream in stream.get("data"):
-                user_name = livestream["user_name"]
-                if user_name not in twitch_curr_livestreams:
-                    message = await channel.send(generate_message(livestream))
-                else:
-                    message = await twitch_curr_livestreams[user_name].edit(content=generate_message(livestream))
-                fetched_livestreams[user_name] = message
-            twitch_curr_livestreams = fetched_livestreams
+        # If livestream is new, create message
+        # else update the viewer count
+        fetched_livestreams = {}
+        for livestream in stream.get("data"):
+            user_name = livestream["user_name"]
+            if user_name not in twitch_curr_livestreams:
+                message = await channel.send(generate_message(livestream))
+            else:
+                message = await twitch_curr_livestreams[user_name].edit(content=generate_message(livestream))
+            fetched_livestreams[user_name] = message
+        twitch_curr_livestreams = fetched_livestreams
 
     except Exception as e:
         await channel.send("Error Obtaining Live Twitch Streamer List: " + str(e))

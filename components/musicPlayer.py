@@ -25,6 +25,8 @@ def init():
     song ends, and explicitly kicked by play_song_request when a user queues
     something while nothing is playing)."""
     global _DISCONNECT_TASK
+    if _DISCONNECT_TASK:
+        _DISCONNECT_TASK.stop()
     _DISCONNECT_TASK = PeriodicTask.every(180, check_disconnect)
     _DISCONNECT_TASK.start()
 

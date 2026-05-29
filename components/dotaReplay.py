@@ -13,6 +13,8 @@ _RECENT_MATCHES_TASK = None
 def init():
     """Start the periodic Dota recent-matches check (every hour)."""
     global _RECENT_MATCHES_TASK
+    if _RECENT_MATCHES_TASK:
+        _RECENT_MATCHES_TASK.stop()
     _RECENT_MATCHES_TASK = PeriodicTask.hourly(
         lambda: check_recent_matches(ut.get_channel(ut.env["DOTA_CHANNEL"])),
     )

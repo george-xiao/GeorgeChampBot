@@ -1,4 +1,14 @@
-"""Tests for movie commands, modal submission, and scheduled-event gateway handlers."""
+"""Tests for movie
+Commands: /movie list-suggestions
+          /movie view-suggestion
+          /movie remove-suggestion
+          /movie view-upcoming
+          /movie pick-movie
+          /admin movie pick-host
+Modal: /movie add-suggestion
+
+Verifies suggestion CRUD, upcoming display, movie picking, host selection, and modal submission.
+"""
 
 import shelve
 

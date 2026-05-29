@@ -31,7 +31,7 @@ class CapturedMessages:
 
 
 def make_capturing_channel(capture: CapturedMessages) -> MagicMock:
-    """Fake channel that records sends. For tests, prefer the patch_* helpers in tests/_stubs.py."""
+    """Fake channel that records all sent messages into `capture`."""
 
     async def _send(content="", embed=None, delete_after=None, **kwargs):
         capture.messages.append(

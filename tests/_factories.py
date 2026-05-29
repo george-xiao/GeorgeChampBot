@@ -51,7 +51,7 @@ def make_guild(members: list[MagicMock]) -> MagicMock:
     return guild
 
 
-# Fixed cast for deterministic output
+# Fixed set of members for deterministic test output
 DEFAULT_MEMBERS = [
     make_member(101, "alice", nick="Alice the Great"),
     make_member(102, "bob"),

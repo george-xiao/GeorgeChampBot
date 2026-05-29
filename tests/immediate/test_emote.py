@@ -1,4 +1,15 @@
-"""Tests for emote commands + gateway events (on_message, on_raw_reaction_add, on_guild_emojis_update)."""
+"""Tests for emote
+Commands: /emote count
+          /emote leaderboard
+          /admin emote transfer
+          /admin emote delete
+          /admin emote add-score
+Events: on_message
+        on_raw_reaction_add
+        on_guild_emojis_update
+
+Verifies score counting, leaderboard paging, admin mutations, and emoji add/remove/rename tracking.
+"""
 
 import asyncio
 import shelve
@@ -18,10 +29,10 @@ from tests._stubs import patch_bot_channel, patch_main_channel
 
 @pytest.fixture
 async def emote_event_env(seeded_emote_db, dpytest_client, monkeypatch):
-    """Adds the test emojis to `ut.guildObject.emojis` so
-    `check_emoji` / `check_reaction` can match the seeded shelve entries
-    when the test sends `<:kekw:101>`. dpytest_client (in conftest) does
-    the client/dispatcher wiring."""
+    """Adds the test emojis to `ut.guildObject.emojis` so `check_emoji` / `check_reaction`
+    can match the seeded shelve entries when the test sends `<:kekw:101>`
+    dpytest_client (in conftest) does the client/dispatcher wiring
+    """
     monkeypatch.setattr(
         ut.guildObject,
         "emojis",

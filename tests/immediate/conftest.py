@@ -1,3 +1,8 @@
+"""Autouse fixtures for command/event-listeners tests.
+
+Disable all background task scheduling so slash commands and gateway events can be tested without periodic/async tasks firing
+"""
+
 import pytest
 
 

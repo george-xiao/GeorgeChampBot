@@ -1,4 +1,10 @@
-"""Background tests for movie — scheduled-event gateway handlers trigger real AsyncTasks (looptime)."""
+"""Background tests for movie
+Events: on_scheduled_event_create (triggers AsyncTask)
+        on_scheduled_event_update (triggers AsyncTask)
+        on_scheduled_event_delete (triggers AsyncTask)
+
+Verifies event description updates, reminder restarts on reschedule, and deletion notifications.
+"""
 
 import asyncio
 from datetime import timedelta
@@ -21,6 +27,9 @@ async def event_bot(ut_client_ready, guild, monkeypatch):
     return ut_client_ready, event
 
 
+# --- on_scheduled_event_create → update event description ---
+
+
 async def test_on_scheduled_event_create_updates_event_description(event_bot):
     """on_scheduled_event_create triggers update_event_description which edits the event."""
     client, event = event_bot
@@ -29,6 +38,9 @@ async def test_on_scheduled_event_create_updates_event_description(event_bot):
     await asyncio.sleep(0.1)  # let AsyncTask run
 
     event.edit.assert_awaited_once()
+
+
+# --- on_scheduled_event_update → update + restart reminder on reschedule ---
 
 
 async def test_on_scheduled_event_update_skips_when_start_unchanged(event_bot):
@@ -54,6 +66,9 @@ async def test_on_scheduled_event_update_restarts_when_start_changes(event_bot, 
     await asyncio.sleep(0.1)
 
     event.edit.assert_awaited_once()
+
+
+# --- on_scheduled_event_delete → notify when event gone ---
 
 
 async def test_on_scheduled_event_delete_notifies_when_event_missing(event_bot, monkeypatch):

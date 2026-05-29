@@ -1,8 +1,17 @@
-"""Tests for dota slash commands (/dota list, /admin dota add, /admin dota remove)."""
+"""Tests for DotA
+Commands: /dota list
+          /admin dota add
+          /admin dota remove
+
+Verifies listing tracked players, add/remove (incl. duplicate + untracked), and admin-only enforcement.
+"""
 
 from components import dotaReplay
 from tests._dispatch import invoke_slash
 from tests._factories import make_member
+
+
+# --- /dota list ---
 
 
 async def test_dota_list_populated(seeded_dota_db, tree, guild, regular_member):
@@ -16,6 +25,9 @@ async def test_dota_list_empty(db_dir, tree, guild, regular_member):
     capture = await invoke_slash(tree, "dota list", regular_member, guild)
     [msg] = capture.messages
     assert "empty" in msg.content.lower()
+
+
+# --- /admin dota add ---
 
 
 async def test_dota_add_success(db_dir, tree, guild, admin_member):
@@ -47,6 +59,9 @@ async def test_dota_add_duplicate(seeded_dota_db, tree, guild, admin_member):
     assert await dotaReplay.get_players_text() == listing_before
 
 
+# --- /admin dota remove ---
+
+
 async def test_dota_remove_tracked(seeded_dota_db, tree, guild, admin_member):
     capture = await invoke_slash(
         tree,
@@ -71,6 +86,10 @@ async def test_dota_remove_not_tracked(db_dir, tree, guild, admin_member):
     [msg] = capture.messages
     assert "99999" in msg.content
     assert "tracked" in msg.content.lower()
+
+
+# --- admin access guard ---
+# Shared guard on every /admin command; exercised here via /admin dota add.
 
 
 async def test_admin_command_denied_for_non_admin(db_dir, tree, guild, regular_member):

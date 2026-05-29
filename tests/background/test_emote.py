@@ -1,4 +1,8 @@
-"""Background tests for emote — weekly announcement (looptime)."""
+"""Background tests for emote
+Tasks: _ANNOUNCEMENT_TASK (weekly via emoteLeaderboard.init())
+
+Verifies weekly leaderboard announcement content and scheduling.
+"""
 
 import asyncio
 
@@ -8,6 +12,9 @@ from components import emoteLeaderboard
 from tests._stubs import patch_main_channel
 
 pytestmark = [pytest.mark.looptime]
+
+
+# --- @weekly announcement_task ---
 
 
 async def test_weekly_announcement_reports_used_emotes(seeded_emote_db, monkeypatch):

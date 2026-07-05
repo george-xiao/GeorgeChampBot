@@ -10,7 +10,7 @@
 
 import asyncio
 import shelve
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
@@ -27,8 +27,9 @@ from tests._factories import make_member
 
 
 def _make_scheduled_event(start_time=None):
+    # Default start_time is in the future: set_host refuses past-dated events
     event = MagicMock()
-    event.start_time = start_time or datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
+    event.start_time = start_time or datetime.now(timezone.utc) + timedelta(days=7)
     event.guild_id = 1000
     event.id = 99999
     event.status = discord.EventStatus.scheduled
@@ -216,6 +217,23 @@ async def test_movie_pick_host_no_event(db_dir, tree, guild, admin_member, monke
     assert "does not exist" in msg.embed["title"].lower()
 
 
+async def test_movie_pick_host_event_date_passed(db_dir, tree, guild, admin_member, monkeypatch):
+    # A "Movie Night" event exists but its start time already passed (e.g. the
+    # weekly event wasn't rescheduled) → set_host must refuse instead of arming
+    # a pick reminder that would silently never fire.
+    past_event = _make_scheduled_event(start_time=datetime.now(timezone.utc) - timedelta(days=1))
+    _patch_event_present(monkeypatch, event=past_event)
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree, "admin movie pick-host", admin_member, guild,
+        options={"user": alice},
+    )
+    [msg] = capture.messages
+    assert "already passed" in msg.embed["title"].lower()
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        assert db.get("upcoming_host_name") is None
+
+
 async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkeypatch):
     _patch_event_present(monkeypatch)
     monkeypatch.setattr(ut, "get_member_str", lambda name: f"<@{name}>")
@@ -275,24 +293,27 @@ def scheduled_event_bot(monkeypatch):
     so we can assert they're invoked without running the real bodies (which
     spawn AsyncTasks against ut.client's loop, edit ScheduledEvents, etc.)."""
     update_calls = []
+    pick_reminder_calls = []
     reminder_calls = []
     monkeypatch.setattr(upcomingMovie, "update_event_description", lambda is_command: update_calls.append(is_command))
+    monkeypatch.setattr(upcomingMovie, "start_pick_reminder", lambda: pick_reminder_calls.append(True))
     monkeypatch.setattr(eventReminder, "start_event_reminder", lambda: reminder_calls.append(True))
-    return update_calls, reminder_calls
+    return update_calls, pick_reminder_calls, reminder_calls
 
 
-async def test_on_scheduled_event_create_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
+async def test_on_scheduled_event_create_triggers_update_and_reminders(scheduled_event_bot, ut_client_ready):
+    update_calls, pick_reminder_calls, reminder_calls = scheduled_event_bot
 
     ut_client_ready.dispatch("scheduled_event_create", _make_scheduled_event())
     await asyncio.sleep(0)
 
     assert update_calls == [False]
+    assert pick_reminder_calls == [True]
     assert reminder_calls == [True]
 
 
-async def test_on_scheduled_event_update_skips_reminder_when_start_unchanged(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
+async def test_on_scheduled_event_update_skips_reminders_when_start_unchanged(scheduled_event_bot, ut_client_ready):
+    update_calls, pick_reminder_calls, reminder_calls = scheduled_event_bot
 
     same = datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
     old = _make_scheduled_event(start_time=same)
@@ -301,12 +322,13 @@ async def test_on_scheduled_event_update_skips_reminder_when_start_unchanged(sch
     await asyncio.sleep(0)
 
     assert update_calls == [False]
-    # Same start_time → reminder isn't restarted.
+    # Same start_time → reminders aren't restarted.
+    assert pick_reminder_calls == []
     assert reminder_calls == []
 
 
-async def test_on_scheduled_event_update_restarts_reminder_when_start_changes(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
+async def test_on_scheduled_event_update_restarts_reminders_when_start_changes(scheduled_event_bot, ut_client_ready):
+    update_calls, pick_reminder_calls, reminder_calls = scheduled_event_bot
 
     old = _make_scheduled_event(start_time=datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc))
     new = _make_scheduled_event(start_time=datetime(2024, 6, 16, 20, 0, 0, tzinfo=timezone.utc))
@@ -314,14 +336,16 @@ async def test_on_scheduled_event_update_restarts_reminder_when_start_changes(sc
     await asyncio.sleep(0)
 
     assert update_calls == [False]
+    assert pick_reminder_calls == [True]
     assert reminder_calls == [True]
 
 
-async def test_on_scheduled_event_delete_triggers_update_and_reminder(scheduled_event_bot, ut_client_ready):
-    update_calls, reminder_calls = scheduled_event_bot
+async def test_on_scheduled_event_delete_triggers_update_and_reminders(scheduled_event_bot, ut_client_ready):
+    update_calls, pick_reminder_calls, reminder_calls = scheduled_event_bot
 
     ut_client_ready.dispatch("scheduled_event_delete", _make_scheduled_event())
     await asyncio.sleep(0)
 
     assert update_calls == [False]
+    assert pick_reminder_calls == [True]
     assert reminder_calls == [True]

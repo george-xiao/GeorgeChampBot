@@ -23,6 +23,15 @@ async def set_host(member_name: str) -> discord.Embed:
         return failed_embed
 
     event: discord.ScheduledEvent | None = await ut.get_movie_event()
+
+    # A past-dated event should not allow changes to host
+    if datetime.now(timezone.utc) > event.start_time:
+        embed = discord.Embed(colour=ut.embed_colour["ERROR"])
+        embed.title = '"Movie Night" event date has already passed!'
+        embed.description = f"The event is still set to {ut.convert_to_est_time(event.start_time)}, so reminders would never be sent."
+        embed.description += "\nPlease update the event to the next movie night's date and try again."
+        return embed
+
     db = shelve.open(UPCOMING_MOVIE_NIGHT_DB_PATH)
     db["upcoming_host_name"] = member_name
     if db.get("upcoming_movie"):

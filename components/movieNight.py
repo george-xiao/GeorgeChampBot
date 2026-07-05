@@ -31,20 +31,18 @@ async def movie_names_autocomplete(interaction: discord.Interaction, current: st
 # NOTE: Since a ScheduledEvent's name is not unique, update_event_description and start_event_reminder is used in every case to ensure consistency
 @ut.client.event
 async def on_scheduled_event_create(_created_event: discord.ScheduledEvent):
-    upcomingMovie.update_event_description(False)
-    eventReminder.start_event_reminder()
+    init()
 
 
 @ut.client.event
 async def on_scheduled_event_update(old_event: discord.ScheduledEvent, new_event: discord.ScheduledEvent):
-    upcomingMovie.update_event_description(False)
     # The bot updating event description is a false positive
     if old_event.start_time == new_event.start_time:
+        upcomingMovie.update_event_description(False)
         return
-    eventReminder.start_event_reminder()
+    init()
 
 
 @ut.client.event
 async def on_scheduled_event_delete(_deleted_event: discord.ScheduledEvent):
-    upcomingMovie.update_event_description(False)
-    eventReminder.start_event_reminder()
+    init()

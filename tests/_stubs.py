@@ -6,7 +6,7 @@ Use `stub_youtube(monkeypatch, search_video_id="...")` for YouTube/yt-dlp.
 Use `patch_movie_event_present/missing(monkeypatch, ...)` for movie-night ScheduledEvent.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
@@ -47,9 +47,11 @@ def patch_channel(monkeypatch, channel_name: str) -> CapturedMessages:
 
 
 def make_scheduled_event(start_time=None):
-    """Build a fake discord.ScheduledEvent for movie-night tests."""
+    """Build a fake discord.ScheduledEvent for movie-night tests.
+
+    Default start_time is in the future: set_host refuses past-dated events."""
     event = MagicMock()
-    event.start_time = start_time or datetime(2024, 6, 15, 20, 0, 0, tzinfo=timezone.utc)
+    event.start_time = start_time or datetime.now(timezone.utc) + timedelta(days=7)
     event.guild_id = 1000
     event.id = 99999
     event.status = discord.EventStatus.scheduled

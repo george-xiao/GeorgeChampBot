@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 import isodate
 import discord
 import random
+import threading
 from math import ceil
 
 _DISCONNECT_TASK = None
@@ -31,12 +32,46 @@ def init():
     _DISCONNECT_TASK.start()
 
 
-def _schedule_next_song(loop, error):
+def _ffmpeg_exit_code(source):
+    """ffmpeg's exit code, or None if it is still running.
+
+    discord.py calls after= before source.cleanup(), so the process handle is
+    still intact by the time we look. We check it ourselves rather than trust
+    the `error` discord.py hands us: it only sets one when ffmpeg happens to be
+    reaped before the final read of its stdout, which is a race that is lost as
+    often as it is won.
+
+    Returns None on any surprise (private attribute gone in a later discord.py),
+    which reads as "not a failure" and degrades to reporting nothing.
+    """
+    try:
+        return source._process.poll()
+    except Exception:
+        return None
+
+
+def _schedule_next_song(loop, error, source=None, stderr_sink=None):
     """`after=` callback for vc.play. Runs in discord.py's voice thread, so
     we use run_coroutine_threadsafe to bounce play_song onto the event loop.
-    The audio error (if any) is forwarded to play_song, which logs it to
-    botChannel before continuing on to the next track."""
-    asyncio.run_coroutine_threadsafe(play_song(playback_error=error), loop)
+    The failure (if any) is forwarded to play_song, which logs it to botChannel
+    before continuing on to the next track.
+
+    A non-zero exit means ffmpeg died on its own. Exit code 0 is a clean end,
+    and a still-running process means we stopped it deliberately (/music skip,
+    disconnect) - discord.py kills it in the cleanup that follows this call.
+    Only a real failure reads the sink, so ffmpeg's routine warnings stay out
+    of the channel.
+    """
+    exit_code = _ffmpeg_exit_code(source) if source is not None else None
+    if exit_code not in (None, 0):
+        failure = f"ffmpeg exited with code {exit_code}"
+    elif error is not None:
+        failure = str(error)
+    else:
+        failure = None
+
+    stderr_text = stderr_sink.text() if (failure is not None and stderr_sink is not None) else None
+    asyncio.run_coroutine_threadsafe(play_song(playback_error=failure, stderr_text=stderr_text), loop)
 
 
 # Reference: https://github.com/yt-dlp/yt-dlp/blob/aa220d0aaac0f1562af658e34a28de72ec0ecb9f/yt_dlp/YoutubeDL.py#L199
@@ -52,6 +87,40 @@ YDL_OPTIONS = {
 }
 
 FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5", "options": "-vn"}
+
+
+class FFmpegStderrSink:
+    """Captures ffmpeg's stderr instead of letting it inherit the bot's fd 2.
+
+    Without this, ffmpeg writes straight to the container log and Python never
+    sees why a stream died (e.g. a 403 on an expired song url). discord.py
+    pumps stderr into this object from a reader thread, but only when
+    .fileno() raises — so deliberately do not define it.
+
+    Only the tail is kept; ffmpeg retries on its own (see -reconnect in
+    FFMPEG_OPTIONS) and a stream that flaps for a whole song would otherwise
+    grow this without bound.
+    """
+
+    MAX_BYTES = 4096
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._buffer = bytearray()
+
+    def write(self, data: bytes) -> int:
+        """Called on discord.py's stderr reader thread, hence the lock."""
+        with self._lock:
+            self._buffer.extend(data)
+            del self._buffer[: -self.MAX_BYTES]  # no-op while under the cap
+        return len(data)
+
+    def text(self) -> str:
+        """Read from the voice thread (via vc.play's after= callback)."""
+        with self._lock:
+            return self._buffer.decode(errors="ignore").strip()
+
+
 MAX_SONGS = 1500
 LOOPDISABLED = "LOOPDISABLED"
 LOOPQUEUE = "LOOPQUEUE"
@@ -131,12 +200,13 @@ async def check_disconnect():
         await ut.botChannel.send("Error Checking Disconnect: " + str(e))
 
 
-async def play_song(playback_error=None):
+async def play_song(playback_error=None, stderr_text=None):
     """
     Plays song if previous one ends and queue is not empty.
     `playback_error` is forwarded from vc.play's after= callback when the
     previous track ended abnormally (ffmpeg/stream failure) — it is logged
-    but does not stop the chain.
+    but does not stop the chain. `stderr_text` is ffmpeg's own output for
+    that failure, captured by FFmpegStderrSink.
     """
     try:
         global sq
@@ -144,6 +214,9 @@ async def play_song(playback_error=None):
             error_embed = discord.Embed(colour=ut.embed_colour["ERROR"])
             error_embed.title = "Playback error"
             error_embed.description = str(playback_error)
+            if stderr_text:
+                # Discord caps a field value at 1024; leave room for the fence.
+                error_embed.add_field(name="ffmpeg", value=f"```{stderr_text[-900:]}```", inline=False)
             await ut.botChannel.send(embed=error_embed)
         while not await process_song(sq):
             pass
@@ -164,10 +237,9 @@ async def play_song(playback_error=None):
 
         sq.curr_song.start_time = datetime.now()
         loop = asyncio.get_running_loop()
-        vc.play(
-            FFmpegPCMAudio(sq.curr_song.song_url, **FFMPEG_OPTIONS),
-            after=lambda error: _schedule_next_song(loop, error),
-        )
+        stderr_sink = FFmpegStderrSink()  # one per song, so failures stay attributable
+        source = FFmpegPCMAudio(sq.curr_song.song_url, stderr=stderr_sink, **FFMPEG_OPTIONS)
+        vc.play(source, after=lambda error: _schedule_next_song(loop, error, source, stderr_sink))
         embed = build_now_playing_embed()
         if embed is not None:
             await ut.botChannel.send(embed=embed, delete_after=sq.curr_song.duration)

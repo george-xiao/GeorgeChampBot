@@ -91,9 +91,19 @@ def _capture_after_callback(vc_mock, monkeypatch):
     thread). We wrap that call to capture the Future it returns, so trigger can
     await the chained play_song to actual completion rather than guessing how
     many loop cycles it needs.
+
+    FFmpegPCMAudio is stubbed too, so play_song does not spawn a real ffmpeg at
+    the fake song url. Tests can assert on how it was built via
+    musicPlayer.FFmpegPCMAudio.call_args.
     """
     captured = {}
     scheduled = []
+
+    audio_source = MagicMock(name="FFmpegPCMAudio")
+    # Default: ffmpeg still running at after= time, i.e. we stopped it deliberately.
+    # Tests simulating a crash set poll.return_value to an exit code.
+    audio_source.return_value._process.poll.return_value = None
+    monkeypatch.setattr(musicPlayer, "FFmpegPCMAudio", audio_source)
 
     def _fake_play(source, *, after=None):
         captured["after"] = after
@@ -137,6 +147,112 @@ async def test_play_song_logs_playback_error(monkeypatch):
     assert titles == ["Now Playing", "Playback error"]
     assert capture.messages[0].embed["description"] == "Next Song"
     assert capture.messages[1].embed["description"] == "ffmpeg crashed"
+
+
+async def test_play_song_reports_ffmpeg_stderr(monkeypatch):
+    """Regression (ffmpeg stderr inheritance): FFmpegPCMAudio was built without a
+    stderr= sink, so ffmpeg inherited the bot's fd 2 and wrote its failures (e.g.
+    a 403 on an expired song url) straight to the container log. Nothing reached
+    Python, so the playback-error embed could only report the exit itself.
+    """
+    capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch)
+    vc_mock = _make_live_vc()
+    musicPlayer.vc = vc_mock
+    musicPlayer.sq.curr_song = make_song_item("Current Song")
+    musicPlayer.sq.queue = deque([make_song_item("Next Song")])
+
+    trigger_end = _capture_after_callback(vc_mock, monkeypatch)
+
+    await musicPlayer.play_song()
+
+    sink = musicPlayer.FFmpegPCMAudio.call_args.kwargs.get("stderr")
+    assert sink is not None, "no stderr sink — ffmpeg would inherit the bot's fd 2"
+    # discord.py only spawns its stderr reader thread when .fileno() raises;
+    # a sink carrying a real fileno silently reverts to inheriting fd 2.
+    assert not hasattr(sink, "fileno")
+
+    # Stand in for discord.py's reader thread pumping ffmpeg's bytes into the sink,
+    # and for ffmpeg having exited non-zero by the time after= fires.
+    sink.write(b"[https @ 0x55f1] HTTP error 403 Forbidden\n")
+    musicPlayer.FFmpegPCMAudio.return_value._process.poll.return_value = 1
+    await trigger_end(error=Exception("FFmpeg exited with code 1. Stderr: <no stderr>"))
+
+    error_embed = capture.messages[1].embed
+    assert error_embed["title"] == "Playback error"
+    assert "403 Forbidden" in error_embed["fields"][0]["value"]
+
+
+async def test_play_song_reports_ffmpeg_failure_without_discord_error(monkeypatch):
+    """Regression: discord.py only sets its `error` when ffmpeg is reaped before the
+    final read of its stdout — a race lost about as often as it is won. Keying the
+    report off `error` dropped the captured stderr on the losing side, leaving the
+    same silence the sink was added to fix. The exit code is the reliable signal.
+    """
+    capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch)
+    vc_mock = _make_live_vc()
+    musicPlayer.vc = vc_mock
+    musicPlayer.sq.curr_song = make_song_item("Current Song")
+    musicPlayer.sq.queue = deque([make_song_item("Next Song")])
+
+    trigger_end = _capture_after_callback(vc_mock, monkeypatch)
+
+    await musicPlayer.play_song()
+
+    musicPlayer.FFmpegPCMAudio.call_args.kwargs["stderr"].write(b"HTTP error 403 Forbidden\n")
+    musicPlayer.FFmpegPCMAudio.return_value._process.poll.return_value = 1
+    await trigger_end(error=None)  # discord.py lost the race and reported nothing
+
+    error_embed = capture.messages[1].embed
+    assert error_embed["title"] == "Playback error"
+    assert error_embed["description"] == "ffmpeg exited with code 1"
+    assert "403 Forbidden" in error_embed["fields"][0]["value"]
+
+
+async def test_play_song_skip_reports_nothing(monkeypatch):
+    """A deliberate stop (/music skip) leaves ffmpeg running until discord.py's
+    cleanup, so it must not be reported as a playback failure — even though the
+    sink may hold routine ffmpeg warnings from the song that just played.
+    """
+    capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch)
+    vc_mock = _make_live_vc()
+    musicPlayer.vc = vc_mock
+    musicPlayer.sq.curr_song = make_song_item("Current Song")
+    musicPlayer.sq.queue = deque([make_song_item("Next Song")])
+
+    trigger_end = _capture_after_callback(vc_mock, monkeypatch)
+
+    await musicPlayer.play_song()
+
+    musicPlayer.FFmpegPCMAudio.call_args.kwargs["stderr"].write(b"[mp3 @ 0x1] some benign warning\n")
+    await trigger_end(error=None)  # poll() stays None: process still alive
+
+    assert "Playback error" not in [m.embed["title"] for m in capture.messages]
+
+
+async def test_play_song_truncates_ffmpeg_stderr_to_embed_limit(monkeypatch):
+    """A flapping stream can emit far more than Discord's 1024-char field cap;
+    an oversized field would fail the send and lose the error entirely."""
+    capture = patch_bot_channel(monkeypatch)
+    stub_youtube(monkeypatch)
+    vc_mock = _make_live_vc()
+    musicPlayer.vc = vc_mock
+    musicPlayer.sq.curr_song = make_song_item("Current Song")
+    musicPlayer.sq.queue = deque([make_song_item("Next Song")])
+
+    trigger_end = _capture_after_callback(vc_mock, monkeypatch)
+
+    await musicPlayer.play_song()
+
+    sink = musicPlayer.FFmpegPCMAudio.call_args.kwargs["stderr"]
+    sink.write(b"x" * 10_000)
+    musicPlayer.FFmpegPCMAudio.return_value._process.poll.return_value = 1
+    await trigger_end(error=None)
+
+    field = capture.messages[1].embed["fields"][0]
+    assert len(field["value"]) <= 1024
 
 
 async def test_play_song_bails_when_vc_disconnected(monkeypatch):

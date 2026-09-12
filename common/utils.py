@@ -85,8 +85,8 @@ def get_role(role_name):
 # Get printable version of role that will ping role when sent as a message
 # role_name is key for env as all role_names should be stored within the .env file
 def get_role_str(role_name: str) -> str | None:
-    if role_id := get_role(env[role_name]).id:
-        return f"<@&{role_id!s}>"
+    if role := get_role(env[role_name]):
+        return f"<@&{role.id!s}>"
     else:
         print(f"Error! role_name &{env[role_name]} is missing!")
     return None

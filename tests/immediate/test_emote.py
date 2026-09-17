@@ -29,7 +29,7 @@ from tests._stubs import patch_bot_channel, patch_main_channel
 
 
 @pytest.fixture
-async def emote_event_env(seeded_emote_db, dpytest_client, monkeypatch):
+async def emote_event_env(guild, seeded_emote_db, dpytest_client, monkeypatch):
     """Adds the test emojis to `ut.guildObject.emojis` so `check_emoji` / `check_reaction`
     can match the seeded shelve entries when the test sends `<:kekw:101>`
     dpytest_client (in conftest) does the client/dispatcher wiring
@@ -257,6 +257,7 @@ async def test_on_raw_reaction_add_increments_score(emote_event_env):
     payload.emoji.animated = False
     payload.emoji.name = "pog"
     payload.emoji.id = 102
+    payload.user_id = 101  # alice — memeReview.add_meme_reactions looks the reactor up first
 
     before = emoteLeaderboard.get_emote("pog").score
     emote_event_env.dispatch("raw_reaction_add", payload)

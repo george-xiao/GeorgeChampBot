@@ -84,8 +84,11 @@ def _command_files_with_register_subcommand():
         yield path, leaf
 
 
-def test_every_registered_command_has_a_test(tree: app_commands.CommandTree) -> None:
-    missing = sorted(_walk_tree_paths(tree) - _collect_invoked_paths() - EXEMPT_COMMANDS)
+def test_every_registered_command_has_a_test(guild, tree: app_commands.CommandTree) -> None:
+    registered = _walk_tree_paths(tree)
+    assert registered, "no commands found on the tree -- the guild lookup is broken"
+
+    missing = sorted(registered - _collect_invoked_paths() - EXEMPT_COMMANDS)
     if missing:
         bullets = "\n".join(f"  - /{p}" for p in missing)
         pytest.fail(
@@ -96,7 +99,7 @@ def test_every_registered_command_has_a_test(tree: app_commands.CommandTree) -> 
         )
 
 
-def test_every_command_file_is_registered(tree: app_commands.CommandTree) -> None:
+def test_every_command_file_is_registered(guild, tree: app_commands.CommandTree) -> None:
     registered = _walk_tree_paths(tree)
     problems: list[str] = []
     for path, leaf in _command_files_with_register_subcommand():

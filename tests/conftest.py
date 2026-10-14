@@ -21,11 +21,19 @@ def tree():
     """Production command tree with all slash commands loaded. Session-scoped."""
     import discord
     from discord import app_commands
+
+    import common.utils as ut
     from commands import load_commands
 
     client = discord.Client(intents=discord.Intents.default())
     tree = app_commands.CommandTree(client)
-    load_commands(tree)
+
+    saved_guild = ut.guildObject
+    ut.guildObject = make_guild([])
+    try:
+        load_commands(tree)
+    finally:
+        ut.guildObject = saved_guild
     return tree
 
 

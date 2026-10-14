@@ -37,13 +37,8 @@ for _key, _value in _PLACEHOLDERS.items():
     os.environ.setdefault(_key, _value)
 
 
-# Install a minimal ut.guildObject so module-level imports in code that
-# evaluates ut.get_role / ut.get_member at import time (e.g.,
-# commands/admin/__init__.py creating the admin Group with default_permissions
-# derived from the admin role) succeed before per-test fixtures can fire.
 import discord  # noqa: E402
 from unittest.mock import MagicMock  # noqa: E402
-import common.utils as ut  # noqa: E402
 
 
 def make_admin_role() -> MagicMock:
@@ -88,15 +83,3 @@ def make_default_channels() -> list:
         ch.send = _refuse
         channels.append(ch)
     return channels
-
-
-if ut.guildObject is None:
-    _guild = MagicMock()
-    _guild.id = 1000
-    _guild.name = _PLACEHOLDERS["DISCORD_GUILD"]
-    _guild.members = []
-    _guild.roles = [make_admin_role(), make_movie_role(), make_welcome_role()]
-    _guild.emojis = []
-    _guild.channels = make_default_channels()
-
-    ut.guildObject = _guild

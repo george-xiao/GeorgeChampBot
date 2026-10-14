@@ -37,7 +37,7 @@ def _recent_match(match_id: int, hero_id: int = 1, won: bool = True) -> dict:
     }
 
 
-async def test_dota_recent_matches_reports_recent_game(seeded_dota_db, monkeypatch):
+async def test_dota_recent_matches_reports_recent_game(guild, seeded_dota_db, monkeypatch):
     capture = patch_channel(monkeypatch, ut.env["DOTA_CHANNEL"])
     stub_dota_api(monkeypatch, matches=[_recent_match(match_id=999001)])
 
@@ -51,7 +51,7 @@ async def test_dota_recent_matches_reports_recent_game(seeded_dota_db, monkeypat
     assert "999001" in embeds[0].embed["url"]
 
 
-async def test_dota_recent_matches_silent_when_no_recent_games(seeded_dota_db, monkeypatch):
+async def test_dota_recent_matches_silent_when_no_recent_games(guild, seeded_dota_db, monkeypatch):
     capture = patch_channel(monkeypatch, ut.env["DOTA_CHANNEL"])
     stub_dota_api(monkeypatch)  # default: returns [] for /recentMatches
 
@@ -61,7 +61,7 @@ async def test_dota_recent_matches_silent_when_no_recent_games(seeded_dota_db, m
     assert capture.messages == []
 
 
-async def test_dota_recent_matches_handles_api_returning_none(seeded_dota_db, monkeypatch):
+async def test_dota_recent_matches_handles_api_returning_none(guild, seeded_dota_db, monkeypatch):
     capture = patch_channel(monkeypatch, ut.env["DOTA_CHANNEL"])
     stub_dota_api(monkeypatch, broken=True)  # simulates API failure
 

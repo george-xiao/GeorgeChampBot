@@ -11,6 +11,7 @@ Verifies suggestion CRUD, upcoming display, movie picking, host selection, and m
 """
 
 import shelve
+from datetime import datetime, timedelta, timezone
 
 from commands.movie.add_suggestion import SuggestionModal
 from components import movieNight  # noqa: F401 — import triggers on_scheduled_event_* registration
@@ -19,7 +20,7 @@ from components.subcomponents.movieNight import upcomingMovie
 from tests._capture import CapturedMessages, make_capturing_interaction
 from tests._dispatch import invoke_slash
 from tests._factories import make_member
-from tests._stubs import patch_movie_event_missing, patch_movie_event_present
+from tests._stubs import make_scheduled_event, patch_movie_event_missing, patch_movie_event_present
 
 
 # --- /movie list-suggestions ---
@@ -215,6 +216,27 @@ async def test_movie_pick_host_no_event(db_dir, tree, guild, admin_member, monke
     )
     [msg] = capture.messages
     assert "does not exist" in msg.embed["title"].lower()
+
+
+async def test_movie_pick_host_event_date_passed(db_dir, tree, guild, admin_member, monkeypatch):
+    # A "Movie Night" event exists but its start time already passed (e.g. the
+    # weekly event wasn't rescheduled) → set_host must refuse instead of arming
+    # a pick reminder that would silently never fire.
+    patch_movie_event_present(
+        monkeypatch, event=make_scheduled_event(start_time=datetime.now(timezone.utc) - timedelta(days=1))
+    )
+    alice = make_member(101, "alice", nick="Alice the Great")
+    capture = await invoke_slash(
+        tree,
+        "admin movie pick-host",
+        admin_member,
+        guild,
+        options={"user": alice},
+    )
+    [msg] = capture.messages
+    assert "already passed" in msg.embed["title"].lower()
+    with shelve.open(upcomingMovie.UPCOMING_MOVIE_NIGHT_DB_PATH) as db:
+        assert db.get("upcoming_host_name") is None
 
 
 async def test_movie_pick_host_success(db_dir, tree, guild, admin_member, monkeypatch):

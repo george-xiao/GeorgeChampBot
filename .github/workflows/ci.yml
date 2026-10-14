@@ -1,0 +1,51 @@
+# Gate PRs on the same hooks that run on pre-push (.pre-commit-config.yaml):
+# ruff, ruff-format, and the Docker test build + pytest coverage gate.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - run: pip install pre-commit
+      - name: ruff
+        run: pre-commit run ruff --all-files --hook-stage pre-push --show-diff-on-failure
+      - name: ruff-format
+        # Run even if ruff failed, so both results show up
+        if: ${{ !cancelled() }}
+        run: pre-commit run ruff-format --all-files --hook-stage pre-push --show-diff-on-failure
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Replaces the pytest-build hook: same image and tag, but with layers cached
+      # in GitHub Actions so apt/pip only reinstall when their inputs change
+      - uses: docker/setup-buildx-action@v3
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          tags: george_champ_bot_test
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install pre-commit
+      - name: pytest
+        run: pre-commit run pytest-run --all-files --hook-stage pre-push

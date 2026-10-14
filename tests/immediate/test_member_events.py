@@ -16,7 +16,7 @@ from tests._stubs import patch_main_channel
 # --- on_member_join → welcome + assign role ---
 
 
-async def test_on_member_join_welcomes_and_assigns_role(ut_client_ready, monkeypatch):
+async def test_on_member_join_welcomes_and_assigns_role(guild, ut_client_ready, monkeypatch):
     capture = patch_main_channel(monkeypatch)
     welcome_role = ut.get_role(ut.env["WELCOME_ROLE"])
 
@@ -54,7 +54,7 @@ async def test_on_member_remove_sends_farewell(ut_client_ready, monkeypatch):
 # --- Error paths ---
 
 
-async def test_on_member_join_error_path_sends_error_message(ut_client_ready, monkeypatch):
+async def test_on_member_join_error_path_sends_error_message(guild, ut_client_ready, monkeypatch):
     capture = patch_main_channel(monkeypatch)
     welcome_role = ut.get_role(ut.env["WELCOME_ROLE"])
 

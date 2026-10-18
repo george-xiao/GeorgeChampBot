@@ -1,0 +1,27 @@
+# Run bot:      docker compose up -d --build      (logs: docker compose logs -f bot)
+# Stop bot:     docker compose down
+# All tests:    docker compose run --rm --build tests
+#               (coverage gate, fails under 90%)
+# Some tests:   docker compose run --rm --build tests pytest tests/immediate/test_meme.py -v
+#               (passing a command replaces the default, so targeted runs skip the coverage gate)
+
+services:
+  bot:
+    build:
+      context: .
+      target: prod
+    image: george_champ_bot
+    container_name: george_champ_bot_instance
+    # Secrets are passed in at runtime, never baked into the image
+    env_file: .env
+    # Bind-mounted so the database persists across rebuilds
+    volumes:
+      - ./database:/database
+
+  tests:
+    build:
+      context: .
+      target: test
+    image: george_champ_bot_test
+    # Only started when targeted explicitly (`docker compose run tests`), never by `up`
+    profiles: [test]

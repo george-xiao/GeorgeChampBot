@@ -46,8 +46,8 @@ Catch exceptions in event handlers and component functions. Return a context-spe
 Automated tests run in Docker.
 
 ```bash
-./run-tests.sh                                     # all tests
-./run-tests.sh tests/immediate/test_meme.py -v     # single feature
+docker compose run --rm --build tests                                         # all tests + coverage gate
+docker compose run --rm --build tests pytest tests/immediate/test_meme.py -v  # single feature, no coverage gate
 ```
 
 ### Testing philosophy
@@ -129,11 +129,13 @@ To bump Ruff to the latest version: `pre-commit autoupdate`.
 
 ## Update Dependencies
 
-This project uses [pip-tools](https://pip-tools.readthedocs.io/) to manage dependencies. To update dependencies:
+This project uses [uv](https://docs.astral.sh/uv/) to manage dependencies. Direct dependencies live in `pyproject.toml` (`[project] dependencies` for the bot, `[dependency-groups] test` for tests); `uv.lock` pins every package and is generated from them. Commit both.
 
 ```bash
-pip install pip-tools
-pip-compile --upgrade requirements.in
+uv lock --upgrade                    # upgrade everything
+uv lock --upgrade-package yt-dlp     # upgrade one package
+uv add <package>                     # add a bot dependency
+uv add --group test <package>        # add a test dependency
 ```
 
 ## Built With

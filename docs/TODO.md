@@ -18,6 +18,7 @@
 - [ ] Validate .env file before starting up the bot (This will enable us to catch issues during startup and not runtime this way)
 - [ ] Add small comments above all functions and methods
 - [ ] Add type hints for all functions and methods
+- [ ] After the Postgres migration removes shelve, drop Ubuntu's python3 + `python3-gdbm` from the Dockerfile and let uv manage Python (shelve files are gdbm-format; uv's Python builds lack `_gdbm`)
 
 ## Meme Review:
 
@@ -42,7 +43,8 @@
 ## Music Bot:
 
 **Features:**
-- [ ] Add cron job to run.sh to update ytdl dependency daily during off-times
+- [ ] Add cron job to update yt-dlp dependency daily during off-times
+- [ ] Consider Dependabot (uv + github-actions ecosystems) instead: daily yt-dlp PRs tested by CI, plus action version bumps
 
 **Bugs:**
 - [x] Performance issues when queueing multiple songs (maybe addressed [remove if no issues surface when using]: process_input migrated to aiogoogle, extract_info wrapped in asyncio.to_thread — event loop no longer blocks during queueing)

@@ -28,20 +28,22 @@ cd your/path/here
 
 - Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
 
-- (Windows only) Install [GitBash](https://git-scm.com/downloads) to execute shell scripts.
-
-- Start the application using the `run.sh` script. If a container exists, you'll be prompted to either restart or view logs of the running service.
+- Start the application (rebuilds only what changed):
 
 ```
-./run.sh
+docker compose up -d --build
 ```
 
-- To stop following logs, press `Ctrl+C`.
+- To follow logs, use the following command. To stop following logs, press `Ctrl+C`.
+
+```
+docker compose logs -f bot
+```
 
 - To stop GeorgeChampBot, use the following command:
 
 ```
-docker stop george_champ_bot_instance
+docker compose down
 ```
 
 ## Run Application Locally (Not Recommended)
@@ -54,16 +56,16 @@ docker stop george_champ_bot_instance
 sudo apt-get install -y python3 python3-dev python3-pip ffmpeg python3-gdbm
 ```
 
-- Then install the Python dependencies (you probably want to run this in a venv):
+- Then install the Python dependencies with [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```
-pip3 install -r requirements.txt
+uv sync
 ```
 
 - Use the following command to start the bot:
 
 ```
-python3 GeorgeChampBot.py
+uv run python GeorgeChampBot.py
 ```
 
 ## Troubleshooting
@@ -72,10 +74,10 @@ python3 GeorgeChampBot.py
 
 `yt-dlp` is known to break as Google changes things. It's a cat and mouse situation. You will need to [update dependencies](docs/DEVELOPMENT.md#update-dependencies) so that the mouse can outmaneuver the cat. 
 
-Use the following command to figure out the latest `yt-dlp` package version.
+Use the following command to bump `yt-dlp` to its latest version.
 
 ```
-pip index versions yt-dlp
+uv lock --upgrade-package yt-dlp
 ```
 
 ## Authors

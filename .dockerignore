@@ -1,19 +1,13 @@
-# Git
-.git/
-.gitignore
+# Allowlist
+*
+!pyproject.toml
+!uv.lock
+!GeorgeChampBot.py
+!common/
+!commands/
+!components/
+!tests/
+!.env.template
 
-# Database (mounted separately)
-database/
-
-# Documentation
-README.md
-CLAUDE.md
-
-# Development files
-requirements.in
-*.pyc
-__pycache__/
-
-# IDE
-.vscode/
-.idea/
+**/__pycache__/
+**/*.pyc

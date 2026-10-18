@@ -38,7 +38,7 @@ show_missing = true
 [tool.ruff]
 target-version = "py310"
 line-length = 120
-extend-exclude = ["database", "tests/snapshots"]
+extend-exclude = ["database"]
 
 # Defaults (E4, E7, E9, F) plus high-signal extras. See docs/TODO.md for
 # rule groups we deliberately left out for a future expansion pass.

@@ -1,21 +1,12 @@
-# Git
-.git/
-.gitignore
+# Allowlist
+*
+!pyproject.toml
+!uv.lock
+!GeorgeChampBot.py
+!common/
+!commands/
+!components/
+!tests/
 
-# Secrets (passed at runtime via compose env_file)
-.env
-
-# Database (mounted separately)
-database/
-
-# Documentation
-README.md
-.claude/
-
-# Development files
-*.pyc
-__pycache__/
-
-# IDE
-.vscode/
-.idea/
+**/__pycache__/
+**/*.pyc

@@ -44,6 +44,7 @@
 
 **Features:**
 - [ ] Add cron job to update yt-dlp dependency daily during off-times
+- [ ] Consider Dependabot (uv + github-actions ecosystems) instead: daily yt-dlp PRs tested by CI, plus action version bumps
 
 **Bugs:**
 - [x] Performance issues when queueing multiple songs (maybe addressed [remove if no issues surface when using]: process_input migrated to aiogoogle, extract_info wrapped in asyncio.to_thread — event loop no longer blocks during queueing)

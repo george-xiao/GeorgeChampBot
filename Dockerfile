@@ -16,7 +16,7 @@ FROM base AS test
 COPY ./requirements-test.txt ./
 RUN pip3 install -r requirements-test.txt
 
-COPY ./pytest.ini ./
+COPY ./pyproject.toml ./
 COPY ./GeorgeChampBot.py ./
 COPY ./common ./common
 COPY ./commands ./commands

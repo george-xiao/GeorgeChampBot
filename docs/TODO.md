@@ -43,7 +43,7 @@
 ## Music Bot:
 
 **Features:**
-- [ ] Add cron job to run.sh to update ytdl dependency daily during off-times
+- [ ] Add cron job to update yt-dlp dependency daily during off-times
 
 **Bugs:**
 - [x] Performance issues when queueing multiple songs (maybe addressed [remove if no issues surface when using]: process_input migrated to aiogoogle, extract_info wrapped in asyncio.to_thread — event loop no longer blocks during queueing)

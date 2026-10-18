@@ -46,8 +46,8 @@ Catch exceptions in event handlers and component functions. Return a context-spe
 Automated tests run in Docker.
 
 ```bash
-./run-tests.sh                                     # all tests
-./run-tests.sh tests/immediate/test_meme.py -v     # single feature
+docker compose run --rm --build tests                                         # all tests + coverage gate
+docker compose run --rm --build tests pytest tests/immediate/test_meme.py -v  # single feature, no coverage gate
 ```
 
 ### Testing philosophy

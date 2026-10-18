@@ -10,9 +10,9 @@ GeorgeChampBot is a Python Discord bot built with discord.py. Features include m
 
 **Docker (recommended):**
 ```bash
-./run.sh                                # run bot (Docker)
-./run-tests.sh                          # all tests
-./run-tests.sh tests/immediate/test_meme.py -v    # single feature
+docker compose up -d --build                                                  # run bot
+docker compose run --rm --build tests                                         # all tests + coverage gate
+docker compose run --rm --build tests pytest tests/immediate/test_meme.py -v  # single feature
 ```
 
 ## Architecture

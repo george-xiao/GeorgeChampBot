@@ -29,7 +29,7 @@ trigger fires
 2. Does tests/immediate/test_<feature>.py contain a test that invokes this command via `invoke_slash(tree, "<feature> <name>", ...)`?
       no  → Sub-flow A
       yes → continue
-3. Run the relevant tests: ./run-tests.sh tests/immediate/test_<feature>.py -v
+3. Run the relevant tests: docker compose run --rm --build tests pytest tests/immediate/test_<feature>.py -v
       pass → done.
       fail → Sub-flow B
 ```
@@ -46,7 +46,7 @@ Key steps:
 3. If creating a new test file, include a one-line docstring describing what's tested.
 4. Assert on observable behavior (response substrings, DB state, embed fields).
 5. Test the error path: stub the dependency to raise, assert the response contains an error string (e.g. `"Error fetching .."`). This ensures the pure function has try/except handling.
-6. Run: `./run-tests.sh tests/immediate/test_<feature>.py::test_<name> -v`
+6. Run: `docker compose run --rm --build tests pytest tests/immediate/test_<feature>.py::test_<name> -v`
 7. Show the user the output. If it fails, ask whether the assertion or the code is wrong.
 
 For tricky cases (Member params, external APIs, modals, multiple messages), check existing tests:
@@ -69,6 +69,6 @@ A previously-passing test is now failing.
 
 - `commands/<feature>/<name>.py` -> test file: `tests/immediate/test_<feature>.py`
 - `components/<module>.py` -> grep `commands/` for imports of the changed function
-- `tests/_capture.py`/ `tests/_dispatch.py` / `tests/_factories.py` -> run full suite: `./run-tests.sh -v`
+- `tests/_capture.py`/ `tests/_dispatch.py` / `tests/_factories.py` -> run full suite: `docker compose run --rm --build tests pytest -v`
 
 If unsure which commands are affected, run the full suite. It's fast (under 2 seconds).

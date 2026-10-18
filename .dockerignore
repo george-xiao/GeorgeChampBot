@@ -7,7 +7,7 @@ database/
 
 # Documentation
 README.md
-CLAUDE.md
+.claude/
 
 # Development files
 *.pyc

@@ -28,8 +28,11 @@ COPY ./commands ./commands
 COPY ./components ./components
 COPY ./tests ./tests
 
-# Fallback default; run-tests.sh overrides this to forward "$@" to pytest.
-CMD ["python3", "-m", "pytest", "-v"]
+# Full run + coverage gate (single source for compose, pre-commit and CI).
+# Passing a command (e.g. `pytest tests/x.py`) replaces this, skipping the gate for targeted runs.
+CMD ["python3", "-m", "pytest", \
+     "--cov=common", "--cov=commands", "--cov=components", "--cov=GeorgeChampBot", \
+     "--cov-report=term-missing", "--cov-fail-under=90"]
 
 
 # Copy source files

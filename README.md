@@ -28,20 +28,22 @@ cd your/path/here
 
 - Install [Docker](https://docs.docker.com/engine/install/) based on the platform the bot will run on.
 
-- (Windows only) Install [GitBash](https://git-scm.com/downloads) to execute shell scripts.
-
-- Start the application using the `run.sh` script. If a container exists, you'll be prompted to either restart or view logs of the running service.
+- Start the application (rebuilds only what changed):
 
 ```
-./run.sh
+docker compose up -d --build
 ```
 
-- To stop following logs, press `Ctrl+C`.
+- To follow logs, use the following command. To stop following logs, press `Ctrl+C`.
+
+```
+docker compose logs -f bot
+```
 
 - To stop GeorgeChampBot, use the following command:
 
 ```
-docker stop george_champ_bot_instance
+docker compose down
 ```
 
 ## Run Application Locally (Not Recommended)

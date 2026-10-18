@@ -31,3 +31,43 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+
+      - id: prod-build
+        name: prod build (docker)
+        entry: docker
+        args: [build, --target, prod, -t, george_champ_bot, .]
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: prod-smoke
+        name: prod smoke test (docker)
+        entry: docker
+        # Real GeorgeChampBot.py with an invalid token; passes once Discord rejects the login.
+        # Needs network; push offline with `SKIP=prod-smoke git push`.
+        args:
+          - run
+          - --rm
+          - -e
+          - DISCORD_TOKEN=invalid
+          - -e
+          - ANNOUNCEMENT_DAY=0
+          - -e
+          - ANNOUNCEMENT_HOUR=0
+          - -e
+          - ANNOUNCEMENT_MIN=0
+          - george_champ_bot
+          - python3
+          - -c
+          - |
+            import runpy, sys, discord
+            try:
+                runpy.run_path("GeorgeChampBot.py", run_name="__main__")
+            except discord.LoginFailure:
+                sys.exit(0)
+            sys.exit(1)
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

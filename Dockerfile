@@ -29,6 +29,7 @@ COPY ./common ./common
 COPY ./commands ./commands
 COPY ./components ./components
 COPY ./tests ./tests
+COPY ./.env.template ./
 
 # Full run + coverage gate (settings in pyproject.toml [tool.coverage]).
 # Passing a command (e.g. `pytest tests/x.py`) replaces this, skipping the gate for targeted runs.

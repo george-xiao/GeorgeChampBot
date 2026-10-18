@@ -7,6 +7,7 @@
 !commands/
 !components/
 !tests/
+!.env.template
 
 **/__pycache__/
 **/*.pyc

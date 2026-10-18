@@ -18,6 +18,7 @@
 - [ ] Validate .env file before starting up the bot (This will enable us to catch issues during startup and not runtime this way)
 - [ ] Add small comments above all functions and methods
 - [ ] Add type hints for all functions and methods
+- [ ] After the Postgres migration removes shelve, drop Ubuntu's python3 + `python3-gdbm` from the Dockerfile and let uv manage Python (shelve files are gdbm-format; uv's Python builds lack `_gdbm`)
 
 ## Meme Review:
 

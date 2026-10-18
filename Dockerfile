@@ -6,17 +6,22 @@ RUN apt-get update && apt-get install -y \
     ffmpeg python3-gdbm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY ./requirements.txt ./
-RUN pip3 install -r requirements.txt
+# Install Python dependencies from uv.lock into a venv built on the system python3
+# (system python is required: shelve needs python3-gdbm from apt)
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
+ENV PATH="/opt/venv/bin:$PATH"
+COPY ./pyproject.toml ./uv.lock ./
+RUN uv sync --frozen --no-install-project
 
 # Copy test source files
 FROM base AS test
 
-COPY ./requirements-test.txt ./
-RUN pip3 install -r requirements-test.txt
+RUN uv sync --frozen --no-install-project --group test
 
-COPY ./pyproject.toml ./
 COPY ./GeorgeChampBot.py ./
 COPY ./common ./common
 COPY ./commands ./commands

@@ -1,3 +1,28 @@
+[project]
+name = "georgechampbot"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "discord.py>=2.7,<3.0",
+    "davey>=0.1.5",
+    "python-dotenv>=0.21.0",
+    "emoji>=1.7.0",
+    "aiogoogle>=5.0",
+    "yt-dlp>=2026.1.1",
+    "PyNaCl>=1.5.0",
+    "isodate>=0.6.1",
+    "pytz>=2024.1",
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=7.0",
+    "dpytest>=0.7",
+    "looptime>=0.7",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

@@ -54,16 +54,16 @@ docker stop george_champ_bot_instance
 sudo apt-get install -y python3 python3-dev python3-pip ffmpeg python3-gdbm
 ```
 
-- Then install the Python dependencies (you probably want to run this in a venv):
+- Then install the Python dependencies with [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```
-pip3 install -r requirements.txt
+uv sync
 ```
 
 - Use the following command to start the bot:
 
 ```
-python3 GeorgeChampBot.py
+uv run python GeorgeChampBot.py
 ```
 
 ## Troubleshooting
@@ -72,10 +72,10 @@ python3 GeorgeChampBot.py
 
 `yt-dlp` is known to break as Google changes things. It's a cat and mouse situation. You will need to [update dependencies](docs/DEVELOPMENT.md#update-dependencies) so that the mouse can outmaneuver the cat. 
 
-Use the following command to figure out the latest `yt-dlp` package version.
+Use the following command to bump `yt-dlp` to its latest version.
 
 ```
-pip index versions yt-dlp
+uv lock --upgrade-package yt-dlp
 ```
 
 ## Authors

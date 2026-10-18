@@ -10,7 +10,6 @@ README.md
 CLAUDE.md
 
 # Development files
-requirements.in
 *.pyc
 __pycache__/
 

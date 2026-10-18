@@ -27,6 +27,14 @@ test = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+# Used by `pytest --cov`
+[tool.coverage.run]
+source = ["common", "commands", "components", "GeorgeChampBot"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+
 [tool.ruff]
 target-version = "py310"
 line-length = 120

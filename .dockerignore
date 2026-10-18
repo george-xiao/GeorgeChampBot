@@ -2,6 +2,9 @@
 .git/
 .gitignore
 
+# Secrets (passed at runtime via compose env_file)
+.env
+
 # Database (mounted separately)
 database/
 
